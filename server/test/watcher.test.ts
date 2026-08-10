@@ -67,7 +67,9 @@ describe("FsWatcher", () => {
     await scheduler.runScan(dir);
     expect(sessionCount()).toBe(1);
 
-    watcher = new FsWatcher(scheduler, dir, { debounceMs: 50 });
+    // pollMs backstop: FSEvents latency is unbounded under load (production
+    // uses the same watch-fast-path + poll-fallback combination)
+    watcher = new FsWatcher(scheduler, dir, { debounceMs: 50, pollMs: 200 });
     watcher.start();
     appendFileSync(file, sessionLine("w-2", "second message"));
     await waitFor(
@@ -76,7 +78,7 @@ describe("FsWatcher", () => {
   });
 
   test("events during a running scan trigger a follow-up scan", async () => {
-    watcher = new FsWatcher(scheduler, dir, { debounceMs: 10 });
+    watcher = new FsWatcher(scheduler, dir, { debounceMs: 10, pollMs: 200 });
     watcher.start();
     // burst of writes: some land while the first scan is running
     for (let i = 0; i < 5; i++) {

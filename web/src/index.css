@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Anthropic-flavored warm palette: cream ground, terracotta accent. */
+:root {
+  color-scheme: light;
+  --bg: #faf9f5;
+  --bg-side: #f0eee6;
+  --panel: #ffffff;
+  --hover: #e8e6dc;
+  --ink: #141413;
+  --muted: #73726c;
+  --line: #e3e1d7;
+  --accent: #c9683f;
+  --accent-strong: #b45230;
+  --accent-soft: #f6e8df;
+  --ok: #6d7f5f;
+  --danger: #ab3a2c;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #262624;
+  --bg-side: #1f1e1c;
+  --panel: #2e2d2a;
+  --hover: #3a3834;
+  --ink: #f0eee6;
+  --muted: #a3a094;
+  --line: #3d3b36;
+  --accent: #d97757;
+  --accent-strong: #e08a6d;
+  --accent-soft: #41332c;
+  --ok: #93a583;
+  --danger: #d47b6e;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-side: var(--bg-side);
+  --color-panel: var(--panel);
+  --color-hover: var(--hover);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --font-sans:
+    ui-sans-serif, -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-brand: ui-serif, Georgia, "Times New Roman", "Songti SC", serif;
+}
+
+body {
+  @apply bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

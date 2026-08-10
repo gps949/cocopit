@@ -1,19 +1,24 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Layout } from "./components/Layout";
+import { Placeholder } from "./pages/Placeholder";
+import { System } from "./pages/System";
 
 export function App() {
-  const [status, setStatus] = useState("loading...");
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data: { version: string }) => setStatus(`server v${data.version}`))
-      .catch(() => setStatus("offline"));
-  }, []);
-
   return (
-    <div>
-      <h1>ccockpit</h1>
-      <p>{status}</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Placeholder title="仪表盘" phase="Phase 1" />} />
+          <Route path="/profiles" element={<Placeholder title="账户" phase="Phase 2" />} />
+          <Route path="/projects" element={<Placeholder title="项目" phase="Phase 3" />} />
+          <Route path="/sessions" element={<Placeholder title="会话" phase="Phase 3" />} />
+          <Route path="/live" element={<Placeholder title="实时" phase="Phase 3" />} />
+          <Route path="/config" element={<Placeholder title="配置" phase="Phase 4" />} />
+          <Route path="/system" element={<System />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
