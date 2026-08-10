@@ -4,8 +4,9 @@ import { loadConfig } from "./config";
 import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
 import { SseHub } from "./http/sse";
-import { IndexScheduler } from "./indexer/scheduler";
+import { IndexScheduler, type ScanSource } from "./indexer/scheduler";
 import { FsWatcher } from "./indexer/watcher";
+import { loadProfiles } from "./profiles/registry";
 import { healthHandler } from "./routes/health";
 import { registerPricingRoutes } from "./routes/pricing";
 import { registerUsageRoutes } from "./routes/usage";
@@ -55,6 +56,16 @@ export interface ServerDeps {
   claudeDir?: string;
   /** Path to the global ~/.claude.json (read-only; calibration source). */
   claudeJsonPath?: string;
+  /** Scan sources; defaults to the single default profile on claudeDir. */
+  sources?: ScanSource[];
+}
+
+/** All registered profiles as scan sources (default profile → claudeDir). */
+export function profileScanSources(claudeDir: string): ScanSource[] {
+  return loadProfiles().map((profile) => ({
+    profileId: profile.id,
+    dir: profile.configDir ?? claudeDir,
+  }));
 }
 
 export function createServer(port?: number, deps: ServerDeps = {}) {
@@ -80,7 +91,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
       if (full) {
         for (const table of INDEXED_TABLES) db.run(`DELETE FROM ${table}`);
       }
-      void scheduler.runScan(claudeDir);
+      void scheduler.runScan(deps.sources ?? profileScanSources(claudeDir));
       return Response.json({ started: true }, { status: 202 });
     });
   }
@@ -110,12 +121,13 @@ if (import.meta.main) {
   const db = openIndexDb();
   const scheduler = new IndexScheduler(db);
   const hub = new SseHub();
-  const server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir });
+  const sources = profileScanSources(config.claudeDir);
+  const server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir, sources });
   console.log(`listening on http://${server.hostname}:${server.port}`);
-  scheduler.runScan(config.claudeDir).then((summary) => {
+  scheduler.runScan(sources).then((summary) => {
     console.log(
       `index scan: ${summary.workItems} files, ${summary.errors} errors, ${(summary.durationMs / 1000).toFixed(1)}s`,
     );
   });
-  new FsWatcher(scheduler, config.claudeDir).start();
+  new FsWatcher(scheduler, sources).start();
 }

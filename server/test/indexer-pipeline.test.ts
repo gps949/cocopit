@@ -105,11 +105,17 @@ const userC = {
 };
 
 let dir: string;
+let workDir: string;
 let db: Database;
 let scheduler: IndexScheduler;
 let aaaPath: string;
 let bbbPath: string;
 const events: IndexStatus[] = [];
+
+const sources = () => [
+  { profileId: "default", dir },
+  { profileId: "work", dir: workDir },
+];
 
 const AAA_COMPLETE = l(userA) + l(asstA) + l(titleA) + BROKEN_LINE;
 const AAA_CONTENT = AAA_COMPLETE + TRUNC_HEAD;
@@ -136,6 +142,22 @@ beforeAll(() => {
   writeFileSync(bbbPath, l(userB) + l(asstB));
   writeFileSync(join(p2, "s-ccc.jsonl"), l(commandNoiseC) + l(userC));
 
+  // a second profile's config dir with its own project/session
+  workDir = mkdtempSync(join(tmpdir(), "ccockpit-pipeline-work-"));
+  const wp = join(workDir, "projects", "-wp1");
+  mkdirSync(wp, { recursive: true });
+  writeFileSync(
+    join(wp, "s-work.jsonl"),
+    l({
+      uuid: "uw1",
+      sessionId: "s-work",
+      timestamp: T1,
+      cwd: "/tmp/workproj",
+      type: "user",
+      message: { role: "user", content: "work profile session" },
+    }),
+  );
+
   db = openDb(":memory:");
   applyMigrations(db);
   scheduler = new IndexScheduler(db, { workers: 2 });
@@ -146,6 +168,7 @@ beforeAll(() => {
 
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(workDir, { recursive: true, force: true });
 });
 
 function count(sql: string, ...params: unknown[]): number {
@@ -154,8 +177,8 @@ function count(sql: string, ...params: unknown[]): number {
 
 describe("index pipeline", () => {
   test("full scan indexes sessions, messages, usage, tools, subagents, fts, errors", async () => {
-    const summary = await scheduler.runScan(dir);
-    expect(summary.workItems).toBe(4); // 3 sessions + 1 subagent
+    const summary = await scheduler.runScan(sources());
+    expect(summary.workItems).toBe(5); // 3 default sessions + 1 subagent + 1 work-profile session
 
     const aaa = db.prepare("SELECT * FROM sessions WHERE id = 's-aaa'").get() as Record<string, unknown>;
     expect(aaa.line_count).toBe(4); // truncated tail not consumed
@@ -184,8 +207,13 @@ describe("index pipeline", () => {
     const ccc = db.prepare("SELECT * FROM sessions WHERE id = 's-ccc'").get() as Record<string, unknown>;
     expect(ccc.title).toBe("test c");
 
-    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(3);
-    expect(count("SELECT COUNT(*) AS n FROM projects")).toBe(2);
+    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(4);
+    expect(count("SELECT COUNT(*) AS n FROM projects")).toBe(3);
+    const workProject = db
+      .prepare("SELECT * FROM projects WHERE profile_id = 'work'")
+      .get() as Record<string, unknown>;
+    expect(workProject.dir_name).toBe("-wp1");
+    expect(workProject.cwd).toBe("/tmp/workproj");
     const p1 = db.prepare("SELECT * FROM projects WHERE dir_name = '-p1'").get() as Record<string, unknown>;
     expect(p1.cwd).toBe("/Users/x/proj-a");
 
@@ -268,7 +296,7 @@ describe("index pipeline", () => {
     };
     appendFileSync(aaaPath, TRUNC_TAIL + "\n" + l(newAsst));
 
-    const summary = await scheduler.runScan(dir);
+    const summary = await scheduler.runScan(sources());
     expect(summary.workItems).toBe(1);
 
     const aaa = db.prepare("SELECT * FROM sessions WHERE id = 's-aaa'").get() as Record<string, unknown>;
@@ -292,7 +320,7 @@ describe("index pipeline", () => {
 
   test("shrunk file reparses cleanly", async () => {
     writeFileSync(bbbPath, l(userB)); // drop the assistant line
-    const summary = await scheduler.runScan(dir);
+    const summary = await scheduler.runScan(sources());
     expect(summary.workItems).toBe(1);
 
     const bbb = db.prepare("SELECT * FROM sessions WHERE id = 's-bbb'").get() as Record<string, unknown>;
@@ -306,7 +334,7 @@ describe("index pipeline", () => {
   });
 
   test("status flips to scanning synchronously on runScan (no idle race window)", async () => {
-    const promise = scheduler.runScan(dir);
+    const promise = scheduler.runScan(sources());
     // before any await resolves, a status probe must not report the stale idle
     expect(scheduler.status.phase).toBe("scanning");
     await promise;
@@ -315,7 +343,7 @@ describe("index pipeline", () => {
 
   test("second scan with no changes is a no-op", async () => {
     const before = count("SELECT COUNT(*) AS n FROM messages");
-    const summary = await scheduler.runScan(dir);
+    const summary = await scheduler.runScan(sources());
     expect(summary.workItems).toBe(0);
     expect(count("SELECT COUNT(*) AS n FROM messages")).toBe(before);
   });

@@ -250,17 +250,17 @@ export class Ingestor {
         this.#db
           .prepare(
             `INSERT INTO projects (profile_id, dir_name, cwd, first_ts, last_ts)
-             VALUES ('default', $dir, $cwd, $first, $last)
+             VALUES ($profileId, $dir, $cwd, $first, $last)
              ON CONFLICT(profile_id, dir_name) DO UPDATE SET
                cwd = COALESCE(excluded.cwd, projects.cwd),
                first_ts = COALESCE(MIN(projects.first_ts, excluded.first_ts), projects.first_ts, excluded.first_ts),
                last_ts = COALESCE(MAX(projects.last_ts, excluded.last_ts), projects.last_ts, excluded.last_ts)`,
           )
-          .run({ $dir: task.projectDirName, $cwd: agg.cwd, $first: agg.firstTs, $last: agg.lastTs });
+          .run({ $profileId: task.profileId, $dir: task.projectDirName, $cwd: agg.cwd, $first: agg.firstTs, $last: agg.lastTs });
         const projectId = (
           this.#db
-            .prepare("SELECT id FROM projects WHERE profile_id = 'default' AND dir_name = $dir")
-            .get({ $dir: task.projectDirName }) as { id: number }
+            .prepare("SELECT id FROM projects WHERE profile_id = $profileId AND dir_name = $dir")
+            .get({ $profileId: task.profileId, $dir: task.projectDirName }) as { id: number }
         ).id;
 
         const title =
@@ -346,9 +346,13 @@ export class Ingestor {
             $mtime: task.mtimeMs,
             $parsed: consumedBytes,
           });
+        // the parent session may have finished before this subagent's usage
+        // landed — refresh its rollups either way
         this.#db
           .prepare(
-            `UPDATE sessions SET subagent_count = (SELECT COUNT(*) FROM subagents WHERE session_id = $sid)
+            `UPDATE sessions SET
+               subagent_count = (SELECT COUNT(*) FROM subagents WHERE session_id = $sid),
+               cost_usd = (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $sid)
              WHERE id = $sid`,
           )
           .run({ $sid: task.sessionId });

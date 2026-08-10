@@ -29,7 +29,7 @@ beforeAll(() => {
   db = openDb(":memory:");
   applyMigrations(db);
   db.run("INSERT INTO projects (id, profile_id, dir_name, cwd) VALUES (1, 'default', '-p1', '/tmp/p1')");
-  db.run("INSERT INTO projects (id, profile_id, dir_name, cwd) VALUES (2, 'default', '-p2', '/tmp/p2')");
+  db.run("INSERT INTO projects (id, profile_id, dir_name, cwd) VALUES (2, 'work', '-p2', '/tmp/p2')");
   db.run("INSERT INTO sessions (id, project_id, file_path, last_ts) VALUES ('s1', 1, '/x/s1.jsonl', 1)");
   db.run("INSERT INTO sessions (id, project_id, file_path, last_ts) VALUES ('s2', 2, '/x/s2.jsonl', 2)");
   const ins = db.prepare(
@@ -136,6 +136,19 @@ describe("usage aggregation routes", () => {
     const p1 = p.projects.find((x: any) => x.cwd === "/tmp/p1");
     expect(p1.costUsd).toBeCloseTo(0.08, 10);
     expect(p1.events).toBe(2);
+  });
+
+  test("by-profile groups and profile filter narrows", async () => {
+    const bp = await get("/api/usage/by-profile");
+    const work = bp.profiles.find((x: any) => x.profileId === "work");
+    expect(work.events).toBe(2);
+    expect(work.costUsd).toBeCloseTo(0.001, 10);
+    const dflt = bp.profiles.find((x: any) => x.profileId === "default");
+    expect(dflt.costUsd).toBeCloseTo(0.08, 10);
+
+    const filtered = await get("/api/usage/summary?profileId=work");
+    expect(filtered.events).toBe(2);
+    expect(filtered.costUsd).toBeCloseTo(0.001, 10);
   });
 
   test("heatmap has weekday × hour cells", async () => {

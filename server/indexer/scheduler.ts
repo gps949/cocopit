@@ -20,6 +20,15 @@ export interface SchedulerOptions {
   pricing?: IngestPricing;
 }
 
+export interface ScanSource {
+  profileId: string;
+  dir: string;
+}
+
+function normalizeSources(input: string | ScanSource[]): ScanSource[] {
+  return typeof input === "string" ? [{ profileId: "default", dir: input }] : input;
+}
+
 const EMIT_INTERVAL_MS = 500;
 
 function idleStatus(): IndexStatus {
@@ -72,21 +81,23 @@ export class IndexScheduler extends EventTarget {
   }
 
   /** Only one scan at a time; a re-entrant call joins the running scan. */
-  runScan(claudeDir: string): Promise<ScanSummary> {
+  runScan(input: string | ScanSource[]): Promise<ScanSummary> {
     if (this.#running) return this.#running;
     // flip synchronously so a status probe right after the call never sees the
     // previous scan's idle/pct=1 while file enumeration is still underway
     this.#status = { ...idleStatus(), phase: "scanning", startedAt: Date.now() };
     this.#emit(true);
-    this.#running = this.#doScan(claudeDir).finally(() => {
+    this.#running = this.#doScan(normalizeSources(input)).finally(() => {
       this.#running = null;
     });
     return this.#running;
   }
 
-  async #doScan(claudeDir: string): Promise<ScanSummary> {
+  async #doScan(sources: ScanSource[]): Promise<ScanSummary> {
     const t0 = performance.now();
-    const tasks = await listClaudeFiles(claudeDir);
+    const tasks = (
+      await Promise.all(sources.map((source) => listClaudeFiles(source.dir, source.profileId)))
+    ).flat();
     const work = computeWork(this.#db, tasks);
     const bytesTotal = work.reduce((n, w) => n + Math.max(0, w.task.size - w.startOffset), 0);
 

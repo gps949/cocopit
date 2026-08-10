@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 export interface FileTask {
   kind: "session" | "subagent";
+  profileId: string;
   path: string;
   projectDirName: string;
   sessionId: string;
@@ -31,7 +32,7 @@ async function fileTask(base: Omit<FileTask, "size" | "mtimeMs">): Promise<FileT
 }
 
 /** Read-only enumeration of all session and subagent JSONL files under claudeDir. */
-export async function listClaudeFiles(claudeDir: string): Promise<FileTask[]> {
+export async function listClaudeFiles(claudeDir: string, profileId = "default"): Promise<FileTask[]> {
   const tasks: FileTask[] = [];
   const projectsDir = join(claudeDir, "projects");
 
@@ -43,6 +44,7 @@ export async function listClaudeFiles(claudeDir: string): Promise<FileTask[]> {
       if (entry.isFile() && entry.name.endsWith(".jsonl")) {
         const task = await fileTask({
           kind: "session",
+          profileId,
           path: join(projectDir, entry.name),
           projectDirName: project.name,
           sessionId: entry.name.slice(0, -".jsonl".length),
@@ -55,6 +57,7 @@ export async function listClaudeFiles(claudeDir: string): Promise<FileTask[]> {
           if (!match) continue;
           const task = await fileTask({
             kind: "subagent",
+            profileId,
             path: join(subagentsDir, sub.name),
             projectDirName: project.name,
             sessionId: entry.name,

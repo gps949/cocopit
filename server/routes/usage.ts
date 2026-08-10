@@ -7,6 +7,7 @@ interface UsageFilter {
   where: string;
   params: Record<string, string | number>;
   joinSessions: boolean;
+  joinProjects: boolean;
 }
 
 /** Shared query-string filters: from/to (epoch ms), project (id), model. */
@@ -14,6 +15,7 @@ function parseFilter(url: URL): UsageFilter {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
   let joinSessions = false;
+  let joinProjects = false;
 
   const from = url.searchParams.get("from");
   if (from) {
@@ -36,11 +38,21 @@ function parseFilter(url: URL): UsageFilter {
     params.$project = Number(project);
     joinSessions = true;
   }
-  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params, joinSessions };
+  const profileId = url.searchParams.get("profileId");
+  if (profileId) {
+    clauses.push("p.profile_id = $profileId");
+    params.$profileId = profileId;
+    joinSessions = true;
+    joinProjects = true;
+  }
+  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params, joinSessions, joinProjects };
 }
 
 function usageFrom(filter: UsageFilter): string {
-  return filter.joinSessions ? "usage_events u JOIN sessions s ON s.id = u.session_id" : "usage_events u";
+  let from = "usage_events u";
+  if (filter.joinSessions) from += " JOIN sessions s ON s.id = u.session_id";
+  if (filter.joinProjects) from += " JOIN projects p ON p.id = s.project_id";
+  return from;
 }
 
 export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath: string): void {
@@ -129,6 +141,24 @@ export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath
       )
       .all(filter.params);
     return Response.json({ projects });
+  });
+
+  router.register("GET", "/api/usage/by-profile", (req) => {
+    const filter = parseFilter(new URL(req.url));
+    const profiles = db
+      .prepare(
+        `SELECT p.profile_id AS profileId,
+                COALESCE(SUM(u.cost_usd), 0) AS costUsd,
+                SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_w5m_tokens + u.cache_w1h_tokens) AS tokens,
+                COUNT(*) AS events
+         FROM usage_events u
+         JOIN sessions s ON s.id = u.session_id
+         JOIN projects p ON p.id = s.project_id
+         ${filter.where}
+         GROUP BY p.profile_id ORDER BY costUsd DESC`,
+      )
+      .all(filter.params);
+    return Response.json({ profiles });
   });
 
   router.register("GET", "/api/usage/cache-efficiency", (req) => {

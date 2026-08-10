@@ -15,6 +15,7 @@ beforeEach(() => {
 function sessionTask(overrides: Partial<FileTask> = {}): FileTask {
   return {
     kind: "session",
+    profileId: "default",
     path: "/fake/projects/-p1/s1.jsonl",
     projectDirName: "-p1",
     sessionId: "s1",
@@ -102,6 +103,7 @@ describe("computeWork", () => {
     ).run();
     const unchanged: FileTask = {
       kind: "subagent",
+      profileId: "default",
       path: "/fake/projects/-p1/s1/subagents/agent-a1.jsonl",
       projectDirName: "-p1",
       sessionId: "s1",

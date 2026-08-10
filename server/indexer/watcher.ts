@@ -1,6 +1,6 @@
 import { watch, type FSWatcher as NodeFsWatcher } from "node:fs";
 import { join } from "node:path";
-import type { IndexScheduler } from "./scheduler";
+import type { IndexScheduler, ScanSource } from "./scheduler";
 
 export interface FsWatcherOptions {
   debounceMs?: number;
@@ -17,20 +17,20 @@ export interface FsWatcherOptions {
  */
 export class FsWatcher {
   #scheduler: IndexScheduler;
-  #claudeDir: string;
+  #sources: ScanSource[];
   #debounceMs: number;
   #pollMs: number;
   #disableWatch: boolean;
-  #watcher: NodeFsWatcher | null = null;
+  #watchers: NodeFsWatcher[] = [];
   #debounceTimer: ReturnType<typeof setTimeout> | null = null;
   #pollTimer: ReturnType<typeof setInterval> | null = null;
   #scanning = false;
   #dirty = false;
   #stopped = true;
 
-  constructor(scheduler: IndexScheduler, claudeDir: string, opts: FsWatcherOptions = {}) {
+  constructor(scheduler: IndexScheduler, input: string | ScanSource[], opts: FsWatcherOptions = {}) {
     this.#scheduler = scheduler;
-    this.#claudeDir = claudeDir;
+    this.#sources = typeof input === "string" ? [{ profileId: "default", dir: input }] : input;
     this.#debounceMs = opts.debounceMs ?? 500;
     this.#pollMs = opts.pollMs ?? 5 * 60_000;
     this.#disableWatch = opts.disableWatch ?? false;
@@ -40,12 +40,14 @@ export class FsWatcher {
     if (!this.#stopped) return;
     this.#stopped = false;
     if (!this.#disableWatch) {
-      try {
-        this.#watcher = watch(join(this.#claudeDir, "projects"), { recursive: true }, () =>
-          this.#onEvent(),
-        );
-      } catch {
-        // projects dir missing or watch unsupported — the poll fallback covers us
+      for (const source of this.#sources) {
+        try {
+          this.#watchers.push(
+            watch(join(source.dir, "projects"), { recursive: true }, () => this.#onEvent()),
+          );
+        } catch {
+          // projects dir missing or watch unsupported — the poll fallback covers us
+        }
       }
     }
     this.#pollTimer = setInterval(() => this.#kick(), this.#pollMs);
@@ -53,8 +55,8 @@ export class FsWatcher {
 
   stop(): void {
     this.#stopped = true;
-    this.#watcher?.close();
-    this.#watcher = null;
+    for (const watcher of this.#watchers) watcher.close();
+    this.#watchers = [];
     if (this.#debounceTimer) {
       clearTimeout(this.#debounceTimer);
       this.#debounceTimer = null;
@@ -81,7 +83,7 @@ export class FsWatcher {
       return;
     }
     this.#scanning = true;
-    void this.#scheduler.runScan(this.#claudeDir).finally(() => {
+    void this.#scheduler.runScan(this.#sources).finally(() => {
       this.#scanning = false;
       if (this.#dirty && !this.#stopped) {
         this.#dirty = false;
