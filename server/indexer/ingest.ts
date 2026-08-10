@@ -1,7 +1,13 @@
 import type { Database, Statement } from "bun:sqlite";
 import { readFileSync } from "node:fs";
+import { priceEvent, type PricingTable } from "../cost/engine";
 import type { ParsedLine } from "./parser";
 import type { WorkItem } from "./scanner";
+
+export interface IngestPricing {
+  table: PricingTable;
+  version: number;
+}
 
 interface SessionAgg {
   firstTs: number | null;
@@ -57,6 +63,7 @@ const TITLE_NOISE = /^(<command-name>|<local-command-stdout>|<system-reminder>|C
  */
 export class Ingestor {
   #db: Database;
+  #pricing: IngestPricing | null;
   #agg = new Map<string, SessionAgg>();
   #insMsg: Statement;
   #insUsage: Statement;
@@ -64,8 +71,9 @@ export class Ingestor {
   #insFts: Statement;
   #insErr: Statement;
 
-  constructor(db: Database) {
+  constructor(db: Database, pricing: IngestPricing | null = null) {
     this.#db = db;
+    this.#pricing = pricing;
     this.#insMsg = db.prepare(
       `INSERT OR REPLACE INTO messages
          (session_id, uuid, parent_uuid, seq, byte_offset, byte_len, ts, type, subtype, model, is_sidechain, snippet)
@@ -76,7 +84,7 @@ export class Ingestor {
          (session_id, uuid, source, agent_id, ts, model, context_tier, service_tier,
           input_tokens, output_tokens, cache_read_tokens, cache_w5m_tokens, cache_w1h_tokens,
           web_search_requests, web_fetch_requests, cost_usd, pricing_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.#insTool = db.prepare(
       `INSERT INTO tool_calls (session_id, uuid, ts, tool_name, is_error, duration_ms)
@@ -148,6 +156,18 @@ export class Ingestor {
         }
 
         if (line.usage) {
+          const cost = this.#pricing
+            ? priceEvent(this.#pricing.table, {
+                model: line.usage.model,
+                contextTier: line.usage.contextTier,
+                input: line.usage.input,
+                output: line.usage.output,
+                cacheRead: line.usage.cacheRead,
+                cacheW5m: line.usage.cacheW5m,
+                cacheW1h: line.usage.cacheW1h,
+                webSearch: line.usage.webSearch,
+              })
+            : null;
           this.#insUsage.run(
             task.sessionId,
             line.uuid ?? `no-uuid-${line.seq}`,
@@ -164,6 +184,8 @@ export class Ingestor {
             line.usage.cacheW1h,
             line.usage.webSearch,
             line.usage.webFetch,
+            cost,
+            cost === null && !this.#pricing ? null : (this.#pricing?.version ?? null),
           );
         }
 
@@ -249,10 +271,11 @@ export class Ingestor {
             `INSERT INTO sessions (id, project_id, file_path, file_size, file_mtime_ms, parsed_bytes,
                first_ts, last_ts, title, slug, git_branch, cc_version,
                line_count, user_msg_count, assistant_msg_count, models,
-               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count)
+               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd)
              VALUES ($id, $pid, $path, $size, $mtime, $parsed, $first, $last, $title, $slug, $branch, $ver,
                $lines, $users, $assts, $models, $in, $out, $cw, $cr,
-               (SELECT COUNT(*) FROM subagents WHERE session_id = $id))
+               (SELECT COUNT(*) FROM subagents WHERE session_id = $id),
+               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id))
              ON CONFLICT(id) DO UPDATE SET
                project_id = excluded.project_id, file_path = excluded.file_path,
                file_size = excluded.file_size, file_mtime_ms = excluded.file_mtime_ms,
@@ -265,7 +288,8 @@ export class Ingestor {
                input_tokens = excluded.input_tokens, output_tokens = excluded.output_tokens,
                cache_creation_tokens = excluded.cache_creation_tokens,
                cache_read_tokens = excluded.cache_read_tokens,
-               subagent_count = excluded.subagent_count`,
+               subagent_count = excluded.subagent_count,
+               cost_usd = excluded.cost_usd`,
           )
           .run({
             $id: task.sessionId,
@@ -299,13 +323,16 @@ export class Ingestor {
         this.#db
           .prepare(
             `INSERT INTO subagents (session_id, agent_id, agent_type, description, tool_use_id, spawn_depth,
-               file_path, file_size, file_mtime_ms, parsed_bytes)
-             VALUES ($sid, $aid, $type, $desc, $tuid, $depth, $path, $size, $mtime, $parsed)
+               file_path, file_size, file_mtime_ms, parsed_bytes, cost_usd)
+             VALUES ($sid, $aid, $type, $desc, $tuid, $depth, $path, $size, $mtime, $parsed,
+               (SELECT SUM(cost_usd) FROM usage_events
+                WHERE session_id = $sid AND source = 'subagent' AND agent_id = $aid))
              ON CONFLICT(session_id, agent_id) DO UPDATE SET
                agent_type = excluded.agent_type, description = excluded.description,
                tool_use_id = excluded.tool_use_id, spawn_depth = excluded.spawn_depth,
                file_path = excluded.file_path, file_size = excluded.file_size,
-               file_mtime_ms = excluded.file_mtime_ms, parsed_bytes = excluded.parsed_bytes`,
+               file_mtime_ms = excluded.file_mtime_ms, parsed_bytes = excluded.parsed_bytes,
+               cost_usd = excluded.cost_usd`,
           )
           .run({
             $sid: task.sessionId,

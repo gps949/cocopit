@@ -2,7 +2,9 @@ import type { Database } from "bun:sqlite";
 import { cpus } from "node:os";
 import type { IndexStatus } from "../../shared/types";
 import { listClaudeFiles } from "../cc/paths";
-import { Ingestor } from "./ingest";
+import { loadPricingTable } from "../cost/engine";
+import { getPricingVersion } from "../cost/recalc";
+import { Ingestor, type IngestPricing } from "./ingest";
 import { computeWork, type WorkItem } from "./scanner";
 import type { WorkerJob, WorkerReply } from "./worker";
 
@@ -15,6 +17,7 @@ export interface ScanSummary {
 
 export interface SchedulerOptions {
   workers?: number;
+  pricing?: IngestPricing;
 }
 
 const EMIT_INTERVAL_MS = 500;
@@ -40,6 +43,7 @@ function idleStatus(): IndexStatus {
 export class IndexScheduler extends EventTarget {
   #db: Database;
   #workerCount: number;
+  #pricing: IngestPricing | null;
   #running: Promise<ScanSummary> | null = null;
   #status: IndexStatus = idleStatus();
   #lastEmit = 0;
@@ -48,6 +52,19 @@ export class IndexScheduler extends EventTarget {
     super();
     this.#db = db;
     this.#workerCount = opts.workers ?? Math.min(4, Math.max(2, cpus().length - 2));
+    this.#pricing = opts.pricing ?? null;
+  }
+
+  #resolvePricing(): IngestPricing {
+    if (!this.#pricing) {
+      this.#pricing = { table: loadPricingTable(), version: getPricingVersion(this.#db) };
+    }
+    return this.#pricing;
+  }
+
+  /** Swap the live pricing used by future scans (after a PUT /api/pricing). */
+  setPricing(pricing: IngestPricing): void {
+    this.#pricing = pricing;
   }
 
   get status(): IndexStatus {
@@ -79,7 +96,7 @@ export class IndexScheduler extends EventTarget {
     this.#emit(true);
 
     if (work.length > 0) {
-      const ingestor = new Ingestor(this.#db);
+      const ingestor = new Ingestor(this.#db, this.#resolvePricing());
       const queue = [...work];
       const lanes = Math.min(this.#workerCount, work.length);
       await Promise.all(Array.from({ length: lanes }, () => this.#runLane(queue, ingestor)));

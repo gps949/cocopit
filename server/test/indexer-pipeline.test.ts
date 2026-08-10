@@ -206,6 +206,17 @@ describe("index pipeline", () => {
 
     // usage events: aaa main + aaa subagent + bbb
     expect(count("SELECT COUNT(*) AS n FROM usage_events")).toBe(3);
+
+    // priced at ingest time: fable-5 rates for asstA
+    const aaaUsage = db
+      .prepare("SELECT * FROM usage_events WHERE session_id = 's-aaa' AND source = 'main'")
+      .get() as Record<string, unknown>;
+    // 100 in ×$10 + 50 out ×$50 + 10 read ×$1 + 20 w5m ×$12.50, per MTok
+    expect(aaaUsage.cost_usd as number).toBeCloseTo((100 * 10 + 50 * 50 + 10 * 1 + 20 * 12.5) / 1e6, 12);
+    expect(aaaUsage.pricing_version).toBe(1);
+    // session rollup includes the subagent's spend (30 in ×$10 + 5 out ×$50 per MTok)
+    const subCost = (30 * 10 + 5 * 50) / 1e6;
+    expect(aaa.cost_usd as number).toBeCloseTo((aaaUsage.cost_usd as number) + subCost, 12);
     const subUsage = db
       .prepare("SELECT * FROM usage_events WHERE source = 'subagent'")
       .get() as Record<string, unknown>;
