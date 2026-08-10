@@ -7,3 +7,8 @@ export interface IndexStatus {
   phase: "idle" | "scanning";
   pct: number;
 }
+
+export interface CcockpitConfig {
+  port: number;
+  claudeDir: string;
+}

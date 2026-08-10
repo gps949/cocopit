@@ -1,4 +1,5 @@
 import { join, normalize, sep } from "node:path";
+import { loadConfig } from "./config";
 import { Router } from "./http/router";
 import { healthHandler } from "./routes/health";
 
@@ -35,7 +36,7 @@ async function serveStatic(pathname: string): Promise<Response> {
 export function createServer(port?: number) {
   return Bun.serve({
     hostname: "127.0.0.1",
-    port: port ?? (Number(process.env.CCOCKPIT_PORT) || 7433),
+    port: port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port),
     async fetch(req) {
       const url = new URL(req.url);
 
