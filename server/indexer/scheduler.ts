@@ -74,6 +74,10 @@ export class IndexScheduler extends EventTarget {
   /** Only one scan at a time; a re-entrant call joins the running scan. */
   runScan(claudeDir: string): Promise<ScanSummary> {
     if (this.#running) return this.#running;
+    // flip synchronously so a status probe right after the call never sees the
+    // previous scan's idle/pct=1 while file enumeration is still underway
+    this.#status = { ...idleStatus(), phase: "scanning", startedAt: Date.now() };
+    this.#emit(true);
     this.#running = this.#doScan(claudeDir).finally(() => {
       this.#running = null;
     });
@@ -87,11 +91,9 @@ export class IndexScheduler extends EventTarget {
     const bytesTotal = work.reduce((n, w) => n + Math.max(0, w.task.size - w.startOffset), 0);
 
     this.#status = {
-      ...idleStatus(),
-      phase: "scanning",
+      ...this.#status,
       bytesTotal,
       filesTotal: work.length,
-      startedAt: Date.now(),
     };
     this.#emit(true);
 

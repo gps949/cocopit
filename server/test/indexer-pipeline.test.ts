@@ -305,6 +305,14 @@ describe("index pipeline", () => {
     expect(count("SELECT COUNT(*) AS n FROM fts_messages WHERE fts_messages MATCH 'bbb assistant'")).toBe(0);
   });
 
+  test("status flips to scanning synchronously on runScan (no idle race window)", async () => {
+    const promise = scheduler.runScan(dir);
+    // before any await resolves, a status probe must not report the stale idle
+    expect(scheduler.status.phase).toBe("scanning");
+    await promise;
+    expect(scheduler.status.phase).toBe("idle");
+  });
+
   test("second scan with no changes is a no-op", async () => {
     const before = count("SELECT COUNT(*) AS n FROM messages");
     const summary = await scheduler.runScan(dir);
