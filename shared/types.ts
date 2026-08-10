@@ -6,6 +6,14 @@ export interface HealthResponse {
 export interface IndexStatus {
   phase: "idle" | "scanning";
   pct: number;
+  bytesTotal: number;
+  bytesDone: number;
+  filesTotal: number;
+  filesDone: number;
+  currentFiles: string[];
+  errors: number;
+  startedAt?: number;
+  finishedAt?: number;
 }
 
 export interface CcockpitConfig {

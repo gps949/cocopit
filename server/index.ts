@@ -1,12 +1,24 @@
+import type { Database } from "bun:sqlite";
 import { join, normalize, sep } from "node:path";
 import { loadConfig } from "./config";
+import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
+import { SseHub } from "./http/sse";
+import { IndexScheduler } from "./indexer/scheduler";
 import { healthHandler } from "./routes/health";
 
-const router = new Router();
-router.register("GET", "/api/health", healthHandler);
-
 const DIST_DIR = normalize(join(import.meta.dir, "..", "web", "dist"));
+
+const INDEXED_TABLES = [
+  "messages",
+  "usage_events",
+  "tool_calls",
+  "fts_messages",
+  "parse_errors",
+  "subagents",
+  "sessions",
+  "projects",
+];
 
 async function serveStatic(pathname: string): Promise<Response> {
   const indexFile = Bun.file(join(DIST_DIR, "index.html"));
@@ -33,10 +45,43 @@ async function serveStatic(pathname: string): Promise<Response> {
   return new Response("Not Found", { status: 404 });
 }
 
-export function createServer(port?: number) {
+export interface ServerDeps {
+  db?: Database;
+  scheduler?: IndexScheduler;
+  hub?: SseHub;
+  claudeDir?: string;
+}
+
+export function createServer(port?: number, deps: ServerDeps = {}) {
+  const router = new Router();
+  router.register("GET", "/api/health", healthHandler);
+
+  const { db, scheduler, hub, claudeDir } = deps;
+  if (db && scheduler && hub && claudeDir !== undefined) {
+    scheduler.addEventListener("progress", (event) => {
+      hub.broadcast("index.progress", (event as CustomEvent).detail);
+    });
+    router.register("GET", "/api/events", (req) => hub.handler(req));
+    router.register("GET", "/api/index/status", () => Response.json(scheduler.status));
+    router.register("POST", "/api/index/rescan", async (req) => {
+      let full = false;
+      try {
+        full = ((await req.json()) as { full?: boolean }).full === true;
+      } catch {
+        // empty or malformed body → incremental rescan
+      }
+      if (full) {
+        for (const table of INDEXED_TABLES) db.run(`DELETE FROM ${table}`);
+      }
+      void scheduler.runScan(claudeDir);
+      return Response.json({ started: true }, { status: 202 });
+    });
+  }
+
   return Bun.serve({
     hostname: "127.0.0.1",
     port: port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port),
+    idleTimeout: 0,
     async fetch(req) {
       const url = new URL(req.url);
 
@@ -54,6 +99,15 @@ export function createServer(port?: number) {
 }
 
 if (import.meta.main) {
-  const server = createServer();
+  const config = loadConfig();
+  const db = openIndexDb();
+  const scheduler = new IndexScheduler(db);
+  const hub = new SseHub();
+  const server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir });
   console.log(`listening on http://${server.hostname}:${server.port}`);
+  scheduler.runScan(config.claudeDir).then((summary) => {
+    console.log(
+      `index scan: ${summary.workItems} files, ${summary.errors} errors, ${(summary.durationMs / 1000).toFixed(1)}s`,
+    );
+  });
 }
