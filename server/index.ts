@@ -5,6 +5,7 @@ import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
 import { SseHub } from "./http/sse";
 import { IndexScheduler } from "./indexer/scheduler";
+import { FsWatcher } from "./indexer/watcher";
 import { healthHandler } from "./routes/health";
 
 const DIST_DIR = normalize(join(import.meta.dir, "..", "web", "dist"));
@@ -110,4 +111,5 @@ if (import.meta.main) {
       `index scan: ${summary.workItems} files, ${summary.errors} errors, ${(summary.durationMs / 1000).toFixed(1)}s`,
     );
   });
+  new FsWatcher(scheduler, config.claudeDir).start();
 }
