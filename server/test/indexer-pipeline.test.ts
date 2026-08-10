@@ -216,6 +216,8 @@ describe("index pipeline", () => {
       .prepare("SELECT * FROM usage_events WHERE session_id = 's-bbb'")
       .get() as Record<string, unknown>;
     expect(bbbUsage.model).toBe("claude-opus-4-8");
+    expect(bbbUsage.context_tier).toBe("long"); // [1m] variant priced separately
+    expect(subUsage.context_tier).toBe("default");
 
     // tool calls
     const tools = db.prepare("SELECT * FROM tool_calls").all() as Array<Record<string, unknown>>;

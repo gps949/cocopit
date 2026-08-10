@@ -73,10 +73,10 @@ export class Ingestor {
     );
     this.#insUsage = db.prepare(
       `INSERT OR REPLACE INTO usage_events
-         (session_id, uuid, source, agent_id, ts, model, service_tier,
+         (session_id, uuid, source, agent_id, ts, model, context_tier, service_tier,
           input_tokens, output_tokens, cache_read_tokens, cache_w5m_tokens, cache_w1h_tokens,
           web_search_requests, web_fetch_requests, cost_usd, pricing_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
     );
     this.#insTool = db.prepare(
       `INSERT INTO tool_calls (session_id, uuid, ts, tool_name, is_error, duration_ms)
@@ -155,6 +155,7 @@ export class Ingestor {
             task.kind === "subagent" ? (task.agentId ?? "") : "",
             line.ts ?? 0,
             line.usage.model,
+            line.usage.contextTier,
             line.usage.serviceTier ?? null,
             line.usage.input,
             line.usage.output,
