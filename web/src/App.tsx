@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { Dashboard } from "./pages/Dashboard";
 import { Placeholder } from "./pages/Placeholder";
 import { System } from "./pages/System";
 
@@ -9,7 +10,7 @@ export function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Placeholder title="仪表盘" phase="Phase 1" />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profiles" element={<Placeholder title="账户" phase="Phase 2" />} />
           <Route path="/projects" element={<Placeholder title="项目" phase="Phase 3" />} />
           <Route path="/sessions" element={<Placeholder title="会话" phase="Phase 3" />} />
