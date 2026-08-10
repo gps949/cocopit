@@ -7,6 +7,8 @@ import { SseHub } from "./http/sse";
 import { IndexScheduler } from "./indexer/scheduler";
 import { FsWatcher } from "./indexer/watcher";
 import { healthHandler } from "./routes/health";
+import { registerPricingRoutes } from "./routes/pricing";
+import { registerUsageRoutes } from "./routes/usage";
 
 const DIST_DIR = normalize(join(import.meta.dir, "..", "web", "dist"));
 
@@ -51,6 +53,8 @@ export interface ServerDeps {
   scheduler?: IndexScheduler;
   hub?: SseHub;
   claudeDir?: string;
+  /** Path to the global ~/.claude.json (read-only; calibration source). */
+  claudeJsonPath?: string;
 }
 
 export function createServer(port?: number, deps: ServerDeps = {}) {
@@ -59,6 +63,8 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
 
   const { db, scheduler, hub, claudeDir } = deps;
   if (db && scheduler && hub && claudeDir !== undefined) {
+    registerUsageRoutes(router, db, deps.claudeJsonPath ?? `${claudeDir}.json`);
+    registerPricingRoutes(router, db, hub, scheduler);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });

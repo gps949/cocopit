@@ -40,8 +40,8 @@
     },
     {
       "match": "claude-sonnet-5",
-      "note": "introductory pricing through 2026-08-31; standard is 3/15 with cache at 0.30/3.75/6",
-      "tiers": { "default": { "input": 2, "output": 10, "cacheRead": 0.2, "cacheWrite5m": 2.5, "cacheWrite1h": 4 } }
+      "note": "standard rates — Claude Code's official costUSD ignores the 2026-08-31 introductory pricing (2/10), so we match that ledger; override in pricing.user.json for intro rates",
+      "tiers": { "default": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite5m": 3.75, "cacheWrite1h": 6 } }
     },
     {
       "match": "claude-sonnet-4-6",
