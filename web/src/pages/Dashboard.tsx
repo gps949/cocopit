@@ -50,6 +50,7 @@ export function Dashboard() {
   const [byModel, setByModel] = useState<ModelUsage | null>(null);
   const [byProject, setByProject] = useState<ProjectUsage | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapUsage | null>(null);
+  const [byProfile, setByProfile] = useState<Array<{ profileId: string; costUsd: number; events: number }> | null>(null);
   const [cache, setCache] = useState<CacheEfficiency | null>(null);
   const [calibration, setCalibration] = useState<CalibrationRow[] | null>(null);
   const [unpriced, setUnpriced] = useState<UnpricedModels | null>(null);
@@ -62,6 +63,9 @@ export function Dashboard() {
     void getJson<ProjectUsage>(`/api/usage/by-project${q}`).then(setByProject);
     void getJson<HeatmapUsage>(`/api/usage/heatmap${q}`).then(setHeatmap);
     void getJson<CacheEfficiency>(`/api/usage/cache-efficiency${q}`).then(setCache);
+    void getJson<{ profiles: Array<{ profileId: string; costUsd: number; events: number }> }>(
+      `/api/usage/by-profile${q}`,
+    ).then((r) => setByProfile(r.profiles));
   }, [range]);
 
   useEffect(() => {
@@ -230,6 +234,21 @@ export function Dashboard() {
         <Stat label="缓存读取" value={summary ? fmtTokens(summary.cacheReadTokens) : "—"} hint={cache ? `命中率 ${(cache.hitRate * 100).toFixed(1)}%` : undefined} />
         <Stat label="缓存节省" value={cache ? fmtUsd(cache.savedUsd) : "—"} hint="相对无缓存输入价" />
       </div>
+
+      {byProfile && byProfile.length > 1 && (
+        <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
+          <h2 className="text-[15px] font-medium">按账号</h2>
+          <div className="mt-3 flex flex-wrap gap-6">
+            {byProfile.map((p) => (
+              <div key={p.profileId}>
+                <div className="text-xs text-muted">{p.profileId}</div>
+                <div className="mt-0.5 text-xl font-semibold tabular-nums">{fmtUsd(p.costUsd)}</div>
+                <div className="text-xs text-muted">{p.events.toLocaleString()} 次调用</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="lg:col-span-2">
