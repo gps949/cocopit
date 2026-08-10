@@ -9,6 +9,7 @@ import { FsWatcher } from "./indexer/watcher";
 import { loadProfiles } from "./profiles/registry";
 import { healthHandler } from "./routes/health";
 import { registerPricingRoutes } from "./routes/pricing";
+import { registerProfileRoutes } from "./routes/profiles";
 import { registerUsageRoutes } from "./routes/usage";
 
 const DIST_DIR = normalize(join(import.meta.dir, "..", "web", "dist"));
@@ -76,6 +77,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   if (db && scheduler && hub && claudeDir !== undefined) {
     registerUsageRoutes(router, db, deps.claudeJsonPath ?? `${claudeDir}.json`);
     registerPricingRoutes(router, db, hub, scheduler);
+    registerProfileRoutes(router, scheduler, () => deps.sources ?? profileScanSources(claudeDir));
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
