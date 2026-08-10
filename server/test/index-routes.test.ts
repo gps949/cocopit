@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { IndexStatus } from "../../shared/types";
 import { applyMigrations, openDb } from "../db/db";
 import { SseHub } from "../http/sse";
-import { createServer } from "../index";
+import { createServer, originAllowed } from "../index";
 import { IndexScheduler } from "../indexer/scheduler";
 
 let dir: string;
@@ -119,6 +119,17 @@ describe("index routes", () => {
     // reads are harmless (the response is unreadable cross-origin anyway)
     const read = await fetch(`${base}/api/index/status`, { headers: { origin: "https://evil.example" } });
     expect(read.status).toBe(200);
+  });
+
+  test("configured origins are allowed (reverse-proxied remote access)", async () => {
+    const proxied = new Request(`${base}/api/index/rescan`, {
+      method: "POST",
+      headers: { origin: "https://cc.example.com" },
+    });
+    expect(originAllowed(proxied, ["https://cc.example.com"])).toBe(true);
+    expect(originAllowed(proxied, ["https://other.example.com"])).toBe(false);
+    // trailing slashes and case in the configured value shouldn't matter
+    expect(originAllowed(proxied, ["https://CC.example.com/"])).toBe(true);
   });
 
   test("index routes absent without deps (health-only server still works)", async () => {

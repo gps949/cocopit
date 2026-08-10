@@ -19,4 +19,6 @@ export interface IndexStatus {
 export interface CcockpitConfig {
   port: number;
   claudeDir: string;
+  /** Extra browser origins allowed to make write requests (reverse proxy / tunnel). */
+  allowedOrigins: string[];
 }

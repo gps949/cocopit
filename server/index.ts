@@ -61,6 +61,8 @@ export interface ServerDeps {
   claudeJsonPath?: string;
   /** Scan sources; defaults to the single default profile on claudeDir. */
   sources?: ScanSource[];
+  /** Extra origins allowed for writes; defaults to config.allowedOrigins. */
+  allowedOrigins?: string[];
 }
 
 /**
@@ -70,17 +72,25 @@ export interface ServerDeps {
  * apps, which send no Origin). Reads are exempt: their responses are unreadable
  * cross-origin anyway.
  */
-export function originAllowed(req: Request): boolean {
+export function originAllowed(req: Request, allowedOrigins: string[] = []): boolean {
   if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return true;
   const origin = req.headers.get("origin");
   if (!origin) return true;
+
+  let parsed: URL;
   try {
-    const { hostname, port } = new URL(origin);
-    const isLoopback = hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
-    return isLoopback && port === String(new URL(req.url).port);
+    parsed = new URL(origin);
   } catch {
     return false;
   }
+
+  // configured origins cover reverse-proxied / tunnelled remote access
+  const normalize = (value: string) => value.trim().replace(/\/+$/, "").toLowerCase();
+  if (allowedOrigins.some((allowed) => normalize(allowed) === normalize(parsed.origin))) return true;
+
+  const isLoopback =
+    parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]";
+  return isLoopback && parsed.port === String(new URL(req.url).port);
 }
 
 /** All registered profiles as scan sources (default profile → claudeDir). */
@@ -129,7 +139,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     async fetch(req) {
       const url = new URL(req.url);
 
-      if (!originAllowed(req)) {
+      if (!originAllowed(req, deps.allowedOrigins ?? loadConfig().allowedOrigins ?? [])) {
         return new Response("Forbidden: cross-origin request", { status: 403 });
       }
 
