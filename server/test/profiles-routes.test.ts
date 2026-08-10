@@ -135,6 +135,23 @@ describe("profiles routes", () => {
     expect(script).toContain("sk-verysecret-9876"); // real secret preserved
   });
 
+  test("PATCH cannot repoint a profile's config dir or change its kind", async () => {
+    const before = ((await (await fetch(`${base}/api/profiles`)).json()) as { profiles: any[] }).profiles.find(
+      (p) => p.id === "kimi",
+    );
+    const res = await fetch(`${base}/api/profiles/kimi`, {
+      method: "PATCH",
+      body: JSON.stringify({ configDir: null, kind: "subscription", id: "hijacked", name: "renamed" }),
+    });
+    expect(res.status).toBe(200);
+    const after = ((await (await fetch(`${base}/api/profiles`)).json()) as { profiles: any[] }).profiles.find(
+      (p) => p.id === "kimi",
+    );
+    expect(after.configDir).toBe(before.configDir); // never repointed at ~/.claude
+    expect(after.kind).toBe("api");
+    expect(after.name).toBe("renamed"); // editable fields still apply
+  });
+
   test("DELETE removes non-default; default is rejected", async () => {
     const del = await fetch(`${base}/api/profiles/work`, { method: "DELETE" });
     expect(del.status).toBe(200);

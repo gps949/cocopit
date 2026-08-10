@@ -97,6 +97,30 @@ describe("index routes", () => {
     expect((db.prepare("SELECT COUNT(*) AS n FROM messages").get() as { n: number }).n).toBe(1);
   });
 
+  test("mutating requests from a foreign origin are rejected", async () => {
+    // a page on another site must not be able to drive the local console
+    const res = await fetch(`${base}/api/index/rescan`, {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(403);
+
+    // same-origin and origin-less (curl, native apps) callers still work
+    const sameOrigin = await fetch(`${base}/api/index/rescan`, {
+      method: "POST",
+      headers: { origin: base },
+      body: JSON.stringify({}),
+    });
+    expect(sameOrigin.status).toBe(202);
+    const noOrigin = await fetch(`${base}/api/index/rescan`, { method: "POST", body: JSON.stringify({}) });
+    expect(noOrigin.status).toBe(202);
+
+    // reads are harmless (the response is unreadable cross-origin anyway)
+    const read = await fetch(`${base}/api/index/status`, { headers: { origin: "https://evil.example" } });
+    expect(read.status).toBe(200);
+  });
+
   test("index routes absent without deps (health-only server still works)", async () => {
     const bare = createServer(0);
     try {

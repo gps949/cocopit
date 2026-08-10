@@ -63,6 +63,26 @@ export interface ServerDeps {
   sources?: ScanSource[];
 }
 
+/**
+ * State-changing requests must come from this console itself. Browsers attach
+ * Origin to cross-origin writes, so rejecting a foreign Origin keeps another
+ * site from driving the local API (it can still be called by curl or native
+ * apps, which send no Origin). Reads are exempt: their responses are unreadable
+ * cross-origin anyway.
+ */
+export function originAllowed(req: Request): boolean {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return true;
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    const { hostname, port } = new URL(origin);
+    const isLoopback = hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
+    return isLoopback && port === String(new URL(req.url).port);
+  } catch {
+    return false;
+  }
+}
+
 /** All registered profiles as scan sources (default profile → claudeDir). */
 export function profileScanSources(claudeDir: string): ScanSource[] {
   return loadProfiles().map((profile) => ({
@@ -108,6 +128,10 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     idleTimeout: 0,
     async fetch(req) {
       const url = new URL(req.url);
+
+      if (!originAllowed(req)) {
+        return new Response("Forbidden: cross-origin request", { status: 403 });
+      }
 
       if (url.pathname.startsWith("/api/")) {
         const match = router.match(req);

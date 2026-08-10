@@ -101,7 +101,13 @@ export function registerProfileRoutes(
       if (body.api && existing.api && body.api.secret?.startsWith("****")) {
         body.api = { ...body.api, secret: existing.api.secret };
       }
-      const updated = updateProfile(params.id!, body);
+      // identity fields are fixed: repointing configDir would silently make a
+      // profile read another account's data
+      const patch: Partial<CcProfile> = {};
+      for (const key of ["name", "color", "api", "extraEnv", "lastDetected"] as const) {
+        if (key in body) (patch as Record<string, unknown>)[key] = body[key];
+      }
+      const updated = updateProfile(params.id!, patch);
       return Response.json(toView(updated));
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 400 });
