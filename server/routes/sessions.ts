@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { readMessageRecords, type MessagePointer } from "../cc/sessionReader";
+import { DEFAULT_MAX_BODY_BYTES, readMessageRecords, type MessagePointer } from "../cc/sessionReader";
 import type { Router } from "../http/router";
 
 /** trigram FTS needs ≥3 chars; quote to neutralize MATCH syntax. */
@@ -169,7 +169,8 @@ export function registerSessionRoutes(router: Router, db: Database): void {
 
     const page = pointers.slice(0, limit);
     const nextFromSeq = pointers.length > limit ? pointers[limit]!.seq : null;
-    const messages = await readMessageRecords(session.file_path, page);
+    const maxBodyBytes = Number(url.searchParams.get("maxBodyBytes") ?? DEFAULT_MAX_BODY_BYTES);
+    const messages = await readMessageRecords(session.file_path, page, maxBodyBytes);
     return Response.json({ messages, nextFromSeq });
   });
 
@@ -185,7 +186,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       )
       .get({ $id: routeParams.id!, $uuid: routeParams.uuid! }) as MessagePointer | null;
     if (!pointer) return Response.json({ error: "message not found" }, { status: 404 });
-    const [message] = await readMessageRecords(session.file_path, [pointer]);
+    const [message] = await readMessageRecords(session.file_path, [pointer], Number.MAX_SAFE_INTEGER);
     return Response.json(message);
   });
 }

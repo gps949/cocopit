@@ -10,6 +10,7 @@ import { loadProfiles } from "./profiles/registry";
 import { healthHandler } from "./routes/health";
 import { registerPricingRoutes } from "./routes/pricing";
 import { registerSessionRoutes } from "./routes/sessions";
+import { registerLiveRoutes } from "./routes/live";
 import { registerProfileRoutes } from "./routes/profiles";
 import { registerUsageRoutes } from "./routes/usage";
 
@@ -80,6 +81,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerPricingRoutes(router, db, hub, scheduler);
     registerProfileRoutes(router, scheduler, () => deps.sources ?? profileScanSources(claudeDir));
     registerSessionRoutes(router, db);
+    registerLiveRoutes(router, db, claudeDir);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });

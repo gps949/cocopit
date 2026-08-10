@@ -173,6 +173,19 @@ describe("projects & sessions routes", () => {
     expect(body.record.message.usage.input_tokens).toBe(10);
   });
 
+  test("oversized bodies are skipped in list reads, still fetchable one by one", async () => {
+    // a single line can reach ~10MB in real transcripts; a 200-row page must not
+    // try to materialize them all
+    const list = await get("/api/sessions/sess-one/messages?maxBodyBytes=20");
+    expect(list.messages).toHaveLength(2);
+    expect(list.messages.every((m: any) => m.record === null && m.truncated === true)).toBe(true);
+    expect(list.messages[0].byteLen).toBeGreaterThan(20);
+
+    // the single-message endpoint ignores the list cap
+    const single = await get("/api/sessions/sess-one/messages/u1?maxBodyBytes=20");
+    expect(single.record.message.content).toBe("优化数据库索引结构");
+  });
+
   test("404 for unknown session", async () => {
     const res = await fetch(`${base}/api/sessions/nope`);
     expect(res.status).toBe(404);
