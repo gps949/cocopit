@@ -12,7 +12,9 @@ import { registerPricingRoutes } from "./routes/pricing";
 import { registerSessionRoutes } from "./routes/sessions";
 import { registerLiveRoutes } from "./routes/live";
 import { registerProfileRoutes } from "./routes/profiles";
+import { registerTerminalRoutes, terminalUpgradeAllowed } from "./routes/terminal";
 import { registerUsageRoutes } from "./routes/usage";
+import { terminalWebSocketHandlers, type TerminalSocketData } from "./terminal/socket";
 
 const DIST_DIR = normalize(join(import.meta.dir, "..", "web", "dist"));
 
@@ -112,6 +114,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerProfileRoutes(router, scheduler, () => deps.sources ?? profileScanSources(claudeDir));
     registerSessionRoutes(router, db);
     registerLiveRoutes(router, db, claudeDir);
+    registerTerminalRoutes(router, db);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
@@ -132,15 +135,33 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     });
   }
 
-  return Bun.serve({
+  const allowedOrigins = () => deps.allowedOrigins ?? loadConfig().allowedOrigins ?? [];
+
+  return Bun.serve<TerminalSocketData>({
     hostname: "127.0.0.1",
     port: port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port),
     idleTimeout: 0,
-    async fetch(req) {
+    websocket: terminalWebSocketHandlers(),
+    async fetch(req, server) {
       const url = new URL(req.url);
 
-      if (!originAllowed(req, deps.allowedOrigins ?? loadConfig().allowedOrigins ?? [])) {
+      if (!originAllowed(req, allowedOrigins())) {
         return new Response("Forbidden: cross-origin request", { status: 403 });
+      }
+
+      // WebSocket upgrades are GETs and CORS does not apply to them, so the
+      // terminal socket needs its own origin gate.
+      const attachMatch = /^\/api\/terminal\/([^/]+)\/attach$/.exec(url.pathname);
+      if (attachMatch) {
+        if (!terminalUpgradeAllowed(req, allowedOrigins())) {
+          return new Response("Forbidden: cross-origin websocket", { status: 403 });
+        }
+        const name = decodeURIComponent(attachMatch[1]!);
+        if (!name.startsWith("cc-")) {
+          return new Response("Not Found", { status: 404 });
+        }
+        const upgraded = server.upgrade(req, { data: { name, attachment: null } });
+        return upgraded ? undefined : new Response("Expected a websocket upgrade", { status: 426 });
       }
 
       if (url.pathname.startsWith("/api/")) {
