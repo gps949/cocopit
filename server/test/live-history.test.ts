@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -86,6 +87,31 @@ describe("live sessions", () => {
   test("a recycled pid is not reported alive (procStart mismatch)", () => {
     const reused = listLiveSessions(dir).find((s) => s.sessionId === "reused-1")!;
     expect(reused.alive).toBe(false);
+  });
+
+  test("a genuine procStart matches — Claude Code records it in UTC, ps prints local", () => {
+    // Regression: comparing the stored UTC string against local `ps` output
+    // marks every live session dead.
+    const child = spawn("sleep", ["30"], { stdio: "ignore" });
+    try {
+      const utcStart = spawnSync("ps", ["-o", "lstart=", "-p", String(child.pid)], {
+        encoding: "utf8",
+        env: { ...process.env, TZ: "UTC" },
+      }).stdout.trim();
+      expect(utcStart.length).toBeGreaterThan(0);
+
+      const liveDir = mkdtempSync(join(tmpdir(), "ccockpit-live-real-"));
+      mkdirSync(join(liveDir, "sessions"), { recursive: true });
+      writeFileSync(
+        join(liveDir, "sessions", "x.json"),
+        JSON.stringify({ pid: child.pid, sessionId: "real-1", cwd: "/tmp", procStart: utcStart }),
+      );
+      const found = listLiveSessions(liveDir).find((s) => s.sessionId === "real-1")!;
+      expect(found.alive).toBe(true);
+      rmSync(liveDir, { recursive: true, force: true });
+    } finally {
+      child.kill();
+    }
   });
 
   test("GET /api/live serves them", async () => {
