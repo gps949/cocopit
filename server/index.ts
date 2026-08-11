@@ -11,6 +11,7 @@ import { healthHandler } from "./routes/health";
 import { registerConfigRoutes } from "./routes/config";
 import { registerPricingRoutes } from "./routes/pricing";
 import { registerSessionRoutes } from "./routes/sessions";
+import { registerSystemRoutes } from "./routes/system";
 import { registerLiveRoutes } from "./routes/live";
 import { registerProfileRoutes } from "./routes/profiles";
 import { registerTerminalRoutes, terminalUpgradeAllowed } from "./routes/terminal";
@@ -117,6 +118,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerLiveRoutes(router, db, claudeDir);
     registerTerminalRoutes(router, db);
     registerConfigRoutes(router, db, claudeDir);
+    registerSystemRoutes(router, claudeDir);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
