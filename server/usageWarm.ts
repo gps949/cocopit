@@ -19,6 +19,15 @@ export function warmUsageCache(db: Database): void {
                 SUM(cache_read_tokens), SUM(cache_w5m_tokens), SUM(cache_w1h_tokens)
          FROM usage_events`,
       ).get();
+      // the by-project shape walks usage → sessions → projects one row at a
+      // time; those lookups are the slowest thing on the dashboard when cold,
+      // and they miss entirely if only the usage table is warmed
+      db.prepare(
+        `SELECT p.id, SUM(u.cost_usd) FROM usage_events u
+         JOIN sessions s ON s.id = u.session_id
+         JOIN projects p ON p.id = s.project_id
+         GROUP BY p.id`,
+      ).all();
       const elapsed = Date.now() - started;
       if (elapsed > 500) console.log(`usage table warmed in ${(elapsed / 1000).toFixed(1)}s`);
     } catch {
