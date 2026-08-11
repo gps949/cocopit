@@ -97,8 +97,10 @@ export function LiteLLMCompare({ onAdopt }: { onAdopt: (model: string, tier: Tie
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="pb-1.5 pr-3 font-normal">{t("模型")}</th>
-              <th className="pb-1.5 pr-3 text-right font-normal">{t("我方")}</th>
-              <th className="pb-1.5 pr-3 text-right font-normal">LiteLLM</th>
+              {/* say what these numbers are: an unlabelled pair is what made two rows
+                  look identical when the difference was in a cache rate */}
+              <th className="pb-1.5 pr-3 text-right font-normal">{t("我方 输入/输出")}</th>
+              <th className="pb-1.5 pr-3 text-right font-normal">{t("LiteLLM 输入/输出")}</th>
               <th className="pb-1.5 font-normal" />
             </tr>
           </thead>

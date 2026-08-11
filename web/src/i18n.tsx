@@ -212,6 +212,8 @@ const EN: Record<string, string> = {
   "复制": "Copy",
   "5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,ccockpit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。":
     "Per-5h and weekly quota usage and reset times are in no local file — they come from the API, and the credential lives only in the system keychain, which ccockpit does not read. Check them with /usage inside Claude Code. The dashboard's cost figures are local records priced at published rates, which is a different thing from subscription quota.",
+  "我方 输入/输出": "Ours in/out",
+  "LiteLLM 输入/输出": "LiteLLM in/out",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",
