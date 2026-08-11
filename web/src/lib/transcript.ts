@@ -8,6 +8,8 @@
  * makes the transcript unreadable — hence this classification pass.
  */
 
+import { SYSTEM_WRAPPER_TAGS, stripSystemWrappers } from "../../../shared/userText";
+
 export type EntryKind =
   | "user"
   | "assistant"
@@ -68,27 +70,19 @@ const META_TYPES = new Set([
   "summary",
 ]);
 
-const WRAPPERS = [
-  "local-command-caveat",
-  "local-command-stdout",
-  "command-name",
-  "command-message",
-  "command-args",
-  "system-reminder",
-  "user-prompt-submit-hook",
-];
-
 function tagContent(text: string, tag: string): string | null {
-  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i").exec(text);
-  return match ? match[1]!.trim() : null;
+  const match = new RegExp(`<${tag}(\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i").exec(text);
+  return match ? match[2]!.trim() : null;
 }
 
-function stripWrappers(text: string): string {
-  let out = text;
-  for (const tag of WRAPPERS) {
-    out = out.replace(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, "gi"), "");
+const stripWrappers = stripSystemWrappers;
+
+/** The wrapper tag a record is entirely made of, if any. */
+function systemWrapperTag(text: string): string | null {
+  for (const tag of SYSTEM_WRAPPER_TAGS) {
+    if (new RegExp(`^\\s*<${tag}(\\s[^>]*)?>`, "i").test(text)) return tag;
   }
-  return out.trim();
+  return null;
 }
 
 /** Compact gist per tool, using the input key that actually identifies the call. */
@@ -225,7 +219,17 @@ export function buildTranscript(messages: RawMessage[]): TranscriptEntry[] {
       }
       const text = stripWrappers(content);
       if (!text) {
-        entries.push({ ...base, key: `${seq}-meta`, kind: "meta", metaLabel: "system-reminder" });
+        // machine-generated, but often worth reading (a notification carries the
+        // agent's result), so keep the body behind a collapsed label
+        const tag = systemWrapperTag(content) ?? "system-reminder";
+        const inner = tagContent(content, tag);
+        entries.push({
+          ...base,
+          key: `${seq}-meta`,
+          kind: "meta",
+          metaLabel: tag,
+          text: inner || undefined,
+        });
         continue;
       }
       entries.push({ ...base, key: `${seq}-user`, kind: "user", text });

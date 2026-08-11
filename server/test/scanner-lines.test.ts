@@ -68,6 +68,23 @@ describe("LineSplitter", () => {
     expect(s.consumedBytes).toBe(2);
   });
 
+  test("a caller that reuses one read buffer still gets intact lines", () => {
+    // Buffer.prototype.slice returns a VIEW, not a copy — so carrying the
+    // partial tail forward by slicing a reused Buffer would alias memory the
+    // next read overwrites, silently corrupting the line across the boundary.
+    const s = new LineSplitter(0);
+    const scratch = Buffer.alloc(4);
+    const source = enc.encode("hello\n");
+    const collected: string[] = [];
+    for (let i = 0; i < source.length; i += 4) {
+      const n = Math.min(4, source.length - i);
+      scratch.set(source.subarray(i, i + n), 0);
+      collected.push(...s.push(scratch.subarray(0, n)).map((l) => l.text));
+      scratch.fill(0); // simulate the next read landing in the same buffer
+    }
+    expect(collected).toEqual(["hello"]);
+  });
+
   test("consecutive empty lines each yield an empty RawLine", () => {
     const s = new LineSplitter(0);
     const lines = s.push(enc.encode("\n\n"));

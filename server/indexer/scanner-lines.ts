@@ -53,7 +53,9 @@ export class LineSplitter {
       }
     }
 
-    this.#buffer = data.slice(lineStart);
+    // must COPY: a Node Buffer's .slice() is a view, so a caller reusing one
+    // read buffer would have this tail overwritten by their next read
+    this.#buffer = new Uint8Array(data.subarray(lineStart));
     this.#offset += lineStart;
     return lines;
   }

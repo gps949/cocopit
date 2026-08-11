@@ -138,7 +138,7 @@ export function Config() {
           <div>
             <h2 className="text-[15px] font-medium">{t("价目表(USD / 百万 tokens)")}</h2>
             <p className="mt-1 text-xs text-muted">
-              版本 v{pricing?.version ?? "—"} · 修改任意行即生成用户覆盖,保存后全量重算历史费用
+              {t("版本 v{v} · 修改任意行即生成用户覆盖,保存后全量重算历史费用", { v: pricing?.version ?? "—" })}
             </p>
           </div>
           <div className="flex items-center gap-2">

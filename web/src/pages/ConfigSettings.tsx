@@ -71,7 +71,7 @@ export function ConfigSettings() {
   let parseError: string | null = null;
   try {
     const value = JSON.parse(draft || "{}");
-    if (typeof value !== "object" || value === null || Array.isArray(value)) parseError = "内容必须是 JSON 对象";
+    if (typeof value !== "object" || value === null || Array.isArray(value)) parseError = t("内容必须是 JSON 对象");
     else parsed = value as Record<string, unknown>;
   } catch (err) {
     parseError = (err as Error).message;
@@ -97,7 +97,7 @@ export function ConfigSettings() {
       return;
     }
     setData({ ...data, content: parsed, stamp: body.stamp });
-    setStatus({ kind: "saved", message: body.backupId ? `已备份 ${body.backupId}` : t("已保存") });
+    setStatus({ kind: "saved", message: body.backupId ? t("已备份 {id}", { id: body.backupId }) : t("已保存") });
   }
 
   async function reload() {
@@ -134,7 +134,7 @@ export function ConfigSettings() {
                 onClick={() => setScope(s)}
                 className={`rounded-md px-3 py-1 text-sm ${scope === s ? "bg-hover font-medium" : "text-muted"}`}
               >
-                {s === "user" ? "用户级" : t("项目级")}
+                {s === "user" ? t("用户级") : t("项目级")}
               </button>
             ))}
           </div>
@@ -157,13 +157,13 @@ export function ConfigSettings() {
       {data && (
         <p className="mt-2 truncate font-mono text-xs text-muted">
           {data.path}
-          {!data.stamp.exists && " (尚不存在,保存后创建)"}
+          {!data.stamp.exists && ` ${t("(尚不存在,保存后创建)")}`}
         </p>
       )}
 
       {data && data.activeSessions.length > 0 && (
         <div className="mt-3 rounded-xl border border-line bg-accent-soft px-4 py-2.5 text-sm">
-          检测到 {data.activeSessions.length} 个运行中的 Claude Code 会话。它们退出时可能回写该文件覆盖你的修改;修改前建议先退出,或保存后用备份恢复。
+          {t("检测到 {n} 个运行中的 Claude Code 会话。它们退出时可能回写该文件覆盖你的修改;修改前建议先退出,或保存后用备份恢复。", { n: data.activeSessions.length })}
         </div>
       )}
 
@@ -190,10 +190,10 @@ export function ConfigSettings() {
         >
           {t("重新加载")}
         </button>
-        {parseError && <span className="text-sm text-danger">JSON 错误:{parseError}</span>}
+        {parseError && <span className="text-sm text-danger">{t("JSON 错误")}:{parseError}</span>}
         {!parseError && changed.length > 0 && (
           <span className="text-sm text-muted">
-            将修改 {changed.length} 个键:<span className="font-mono">{changed.join(", ")}</span>
+            {t("将修改 {n} 个键:", { n: changed.length })}<span className="font-mono">{changed.join(", ")}</span>
           </span>
         )}
         {status.kind === "saved" && <span className="text-sm text-ok">{status.message}</span>}

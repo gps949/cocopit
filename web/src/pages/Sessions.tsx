@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listSessions, type SessionSummary } from "../api/sessions";
 import { fmtUsd } from "../components/EChart";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 
-function fmtWhen(ts: number | null): string {
+// module scope has no hook access — the caller passes its translator in
+function fmtWhen(ts: number | null, t: Translate, lang: Lang): string {
   if (!ts) return "—";
   const date = new Date(ts);
+  const locale = localeOf(lang);
   const days = (Date.now() - ts) / 86_400_000;
-  if (days < 1) return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-  if (days < 7) return `${Math.floor(days)} 天前`;
-  return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+  if (days < 1) return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  if (days < 7) return t("{n} 天前", { n: Math.floor(days) });
+  return date.toLocaleDateString(locale, { month: "2-digit", day: "2-digit" });
 }
 
 export function Sessions() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -93,7 +95,7 @@ export function Sessions() {
       {note && <p className="mt-3 text-sm text-danger">{note}</p>}
       {project && (
         <p className="mt-3 text-sm text-muted">
-          已按项目筛选 ·{" "}
+          {t("已按项目筛选")} ·{" "}
           <button
             type="button"
             className="text-accent hover:underline"
@@ -144,7 +146,7 @@ export function Sessions() {
                     {s.models.slice(0, 2).map((m) => (
                       <span key={m}>{m.replace(/^claude-/, "")}</span>
                     ))}
-                    {s.subagentCount > 0 && <span>{s.subagentCount} 子代理</span>}
+                    {s.subagentCount > 0 && <span>{t("{n} 子代理", { n: s.subagentCount })}</span>}
                     {s.gitBranch && <span className="font-mono">{s.gitBranch}</span>}
                   </div>
                 </td>
@@ -155,7 +157,7 @@ export function Sessions() {
                 <td className="px-4 py-2.5 text-right tabular-nums">
                   {s.costUsd ? fmtUsd(s.costUsd) : "—"}
                 </td>
-                <td className="px-4 py-2.5 text-right text-muted">{fmtWhen(s.lastTs)}</td>
+                <td className="px-4 py-2.5 text-right text-muted">{fmtWhen(s.lastTs, t, lang)}</td>
               </tr>
             ))}
           </tbody>

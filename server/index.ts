@@ -9,6 +9,7 @@ import {
   setAccessToken,
 } from "./auth";
 import { resolveBindHost } from "./bindHost";
+import { warmUsageCache } from "./usageWarm";
 import { loadConfig } from "./config";
 import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
@@ -196,7 +197,9 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerLiveRoutes(router, db, claudeDir);
     registerTerminalRoutes(router, db);
     registerConfigRoutes(router, db, claudeDir);
-    registerSystemRoutes(router, claudeDir, bindHost, bindPort);
+    registerSystemRoutes(router, claudeDir, bindHost, bindPort, (req) =>
+      isLoopbackRequest(req, peerAddressOf(req)),
+    );
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
@@ -286,6 +289,7 @@ if (import.meta.main) {
     console.log(
       `index scan: ${summary.workItems} files, ${summary.errors} errors, ${(summary.durationMs / 1000).toFixed(1)}s`,
     );
+    warmUsageCache(db);
   });
   new FsWatcher(scheduler, sources).start();
 }

@@ -1,9 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database } from "bun:sqlite";
 import { applyMigrations, insertMany, openDb } from "../db/db";
+
+/** Highest numbered migration on disk — the version a fresh db must reach. */
+function latestMigrationNumber(): number {
+  const numbers = readdirSync(join(import.meta.dir, "..", "db", "migrations"))
+    .filter((f) => f.endsWith(".sql"))
+    .map((f) => Number(f.split("_")[0]));
+  return Math.max(...numbers);
+}
 
 const CORE_TABLES = [
   "meta",
@@ -56,12 +64,14 @@ describe("openDb", () => {
 });
 
 describe("applyMigrations", () => {
-  test("brings a fresh db to schema_version 1 with all tables", () => {
+  test("brings a fresh db up to the latest migration with all tables", () => {
     const db = freshDb();
     const version = db
       .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
-    expect(version.value).toBe("2");
+    // pinning a literal here means every new migration breaks this test for no
+    // reason — what matters is that none were left unapplied
+    expect(version.value).toBe(String(latestMigrationNumber()));
 
     const tables = (
       db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
@@ -81,7 +91,7 @@ describe("applyMigrations", () => {
     const version = db
       .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
-    expect(version.value).toBe("2");
+    expect(version.value).toBe(String(latestMigrationNumber()));
     db.close();
   });
 });

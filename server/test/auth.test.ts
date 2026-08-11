@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   authorizeRequest,
+  requiresLocalPeer,
   hashToken,
   issueSessionCookie,
   loadAuthConfig,
@@ -124,5 +125,19 @@ describe("isLoopbackRequest", () => {
       headers: { "x-forwarded-for": "203.0.113.9" },
     });
     expect(isLoopbackRequest(proxied, "127.0.0.1")).toBe(false);
+  });
+});
+
+describe("privileged config mutation", () => {
+  test("without a token, changing network settings still requires a local peer", () => {
+    // an ssh tunnel or a same-host proxy can put a remote client on an
+    // unauthenticated console; the global gate lets them through because no
+    // token is configured, so locality is the only remaining check
+    expect(requiresLocalPeer(loadAuthConfig())).toBe(true);
+  });
+
+  test("with a token configured, holding it is sufficient — remote admin is the point", () => {
+    setAccessToken("s3cret-token");
+    expect(requiresLocalPeer(loadAuthConfig())).toBe(false);
   });
 });

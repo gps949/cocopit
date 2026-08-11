@@ -5,6 +5,7 @@ import { listClaudeFiles } from "../cc/paths";
 import { loadPricingTable } from "../cost/engine";
 import { getPricingVersion } from "../cost/recalc";
 import { Ingestor, type IngestPricing } from "./ingest";
+import { reconcileProjectCwd } from "./projectCwd";
 import { computeWork, type WorkItem } from "./scanner";
 import type { WorkerJob, WorkerReply } from "./worker";
 
@@ -114,6 +115,10 @@ export class IndexScheduler extends EventTarget {
       const lanes = Math.min(this.#workerCount, work.length);
       await Promise.all(Array.from({ length: lanes }, () => this.#runLane(queue, ingestor)));
     }
+
+    // a project's directory depends on all its sessions, so it can only be
+    // settled once they have all been ingested
+    if (work.length > 0) reconcileProjectCwd(this.#db);
 
     this.#db
       .prepare(

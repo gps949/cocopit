@@ -22,7 +22,7 @@ const RANGES: Array<{ key: RangeKey; label: string }> = [
   { key: "all", label: "全部" },
 ];
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEKDAY_KEYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -57,17 +57,38 @@ export function Dashboard() {
   const [calibration, setCalibration] = useState<CalibrationRow[] | null>(null);
   const [unpriced, setUnpriced] = useState<UnpricedModels | null>(null);
 
+  // The first query after a restart pays a cold read of the usage table (~86 MB
+  // on this machine, seconds); once the page cache is warm every range answers
+  // in well under 100 ms. So the switch is usually instant — but silently
+  // keeping the previous numbers on screen while it isn't reads as a dead
+  // button. Mark the range busy the moment it is clicked.
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const q = rangeToQuery(range);
-    void getJson<UsageSummary>(`/api/usage/summary${q}`).then(setSummary);
-    void getJson<DailyUsage>(`/api/usage/daily${q}`).then(setDaily);
-    void getJson<ModelUsage>(`/api/usage/by-model${q}`).then(setByModel);
-    void getJson<ProjectUsage>(`/api/usage/by-project${q}`).then(setByProject);
-    void getJson<HeatmapUsage>(`/api/usage/heatmap${q}`).then(setHeatmap);
-    void getJson<CacheEfficiency>(`/api/usage/cache-efficiency${q}`).then(setCache);
-    void getJson<{ profiles: Array<{ profileId: string; costUsd: number; events: number }> }>(
-      `/api/usage/by-profile${q}`,
-    ).then((r) => setByProfile(r.profiles));
+    let cancelled = false;
+    setLoading(true);
+    const guard =
+      <T,>(set: (value: T) => void) =>
+      (value: T) => {
+        if (!cancelled) set(value);
+      };
+    void Promise.all([
+      getJson<UsageSummary>(`/api/usage/summary${q}`).then(guard(setSummary)),
+      getJson<DailyUsage>(`/api/usage/daily${q}`).then(guard(setDaily)),
+      getJson<ModelUsage>(`/api/usage/by-model${q}`).then(guard(setByModel)),
+      getJson<ProjectUsage>(`/api/usage/by-project${q}`).then(guard(setByProject)),
+      getJson<HeatmapUsage>(`/api/usage/heatmap${q}`).then(guard(setHeatmap)),
+      getJson<CacheEfficiency>(`/api/usage/cache-efficiency${q}`).then(guard(setCache)),
+      getJson<{ profiles: Array<{ profileId: string; costUsd: number; events: number }> }>(
+        `/api/usage/by-profile${q}`,
+      ).then((r) => guard(setByProfile)(r.profiles)),
+    ]).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [range]);
 
   useEffect(() => {
@@ -181,10 +202,10 @@ export function Dashboard() {
         backgroundColor: tokens.panel,
         borderColor: tokens.line,
         textStyle: { color: tokens.ink, fontSize: 12 },
-        formatter: (p: any) => `周${WEEKDAYS[p.value[1]]} ${String(p.value[0]).padStart(2, "0")}:00<br/>${fmtUsd(p.value[2])}`,
+        formatter: (p: any) => `${t(WEEKDAY_KEYS[p.value[1]]!)} ${String(p.value[0]).padStart(2, "0")}:00<br/>${fmtUsd(p.value[2])}`,
       },
       xAxis: { type: "category", data: Array.from({ length: 24 }, (_, h) => h), ...axisBase, splitLine: { show: false }, axisLabel: { ...axisBase.axisLabel, interval: 3 } },
-      yAxis: { type: "category", data: WEEKDAYS, ...axisBase, splitLine: { show: false }, axisLine: { show: false } },
+      yAxis: { type: "category", data: WEEKDAY_KEYS.map((k) => t(k)), ...axisBase, splitLine: { show: false }, axisLine: { show: false } },
       visualMap: {
         min: 0,
         max,
@@ -207,19 +228,28 @@ export function Dashboard() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("仪表盘")}</h1>
-        <div className="flex rounded-lg border border-line p-0.5">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              className={`rounded-md px-3 py-1 text-sm transition-colors ${
-                range === r.key ? "bg-hover font-medium text-ink" : "text-muted hover:text-ink"
-              }`}
-            >
-              {t(r.label)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {loading && (
+            <span
+              aria-label={t("加载中…")}
+              className="size-3.5 animate-spin rounded-full border-[1.5px] border-line border-t-accent"
+            />
+          )}
+          <div className="flex rounded-lg border border-line p-0.5">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setRange(r.key)}
+                aria-busy={loading && range === r.key}
+                className={`rounded-md px-3 py-1 text-sm transition-colors ${
+                  range === r.key ? "bg-hover font-medium text-ink" : "text-muted hover:text-ink"
+                }`}
+              >
+                {t(r.label)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -232,6 +262,8 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* stale numbers stay legible but visibly not-current while refetching */}
+      <div className={loading ? "opacity-50 transition-opacity" : "transition-opacity"}>
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label={t("API 等价费用")} value={summary ? fmtUsd(summary.costUsd) : "—"} hint={summary ? t("{n} 次调用", { n: summary.events.toLocaleString() }) : undefined} />
         <Stat label={t("输出 tokens")} value={summary ? fmtTokens(summary.outputTokens) : "—"} hint={summary ? t("输入 {v}", { v: fmtTokens(summary.inputTokens) }) : undefined} />
@@ -272,8 +304,11 @@ export function Dashboard() {
           ) : (
             <div>
               <p className="text-sm text-muted">
-                {calibration.filter((r) => r.status === "ok").length}/{calibration.length} 项目·模型在容差内
-                {mismatches.length > 0 && `,${mismatches.length} 项偏差`}
+                {t("{ok}/{total} 项目·模型在容差内", {
+                  ok: calibration.filter((r) => r.status === "ok").length,
+                  total: calibration.length,
+                })}
+                {mismatches.length > 0 && t(",{n} 项偏差", { n: mismatches.length })}
               </p>
               {mismatches.length > 0 && (
                 <table className="mt-3 w-full text-sm">
@@ -304,6 +339,7 @@ export function Dashboard() {
             </div>
           )}
         </Card>
+      </div>
       </div>
     </div>
   );

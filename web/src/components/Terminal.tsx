@@ -116,12 +116,12 @@ export function TerminalPane({ name, onClosed }: { name: string; onClosed?: () =
           }`}
         >
           {status === "ready"
-            ? "已连接"
+            ? t("已连接")
             : status === "connecting"
-              ? "连接中…"
+              ? t("连接中…")
               : status === "closed"
-                ? `已断开${message ? ` · ${message}` : ""}`
-                : `错误${message ? ` · ${message}` : ""}`}
+                ? `${t("已断开")}${message ? ` · ${message}` : ""}`
+                : `${t("错误")}${message ? ` · ${message}` : ""}`}
         </span>
       </div>
       <div ref={hostRef} className="h-[60vh] max-h-[520px] min-h-[280px] w-full px-2 py-1" />

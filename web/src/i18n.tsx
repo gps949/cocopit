@@ -191,6 +191,21 @@ const EN: Record<string, string> = {
   "新令牌(至少 8 位)": "New token (8+ characters)",
   "仅可在服务器本机设置": "Can only be set from the server itself",
   "已断开": "Disconnected",
+  "会话已结束": "Session ended",
+  "周日": "Sun",
+  "周一": "Mon",
+  "周二": "Tue",
+  "周三": "Wed",
+  "周四": "Thu",
+  "周五": "Fri",
+  "周六": "Sat",
+  "内容必须是 JSON 对象": "Content must be a JSON object",
+  "JSON 错误": "JSON error",
+  "{n} 条记录": "{n} records",
+  "这个子代理没有留下可读内容。": "This subagent left no readable content.",
+  "记录过长,仅显示前一部分。": "Transcript is long — showing the first part only.",
+  "{n} 文件": "{n} files",
+  "如 Work": "e.g. Work",
   "错误": "Error",
 
   // config
@@ -278,10 +293,13 @@ const EN: Record<string, string> = {
     "Not delivered yet — coming in {phase}. The index layer is live and updating in the background.",
 };
 
+/** The translator, so module-scope helpers can accept one as a parameter. */
+export type Translate = (source: string, params?: Record<string, string | number>) => string;
+
 interface I18nValue {
   "lang": Lang;
   "setLang": (lang: Lang) => void;
-  "t": (source: string, params?: Record<string, string | number>) => string;
+  "t": Translate;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);

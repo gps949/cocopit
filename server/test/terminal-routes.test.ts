@@ -7,7 +7,7 @@ import { applyMigrations, openDb } from "../db/db";
 import { SseHub } from "../http/sse";
 import { createServer } from "../index";
 import { IndexScheduler } from "../indexer/scheduler";
-import { killSession, listTmuxSessions } from "../terminal/tmux";
+import { killSession, listTmuxSessions, startSession } from "../terminal/tmux";
 
 let dir: string;
 let home: string;
@@ -100,7 +100,11 @@ describe("terminal routes", () => {
   });
 
   test("websocket attach streams output and accepts input", async () => {
-    const ws = new WebSocket(`ws://127.0.0.1:${server.port}/api/terminal/cc-term-sess/attach`);
+    // a plain shell, not the resume target: typing into Claude Code's TUI tests
+    // that TUI's rendering and boot time, not this websocket
+    startSession({ name: "cc-term-ws", command: "sh", cwd: "/tmp", cols: 100, rows: 30 });
+    spawned.push("cc-term-ws");
+    const ws = new WebSocket(`ws://127.0.0.1:${server.port}/api/terminal/cc-term-ws/attach`);
     const messages: any[] = [];
     ws.onmessage = (event) => messages.push(JSON.parse(String(event.data)));
     await new Promise<void>((resolve, reject) => {
@@ -114,20 +118,21 @@ describe("terminal routes", () => {
     while (!messages.some((m) => m.type === "ready") && Date.now() < deadline) await Bun.sleep(100);
     expect(messages.some((m) => m.type === "ready")).toBe(true);
 
-    ws.send(JSON.stringify({ type: "input", data: "echo WS_ROUND_TRIP\n" }));
-    const outDeadline = Date.now() + 5000;
-    while (
-      !messages.some((m) => m.type === "output" && String(m.data).includes("WS_ROUND_TRIP")) &&
-      Date.now() < outDeadline
-    ) {
-      await Bun.sleep(100);
+    // "ready" means the tmux attachment is live, not that the shell inside has
+    // finished starting — keystrokes sent too early are simply lost, so resend
+    // until the round trip lands rather than racing the shell's startup
+    const seen = () => messages.some((m) => m.type === "output" && String(m.data).includes("WS_ROUND_TRIP"));
+    const outDeadline = Date.now() + 10000;
+    while (!seen() && Date.now() < outDeadline) {
+      ws.send(JSON.stringify({ type: "input", data: "echo WS_ROUND_TRIP\n" }));
+      for (let i = 0; i < 8 && !seen(); i++) await Bun.sleep(100);
     }
     expect(messages.some((m) => m.type === "output" && String(m.data).includes("WS_ROUND_TRIP"))).toBe(true);
 
     ws.close();
     await Bun.sleep(300);
     // detaching must not kill the session — that is the whole point of tmux
-    expect(listTmuxSessions().some((s) => s.name === "cc-term-sess")).toBe(true);
+    expect(listTmuxSessions().some((s) => s.name === "cc-term-ws")).toBe(true);
   }, 20000);
 
   test("cross-origin websocket upgrades are refused", async () => {

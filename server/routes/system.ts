@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadAuthConfig } from "../auth";
+import { loadAuthConfig, requiresLocalPeer } from "../auth";
 import { listLiveSessions } from "../cc/liveSessions";
 import { loadConfig } from "../config";
 import type { Router } from "../http/router";
@@ -43,6 +43,7 @@ export function registerSystemRoutes(
   claudeDir: string,
   runningHost: string,
   runningPort: number,
+  isLocal: (req: Request) => boolean = () => true,
 ): void {
   router.register("GET", "/api/system/config", () => {
     const config = loadConfig();
@@ -57,6 +58,11 @@ export function registerSystemRoutes(
   });
 
   router.register("PATCH", "/api/system/config", async (req) => {
+    const auth = loadAuthConfig();
+    if (requiresLocalPeer(auth) && !isLocal(req)) {
+      return Response.json({ error: "网络设置只能在服务器本机修改,或先设置访问令牌" }, { status: 403 });
+    }
+
     let patch: SelfConfigPatch;
     try {
       patch = (await req.json()) as SelfConfigPatch;
@@ -64,7 +70,7 @@ export function registerSystemRoutes(
       return Response.json({ error: "请求体不是合法 JSON" }, { status: 400 });
     }
     try {
-      const next = updateSelfConfig(patch, loadAuthConfig().enabled);
+      const next = updateSelfConfig(patch, auth.enabled);
       return Response.json({
         port: next.port,
         host: next.host,

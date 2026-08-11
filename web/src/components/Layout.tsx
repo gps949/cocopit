@@ -103,7 +103,7 @@ export function Layout() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-60" />
                 <span className="relative inline-flex size-2 rounded-full bg-accent" />
               </span>
-              索引中 {Math.round(status.pct * 100)}%
+              {t("索引中 {pct}%", { pct: Math.round(status.pct * 100) })}
             </div>
           )}
           <button

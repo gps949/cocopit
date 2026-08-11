@@ -1,3 +1,4 @@
+import { humanUserText } from "../../shared/userText";
 import type { RawLine } from "./scanner-lines";
 
 export interface NormalizedUsage {
@@ -159,7 +160,9 @@ export function parseLine(raw: RawLine, seq: number): ParsedLine {
       if (names.length > 0) out.toolNames = names;
     }
   } else if (out.type === "user" && !record.isMeta && message && typeof message === "object") {
-    const text = textOf(message.content);
+    // only real speech gets a snippet — the outline and search are built on
+    // this, and hook/notification text drowns out the handful of actual turns
+    const text = humanUserText(message.content);
     if (text) {
       out.firstUserText = text;
       out.snippet = makeSnippet(text);

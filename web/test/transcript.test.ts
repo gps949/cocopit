@@ -199,3 +199,31 @@ describe("filters and collapsing", () => {
     expect(groups[0]).toHaveLength(2);
   });
 });
+
+describe("attribution", () => {
+  const raw = (seq: number, content: unknown, type = "user") => ({
+    seq,
+    uuid: `u${seq}`,
+    byteLen: 10,
+    record: { type, message: { role: type, content } },
+  });
+
+  test("a background-task notification is not attributed to the user", () => {
+    const entries = buildTranscript([
+      raw(0, "<task-notification>\n<status>completed</status>\n<result>审查完成</result>\n</task-notification>"),
+    ]);
+    expect(entries[0]!.kind).not.toBe("user");
+    expect(entries[0]!.metaLabel).toBe("task-notification");
+  });
+
+  test("the notification body stays readable — it carries the agent's result", () => {
+    const entries = buildTranscript([raw(0, "<task-notification>agent finished the review</task-notification>")]);
+    expect(entries[0]!.text).toContain("agent finished the review");
+  });
+
+  test("a real message with an appended reminder is still the user talking", () => {
+    const entries = buildTranscript([raw(0, "接着做第三步\n<system-reminder>be brief</system-reminder>")]);
+    expect(entries[0]!.kind).toBe("user");
+    expect(entries[0]!.text).toBe("接着做第三步");
+  });
+});

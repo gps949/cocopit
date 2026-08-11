@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { DEFAULT_MAX_BODY_BYTES, readMessageRecords, type MessagePointer } from "../cc/sessionReader";
+import { readSubagentTranscript } from "../cc/subagentReader";
 import type { Router } from "../http/router";
 
 /** trigram FTS needs ≥3 chars; quote to neutralize MATCH syntax. */
@@ -168,6 +169,40 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       .prepare("SELECT COUNT(*) AS n FROM messages WHERE session_id = $id")
       .get({ $id: routeParams.id! }) as { n: number };
     return Response.json({ turns, total: total.n });
+  });
+
+  /**
+   * A subagent's own transcript. These live in separate files that the indexer
+   * records for cost but never parses into the message table, so there are no
+   * byte offsets to seek with — the file is walked instead of indexed.
+   */
+  router.register("GET", "/api/sessions/:id/subagents/:agentId", async (req, routeParams) => {
+    const row = db
+      .prepare(
+        `SELECT file_path AS filePath, agent_type AS agentType, description, cost_usd AS costUsd
+         FROM subagents WHERE session_id = $id AND agent_id = $agent`,
+      )
+      .get({ $id: routeParams.id!, $agent: routeParams.agentId! }) as
+      | { filePath: string | null; agentType: string | null; description: string | null; costUsd: number | null }
+      | null;
+    if (!row) return Response.json({ error: "not found" }, { status: 404 });
+    if (!row.filePath) return Response.json({ error: "no transcript file recorded" }, { status: 404 });
+
+    const url = new URL(req.url);
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Math.min(Number(url.searchParams.get("limit") ?? 200), 500);
+    try {
+      const transcript = await readSubagentTranscript(row.filePath, { offset, limit });
+      return Response.json({
+        agentType: row.agentType,
+        description: row.description,
+        costUsd: row.costUsd,
+        ...transcript,
+      });
+    } catch (err) {
+      // the transcript may have been cleaned up while the index still knows it
+      return Response.json({ error: `无法读取子代理记录: ${(err as Error).message}` }, { status: 410 });
+    }
   });
 
   router.register("GET", "/api/sessions/:id/messages", async (req, routeParams) => {

@@ -53,7 +53,9 @@ async function waitFor(cond: () => boolean, timeoutMs = 5000): Promise<void> {
 
 describe("FsWatcher", () => {
   test("a new session file gets indexed after a change event", async () => {
-    watcher = new FsWatcher(scheduler, dir, { debounceMs: 50 });
+    // same poll backstop as the append test below: FSEvents delivery is not
+    // bounded under load, and waiting on it alone makes this flaky
+    watcher = new FsWatcher(scheduler, dir, { debounceMs: 50, pollMs: 200 });
     watcher.start();
     writeFileSync(join(dir, "projects", "-p1", "w-1.jsonl"), sessionLine("w-1", "watch me"));
     await waitFor(() => sessionCount() === 1);

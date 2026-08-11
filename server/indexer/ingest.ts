@@ -249,10 +249,13 @@ export class Ingestor {
         const agg = this.#agg.get(task.path) ?? emptyAgg();
         this.#db
           .prepare(
+            // cwd here is only a seed for a brand-new project row; the
+            // authoritative value is recomputed from the sessions below, since
+            // any single session may have cd'd somewhere unrepresentative
             `INSERT INTO projects (profile_id, dir_name, cwd, first_ts, last_ts)
              VALUES ($profileId, $dir, $cwd, $first, $last)
              ON CONFLICT(profile_id, dir_name) DO UPDATE SET
-               cwd = COALESCE(excluded.cwd, projects.cwd),
+               cwd = COALESCE(projects.cwd, excluded.cwd),
                first_ts = COALESCE(MIN(projects.first_ts, excluded.first_ts), projects.first_ts, excluded.first_ts),
                last_ts = COALESCE(MAX(projects.last_ts, excluded.last_ts), projects.last_ts, excluded.last_ts)`,
           )
@@ -271,11 +274,11 @@ export class Ingestor {
             `INSERT INTO sessions (id, project_id, file_path, file_size, file_mtime_ms, parsed_bytes,
                first_ts, last_ts, title, slug, git_branch, cc_version,
                line_count, user_msg_count, assistant_msg_count, models,
-               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd)
+               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd, cwd)
              VALUES ($id, $pid, $path, $size, $mtime, $parsed, $first, $last, $title, $slug, $branch, $ver,
                $lines, $users, $assts, $models, $in, $out, $cw, $cr,
                (SELECT COUNT(*) FROM subagents WHERE session_id = $id),
-               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id))
+               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd)
              ON CONFLICT(id) DO UPDATE SET
                project_id = excluded.project_id, file_path = excluded.file_path,
                file_size = excluded.file_size, file_mtime_ms = excluded.file_mtime_ms,
@@ -289,7 +292,7 @@ export class Ingestor {
                cache_creation_tokens = excluded.cache_creation_tokens,
                cache_read_tokens = excluded.cache_read_tokens,
                subagent_count = excluded.subagent_count,
-               cost_usd = excluded.cost_usd`,
+               cost_usd = excluded.cost_usd, cwd = excluded.cwd`,
           )
           .run({
             $id: task.sessionId,
@@ -312,6 +315,7 @@ export class Ingestor {
             $out: agg.output,
             $cw: agg.cacheCreation,
             $cr: agg.cacheRead,
+            $cwd: agg.cwd,
           });
       } else {
         let meta: Record<string, unknown> = {};

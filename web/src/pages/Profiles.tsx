@@ -104,7 +104,7 @@ export function Profiles() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm(`删除 profile「${id}」?其登录数据目录会保留,仅移除注册条目。`)) return;
+    if (!window.confirm(t("删除 profile「{id}」?其登录数据目录会保留,仅移除注册条目。", { id }))) return;
     await fetch(`/api/profiles/${id}`, { method: "DELETE" });
     void load();
   }
@@ -133,7 +133,7 @@ export function Profiles() {
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder={t("如 Work")}
+                placeholder={t(t("如 Work"))}
                 className="w-44 rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
               />
             </label>

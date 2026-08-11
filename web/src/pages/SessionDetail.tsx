@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import {
   getLatestMessages,
@@ -6,14 +7,17 @@ import {
   getMessages,
   getMessagesBefore,
   getOutline,
+  getSubagentTranscript,
   getSession,
   openTerminal,
   type MessageRow,
   type OutlineTurn,
+  type SubagentTranscript,
   type SessionSummary,
   type SubagentInfo,
 } from "../api/sessions";
 import { fmtTokens, fmtUsd } from "../components/EChart";
+import { Markdown } from "../components/Markdown";
 import { TerminalPane } from "../components/Terminal";
 import { localeOf, useI18n } from "../i18n";
 import {
@@ -23,10 +27,102 @@ import {
   type TranscriptEntry,
 } from "../lib/transcript";
 
-/** A session can spawn dozens of subagents; keep them out of the reader's way. */
-function SubagentPanel({ subagents }: { subagents: SubagentInfo[] }) {
+/**
+ * A subagent's own transcript, read on demand. Nearly a fifth of all spend in a
+ * typical history happens inside these, and until now they were a cost figure
+ * with no way to see what was actually done.
+ */
+function SubagentViewer({
+  sessionId,
+  subagent,
+  onClose,
+}: {
+  sessionId: string;
+  subagent: SubagentInfo;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [data, setData] = useState<SubagentTranscript | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setError(null);
+    getSubagentTranscript(sessionId, subagent.agentId)
+      .then((res) => !cancelled && setData(res))
+      .catch((err: Error) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, subagent.agentId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const entries = useMemo(
+    () => (data ? filterTranscript(buildTranscript(data.records), {
+      showThinking: false,
+      showMeta: false,
+      conversationOnly: false,
+    }) : []),
+    [data],
+  );
+
+  // through a portal: the page wrapper's entrance animation leaves a transform
+  // behind, which would make this the containing block for position:fixed and
+  // anchor the overlay to the page instead of the viewport
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-t-2xl border border-line bg-panel sm:max-h-[85vh] sm:rounded-2xl"
+      >
+        <div className="flex min-w-0 items-start gap-3 border-b border-line px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h3 className="text-[15px] font-medium">{subagent.agentType ?? t("子代理")}</h3>
+              {subagent.costUsd != null && <span className="text-xs text-muted">{fmtUsd(subagent.costUsd)}</span>}
+              {data && <span className="text-xs text-muted">{t("{n} 条记录", { n: data.total })}</span>}
+            </div>
+            {subagent.description && (
+              <p className="mt-1 text-sm break-words text-muted">{subagent.description}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover"
+          >
+            {t("关闭")}
+          </button>
+        </div>
+
+        <div className="min-w-0 flex-1 overflow-y-auto px-5 py-4">
+          {error && <p className="text-sm text-danger">{error}</p>}
+          {!data && !error && <p className="text-sm text-muted">{t("加载中…")}</p>}
+          {data && entries.length === 0 && <p className="text-sm text-muted">{t("这个子代理没有留下可读内容。")}</p>}
+          {entries.map((entry) => (
+            <Entry key={entry.key} entry={entry} sessionId={sessionId} />
+          ))}
+          {data?.truncatedFile && (
+            <p className="mt-3 text-xs text-muted">{t("记录过长,仅显示前一部分。")}</p>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function SubagentPanel({ subagents, sessionId }: { subagents: SubagentInfo[]; sessionId: string }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [viewing, setViewing] = useState<SubagentInfo | null>(null);
   const sorted = useMemo(
     () => [...subagents].sort((a, b) => (b.costUsd ?? 0) - (a.costUsd ?? 0)),
     [subagents],
@@ -53,13 +149,22 @@ function SubagentPanel({ subagents }: { subagents: SubagentInfo[] }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm">
         {shown.map((sub) => (
-          <div key={sub.agentId} className="rounded-lg border border-line px-2.5 py-1.5">
-            <div className="text-xs text-muted">{sub.agentType ?? "agent"}</div>
-            <div className="mt-0.5 font-mono text-[11px]">{sub.agentId.slice(0, 10)}</div>
+          <button
+            key={sub.agentId}
+            type="button"
+            onClick={() => setViewing(sub)}
+            title={sub.description ?? undefined}
+            className="max-w-full rounded-lg border border-line px-2.5 py-1.5 text-left transition-colors hover:border-accent hover:bg-hover"
+          >
+            <div className="truncate text-xs text-muted">{sub.agentType ?? "agent"}</div>
+            <div className="mt-0.5 truncate font-mono text-[11px]">{sub.agentId.slice(0, 10)}</div>
             {sub.costUsd != null && <div className="text-[11px]">{fmtUsd(sub.costUsd)}</div>}
-          </div>
+          </button>
         ))}
       </div>
+      {viewing && (
+        <SubagentViewer sessionId={sessionId} subagent={viewing} onClose={() => setViewing(null)} />
+      )}
     </div>
   );
 }
@@ -95,40 +200,9 @@ function Toggle({
   );
 }
 
-/** Renders prose with fenced code blocks lifted out into <pre>. */
+/** Session prose is markdown — headings, emphasis and lists, not just fences. */
 function Prose({ text }: { text: string }) {
-  const parts = useMemo(() => {
-    const out: Array<{ code: boolean; lang?: string; body: string }> = [];
-    const pattern = /```(\w*)\n([\s\S]*?)```/g;
-    let last = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(text))) {
-      if (match.index > last) out.push({ code: false, body: text.slice(last, match.index) });
-      out.push({ code: true, lang: match[1] || undefined, body: match[2]! });
-      last = pattern.lastIndex;
-    }
-    if (last < text.length) out.push({ code: false, body: text.slice(last) });
-    return out;
-  }, [text]);
-
-  return (
-    <>
-      {parts.map((part, index) =>
-        part.code ? (
-          <pre
-            key={index}
-            className="my-2 overflow-x-auto rounded-lg border border-line bg-bg p-3 font-mono text-xs leading-relaxed"
-          >
-            {part.body.replace(/\n$/, "")}
-          </pre>
-        ) : (
-          <p key={index} className="whitespace-pre-wrap break-words">
-            {part.body.trim()}
-          </p>
-        ),
-      )}
-    </>
-  );
+  return <Markdown text={text} />;
 }
 
 function ToolEntry({ entry }: { entry: TranscriptEntry }) {
@@ -206,10 +280,18 @@ function MetaGroup({ entries }: { entries: TranscriptEntry[] }) {
         {t("{n} 条元数据记录", { n: entries.length })} {open ? "−" : "+"}
       </button>
       {open && (
-        <div className="mt-1 space-y-0.5 border-l border-line pl-3">
+        <div className="mt-1 space-y-1.5 border-l border-line pl-3">
           {entries.map((entry) => (
-            <div key={entry.key} className="truncate font-mono text-[11px] text-muted">
-              #{entry.seq} {entry.metaLabel}
+            <div key={entry.key} className="min-w-0">
+              <div className="truncate font-mono text-[11px] text-muted">
+                #{entry.seq} {entry.metaLabel}
+              </div>
+              {/* notifications carry the agent's actual result — worth reading */}
+              {entry.text && (
+                <div className="mt-1 max-h-64 overflow-auto rounded-lg border border-line/70 bg-bg px-3 py-2 text-muted">
+                  <Markdown text={entry.text} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -443,7 +525,7 @@ export function SessionDetail() {
         <Stat label={t("子代理")} value={String(session.subagentCount)} />
       </div>
 
-      {subagents.length > 0 && <SubagentPanel subagents={subagents} />}
+      {subagents.length > 0 && <SubagentPanel subagents={subagents} sessionId={id} />}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Toggle active={conversationOnly} onClick={() => setConversationOnly((v) => !v)}>

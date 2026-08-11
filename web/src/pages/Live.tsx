@@ -34,7 +34,7 @@ export function Live() {
   }, []);
 
   async function closeTerminal(name: string) {
-    if (!window.confirm(`关闭终端 ${name}?其中运行的会话会被结束。`)) return;
+    if (!window.confirm(t("关闭终端 {name}?其中运行的会话会被结束。", { name }))) return;
     await fetch(`/api/terminal/${encodeURIComponent(name)}`, { method: "DELETE" });
     if (open === name) setOpen(null);
   }
@@ -50,7 +50,7 @@ export function Live() {
       </p>
 
       <section className="mt-5">
-        <h2 className="text-[15px] font-medium">运行中的会话({alive.length})</h2>
+        <h2 className="text-[15px] font-medium">{t("运行中的会话({n})", { n: alive.length })}</h2>
         {alive.length === 0 && <p className="mt-2 text-sm text-muted">{t("当前没有运行中的会话。")}</p>}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {alive.map((s) => (
@@ -77,7 +77,7 @@ export function Live() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-[15px] font-medium">ccockpit 终端({terminals.length})</h2>
+        <h2 className="text-[15px] font-medium">{t("ccockpit 终端({n})", { n: terminals.length })}</h2>
         {!available && <p className="mt-2 text-sm text-danger">{t("未检测到 tmux,Web 终端不可用。")}</p>}
         {available && terminals.length === 0 && (
           <p className="mt-2 text-sm text-muted">{t("还没有终端。可在会话详情页「在终端中恢复」,或在项目页新建会话。")}</p>
@@ -117,7 +117,7 @@ export function Live() {
 
       {stale.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-[15px] font-medium text-muted">已结束的注册项({stale.length})</h2>
+          <h2 className="text-[15px] font-medium text-muted">{t("已结束的注册项({n})", { n: stale.length })}</h2>
           <p className="mt-1 text-xs text-muted">
             {t("进程已退出但注册文件仍在(崩溃或 PID 已被复用),仅供排查。")}
           </p>

@@ -94,6 +94,20 @@ export interface OutlineTurn {
 
 export const getOutline = (id: string) =>
   getJson<{ turns: OutlineTurn[]; total: number }>(`/api/sessions/${id}/outline`);
+
+export interface SubagentTranscript {
+  agentType: string | null;
+  description: string | null;
+  costUsd: number | null;
+  records: MessageRow[];
+  total: number;
+  truncatedFile: boolean;
+}
+
+export const getSubagentTranscript = (id: string, agentId: string, offset = 0, limit = 200) =>
+  getJson<SubagentTranscript>(
+    `/api/sessions/${id}/subagents/${encodeURIComponent(agentId)}?offset=${offset}&limit=${limit}`,
+  );
 export const getMessage = (id: string, uuid: string) =>
   getJson<MessageRow>(`/api/sessions/${id}/messages/${uuid}`);
 export const listProjects = () => getJson<{ projects: ProjectRow[] }>("/api/projects");

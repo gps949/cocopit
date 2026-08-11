@@ -227,7 +227,7 @@ export function SystemDisk() {
 
   async function runCleanup(dryRun: boolean) {
     if (selected.size === 0) return;
-    if (!dryRun && !window.confirm(`确认删除 ${preview?.plan.items.length ?? 0} 项?此操作不可撤销。`)) return;
+    if (!dryRun && !window.confirm(t("确认删除 {n} 项?此操作不可撤销。", { n: preview?.plan.items.length ?? 0 }))) return;
     setBusy(true);
     try {
       const res = await fetch("/api/system/cleanup", {
@@ -237,7 +237,7 @@ export function SystemDisk() {
       const body = (await res.json()) as CleanupResult;
       setPreview(body);
       if (!dryRun) {
-        setMessage(`已删除 ${body.deleted} 项,释放 ${fmtBytes(body.freedBytes)}`);
+        setMessage(t("已删除 {n} 项,释放 {size}", { n: body.deleted, size: fmtBytes(body.freedBytes) }));
         load();
       }
     } finally {
@@ -289,7 +289,7 @@ export function SystemDisk() {
 
         {report && report.activeSessionIds.length > 0 && (
           <p className="mt-2 text-xs text-muted">
-            {report.activeSessionIds.length} 个会话正在运行,其文件版本备份不会被清理。
+            {t("{n} 个会话正在运行,其文件版本备份不会被清理。", { n: report.activeSessionIds.length })}
           </p>
         )}
 
@@ -312,7 +312,7 @@ export function SystemDisk() {
               />
               <span className="w-24 shrink-0 text-sm sm:w-28">{t(c.label)}</span>
               <span className="w-24 text-right text-sm tabular-nums">{fmtBytes(c.sizeBytes)}</span>
-              <span className="w-20 text-right text-xs tabular-nums text-muted">{c.fileCount} 文件</span>
+              <span className="w-20 text-right text-xs tabular-nums text-muted">{t("{n} 文件", { n: c.fileCount })}</span>
               <span className="hidden truncate text-xs text-muted sm:block">{c.description}</span>
             </label>
           ))}
@@ -320,7 +320,7 @@ export function SystemDisk() {
 
         {report && (
           <p className="mt-3 border-t border-line pt-3 text-xs text-muted">
-            受保护(永不清理):
+            {t("受保护(永不清理):")}
             {report.protected.map((p) => ` ${p.label} ${fmtBytes(p.sizeBytes)}`).join(" ·")}
           </p>
         )}
@@ -329,8 +329,8 @@ export function SystemDisk() {
           <div className="mt-3 rounded-xl border border-line bg-bg p-3 text-sm">
             <div className={preview.dryRun ? "text-muted" : "text-ok"}>
               {preview.dryRun
-                ? `预览:将删除 ${preview.plan.items.length} 项,释放 ${fmtBytes(preview.plan.totalBytes)}`
-                : `已删除 ${preview.deleted} 项,释放 ${fmtBytes(preview.freedBytes)}`}
+                ? t("预览:将删除 {n} 项,释放 {size}", { n: preview.plan.items.length, size: fmtBytes(preview.plan.totalBytes) })
+                : t("已删除 {n} 项,释放 {size}", { n: preview.deleted, size: fmtBytes(preview.freedBytes) })}
             </div>
             {preview.plan.items.length > 0 && (
               <div className="mt-2 max-h-40 overflow-auto font-mono text-xs text-muted">
@@ -348,7 +348,7 @@ export function SystemDisk() {
       </section>
 
       <section className="mt-4 rounded-2xl border border-line bg-panel p-5">
-        <h2 className="text-[15px] font-medium">配置备份({backups.length})</h2>
+        <h2 className="text-[15px] font-medium">{t("配置备份({n})", { n: backups.length })}</h2>
         {backups.length === 0 && <p className="mt-2 text-sm text-muted">{t("还没有备份。修改配置时会自动创建。")}</p>}
         <div className="mt-3 space-y-1">
           {backups.slice(0, 20).map((b) => (

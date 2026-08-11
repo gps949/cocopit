@@ -135,6 +135,20 @@ export function authorizeRequest(req: Request, config = loadAuthConfig()): AuthR
   return { ok: false, status: 401, reason: "需要访问令牌" };
 }
 
+/**
+ * Whether a privileged mutation (network settings, the token itself) must come
+ * from a local socket peer.
+ *
+ * With a token configured, holding it is proof enough — administering the
+ * console remotely is the reason the token exists. With no token, the gate lets
+ * everyone through, and a same-host proxy or an ssh tunnel can put a remote
+ * client on that open console; requiring a real loopback peer keeps them from
+ * repointing the bind address or the allowed origins.
+ */
+export function requiresLocalPeer(config = loadAuthConfig()): boolean {
+  return !config.enabled;
+}
+
 /** True when the client is talking HTTPS, directly or through a TLS proxy. */
 export function isSecureRequest(req: Request): boolean {
   const proto = req.headers.get("x-forwarded-proto");
