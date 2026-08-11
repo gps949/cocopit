@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
+import { useI18n } from "../i18n";
 
 interface DiskCategory {
   id: string;
@@ -42,6 +43,7 @@ function fmtBytes(n: number): string {
 }
 
 export function SystemDisk() {
+  const { t } = useI18n();
   const [report, setReport] = useState<DiskReport | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [retention, setRetention] = useState<number | null>(null);
@@ -81,9 +83,9 @@ export function SystemDisk() {
   }
 
   async function restore(id: string) {
-    if (!window.confirm("恢复该备份?当前内容会先被备份,可再回滚。")) return;
+    if (!window.confirm(t("恢复该备份?当前内容会先被备份,可再回滚。"))) return;
     const res = await fetch(`/api/backups/${encodeURIComponent(id)}/restore`, { method: "POST" });
-    setMessage(res.ok ? "已恢复" : "恢复失败");
+    setMessage(res.ok ? "已恢复" : t("恢复失败"));
     load();
   }
 
@@ -91,9 +93,9 @@ export function SystemDisk() {
     <>
       <section className="mt-4 rounded-2xl border border-line bg-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[15px] font-medium">磁盘治理</h2>
+          <h2 className="text-[15px] font-medium">{t("磁盘治理")}</h2>
           <div className="flex items-center gap-2 text-sm">
-            <label className="text-muted">保留天数</label>
+            <label className="text-muted">{t("保留天数")}</label>
             <input
               type="number"
               min={0}
@@ -107,7 +109,7 @@ export function SystemDisk() {
               onClick={() => void runCleanup(true)}
               className="rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-hover disabled:opacity-40"
             >
-              预览
+              {t("预览")}
             </button>
             <button
               type="button"
@@ -115,7 +117,7 @@ export function SystemDisk() {
               onClick={() => void runCleanup(false)}
               className="rounded-lg border border-line px-3 py-1.5 text-sm text-danger hover:bg-hover disabled:opacity-40"
             >
-              执行删除
+              {t("执行删除")}
             </button>
           </div>
         </div>
@@ -182,7 +184,7 @@ export function SystemDisk() {
 
       <section className="mt-4 rounded-2xl border border-line bg-panel p-5">
         <h2 className="text-[15px] font-medium">配置备份({backups.length})</h2>
-        {backups.length === 0 && <p className="mt-2 text-sm text-muted">还没有备份。修改配置时会自动创建。</p>}
+        {backups.length === 0 && <p className="mt-2 text-sm text-muted">{t("还没有备份。修改配置时会自动创建。")}</p>}
         <div className="mt-3 space-y-1">
           {backups.slice(0, 20).map((b) => (
             <div key={b.id} className="flex items-center gap-3 border-b border-line/60 py-1.5 text-sm last:border-0">
@@ -194,7 +196,7 @@ export function SystemDisk() {
                 onClick={() => void restore(b.id)}
                 className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
               >
-                恢复
+                {t("恢复")}
               </button>
             </div>
           ))}

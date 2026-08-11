@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJson } from "../api/usage";
 import { ConfigSettings } from "./ConfigSettings";
+import { useI18n } from "../i18n";
 
 interface PricingTier {
   input: number;
@@ -35,6 +36,7 @@ function emptyTier(): PricingTier {
 }
 
 export function Config() {
+  const { t } = useI18n();
   const [pricing, setPricing] = useState<PricingResponse | null>(null);
   const [drafts, setDrafts] = useState<Map<string, PricingTier>>(new Map());
   const [newMatch, setNewMatch] = useState("");
@@ -123,7 +125,7 @@ export function Config() {
   return (
     <div className="max-w-4xl">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-[26px] font-semibold tracking-tight">配置</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight">{t("配置")}</h1>
       </div>
 
       <div className="mt-6">
@@ -133,22 +135,22 @@ export function Config() {
       <section className="mt-6 rounded-2xl border border-line bg-panel p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-[15px] font-medium">价目表(USD / 百万 tokens)</h2>
+            <h2 className="text-[15px] font-medium">{t("价目表(USD / 百万 tokens)")}</h2>
             <p className="mt-1 text-xs text-muted">
               版本 v{pricing?.version ?? "—"} · 修改任意行即生成用户覆盖,保存后全量重算历史费用
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {status === "recalculating" && <span className="text-xs text-accent">重算中…</span>}
-            {status === "done" && <span className="text-xs text-ok">已重算完成</span>}
-            {status === "error" && <span className="text-xs text-danger">保存失败</span>}
+            {status === "recalculating" && <span className="text-xs text-accent">{t("重算中…")}</span>}
+            {status === "done" && <span className="text-xs text-ok">{t("已重算完成")}</span>}
+            {status === "error" && <span className="text-xs text-danger">{t("保存失败")}</span>}
             {pricing && pricing.userEntries.length > 0 && (
               <button
                 type="button"
                 onClick={() => void resetOverrides()}
                 className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-hover"
               >
-                清除全部覆盖
+                {t("清除全部覆盖")}
               </button>
             )}
             <button
@@ -157,7 +159,7 @@ export function Config() {
               onClick={() => void save()}
               className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white transition-colors hover:bg-accent-strong disabled:opacity-40 dark:text-ink"
             >
-              保存并重算
+              {t("保存并重算")}
             </button>
           </div>
         </div>
@@ -166,13 +168,13 @@ export function Config() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="pb-2 pr-3 font-normal">模型前缀</th>
-                {TIER_KEYS.map((t) => (
-                  <th key={t.key} className="pb-2 pr-3 text-right font-normal">
-                    {t.label}
+                <th className="pb-2 pr-3 font-normal">{t("模型前缀")}</th>
+                {TIER_KEYS.map((tier) => (
+                  <th key={tier.key} className="pb-2 pr-3 text-right font-normal">
+                    {t(tier.label)}
                   </th>
                 ))}
-                <th className="pb-2 pr-3 font-normal">来源</th>
+                <th className="pb-2 pr-3 font-normal">{t("来源")}</th>
                 <th className="pb-2 font-normal" />
               </tr>
             </thead>
@@ -183,30 +185,30 @@ export function Config() {
                 return (
                   <tr key={entry.match} className="border-b border-line/60">
                     <td className="py-1.5 pr-3 font-mono text-xs">{entry.match}</td>
-                    {TIER_KEYS.map((t) => (
-                      <td key={t.key} className="py-1.5 pr-3 text-right tabular-nums">
+                    {TIER_KEYS.map((tier) => (
+                      <td key={tier.key} className="py-1.5 pr-3 text-right tabular-nums">
                         {draft ? (
                           <input
                             type="number"
                             step="0.01"
-                            value={draft[t.key]}
-                            onChange={(e) => updateDraft(entry.match, t.key, Number(e.target.value))}
+                            value={draft[tier.key]}
+                            onChange={(e) => updateDraft(entry.match, tier.key, Number(e.target.value))}
                             className="w-20 rounded border border-line bg-bg px-1.5 py-0.5 text-right text-xs"
                           />
                         ) : (
-                          entry.tiers.default[t.key]
+                          entry.tiers.default[tier.key]
                         )}
                       </td>
                     ))}
-                    <td className="py-1.5 pr-3 text-xs text-muted">{isUser ? "用户覆盖" : "默认"}</td>
+                    <td className="py-1.5 pr-3 text-xs text-muted">{isUser ? "用户覆盖" : t("默认")}</td>
                     <td className="py-1.5 text-right">
                       {draft ? (
                         <button type="button" onClick={() => cancelEdit(entry.match)} className="text-xs text-muted hover:text-ink">
-                          取消
+                          {t("取消")}
                         </button>
                       ) : (
                         <button type="button" onClick={() => beginEdit(entry)} className="text-xs text-accent hover:text-accent-strong">
-                          编辑
+                          {t("编辑")}
                         </button>
                       )}
                     </td>
@@ -218,21 +220,21 @@ export function Config() {
                 return (
                   <tr key={match} className="border-b border-line/60 bg-accent-soft/40">
                     <td className="py-1.5 pr-3 font-mono text-xs">{match}</td>
-                    {TIER_KEYS.map((t) => (
-                      <td key={t.key} className="py-1.5 pr-3 text-right">
+                    {TIER_KEYS.map((tier) => (
+                      <td key={tier.key} className="py-1.5 pr-3 text-right">
                         <input
                           type="number"
                           step="0.01"
-                          value={draft[t.key]}
-                          onChange={(e) => updateDraft(match, t.key, Number(e.target.value))}
+                          value={draft[tier.key]}
+                          onChange={(e) => updateDraft(match, tier.key, Number(e.target.value))}
                           className="w-20 rounded border border-line bg-bg px-1.5 py-0.5 text-right text-xs"
                         />
                       </td>
                     ))}
-                    <td className="py-1.5 pr-3 text-xs text-accent">新增</td>
+                    <td className="py-1.5 pr-3 text-xs text-accent">{t("新增")}</td>
                     <td className="py-1.5 text-right">
                       <button type="button" onClick={() => cancelEdit(match)} className="text-xs text-muted hover:text-ink">
-                        取消
+                        {t("取消")}
                       </button>
                     </td>
                   </tr>
@@ -245,7 +247,7 @@ export function Config() {
         <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
           <input
             type="text"
-            placeholder="新增模型前缀,如 deepseek-v4"
+            placeholder={t("新增模型前缀,如 deepseek-v4")}
             value={newMatch}
             onChange={(e) => setNewMatch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addEntry()}
@@ -256,9 +258,9 @@ export function Config() {
             onClick={addEntry}
             className="rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-hover"
           >
-            添加条目
+            {t("添加条目")}
           </button>
-          <span className="text-xs text-muted">为未定价模型(如 deepseek)补价后,其用量将计入费用</span>
+          <span className="text-xs text-muted">{t("为未定价模型(如 deepseek)补价后,其用量将计入费用")}</span>
         </div>
       </section>
     </div>

@@ -7,6 +7,7 @@ import {
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
+import { useI18n } from "../i18n";
 
 echarts.use([BarChart, LineChart, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer]);
 
@@ -28,6 +29,7 @@ export function chartTokens() {
 }
 
 export function EChart({ option, height = 280 }: { option: EChartsOption; height?: number }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 

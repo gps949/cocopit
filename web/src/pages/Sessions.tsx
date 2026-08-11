@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listSessions, type SessionSummary } from "../api/sessions";
 import { fmtUsd } from "../components/EChart";
+import { useI18n } from "../i18n";
 
 function fmtWhen(ts: number | null): string {
   if (!ts) return "—";
@@ -13,6 +14,7 @@ function fmtWhen(ts: number | null): string {
 }
 
 export function Sessions() {
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -57,19 +59,19 @@ export function Sessions() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[26px] font-semibold tracking-tight">会话</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight">{t("会话")}</h1>
         <form onSubmit={submitSearch} className="flex gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="全文检索(中英文,至少 3 字符)"
+            placeholder={t("全文检索(中英文,至少 3 字符)")}
             className="w-72 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted"
           />
           <button
             type="submit"
             className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-strong dark:text-ink"
           >
-            搜索
+            {t("搜索")}
           </button>
           {search && (
             <button
@@ -82,7 +84,7 @@ export function Sessions() {
               }}
               className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-hover"
             >
-              清除
+              {t("清除")}
             </button>
           )}
         </form>
@@ -101,7 +103,7 @@ export function Sessions() {
               setParams(next);
             }}
           >
-            取消
+            {t("取消")}
           </button>
         </p>
       )}
@@ -110,25 +112,25 @@ export function Sessions() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="px-4 py-2.5 font-normal">标题</th>
-              <th className="px-4 py-2.5 font-normal">项目</th>
-              <th className="px-4 py-2.5 text-right font-normal">消息</th>
-              <th className="px-4 py-2.5 text-right font-normal">费用</th>
-              <th className="px-4 py-2.5 text-right font-normal">最近</th>
+              <th className="px-4 py-2.5 font-normal">{t("标题")}</th>
+              <th className="px-4 py-2.5 font-normal">{t("项目")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("消息")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("费用")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("最近")}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
-                  加载中…
+                  {t("加载中…")}
                 </td>
               </tr>
             )}
             {!loading && sessions.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
-                  没有匹配的会话
+                  {t("没有匹配的会话")}
                 </td>
               </tr>
             )}
@@ -166,7 +168,7 @@ export function Sessions() {
           onClick={() => void loadMore()}
           className="mt-4 w-full rounded-lg border border-line py-2 text-sm text-muted hover:bg-hover"
         >
-          加载更多
+          {t("加载更多")}
         </button>
       )}
     </div>

@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 
 type Status = "connecting" | "ready" | "closed" | "error";
 
@@ -27,6 +28,7 @@ function xtermTheme() {
 }
 
 export function TerminalPane({ name, onClosed }: { name: string; onClosed?: () => void }) {
+  const { t } = useI18n();
   const hostRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("connecting");
   const [message, setMessage] = useState<string>("");
@@ -77,12 +79,12 @@ export function TerminalPane({ name, onClosed }: { name: string; onClosed?: () =
           break;
         case "closed":
           setStatus("closed");
-          setMessage(msg.reason ?? "会话已结束");
+          setMessage(msg.reason ?? t("会话已结束"));
           onClosed?.();
           break;
         case "error":
           setStatus("error");
-          setMessage(msg.message ?? "连接失败");
+          setMessage(msg.message ?? t("连接失败"));
           break;
       }
     };

@@ -85,3 +85,11 @@ export const RefreshIcon = icon(
     <path d="M20 20v-4h-4" />
   </>,
 );
+
+export const GlobeIcon = icon(
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17" />
+    <path d="M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.3-3.3-8.5S9.8 5.9 12 3.5z" />
+  </>,
+);

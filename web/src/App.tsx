@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { I18nProvider } from "./i18n";
 import { Layout } from "./components/Layout";
 import { Config } from "./pages/Config";
 import { Dashboard } from "./pages/Dashboard";
@@ -12,7 +13,8 @@ import { System } from "./pages/System";
 
 export function App() {
   return (
-    <BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -27,6 +29,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </I18nProvider>
   );
 }

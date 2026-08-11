@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useIndexStatus } from "../hooks/useIndexStatus";
 import { applyTheme, loadTheme, nextTheme, themeLabel, watchSystemTheme, type Theme } from "../theme";
+import { useI18n } from "../i18n";
 import {
   ChatIcon,
   FolderIcon,
@@ -11,6 +12,7 @@ import {
   PulseIcon,
   ServerIcon,
   SlidersIcon,
+  GlobeIcon,
   SunIcon,
   UserIcon,
 } from "./icons";
@@ -34,6 +36,7 @@ const THEME_ICON: Record<Theme, IconType> = {
 };
 
 export function Layout() {
+  const { t, lang, setLang } = useI18n();
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const status = useIndexStatus();
 
@@ -50,7 +53,7 @@ export function Layout() {
       <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-side">
         <div className="px-6 pt-6 pb-5">
           <div className="font-brand text-[22px] font-medium tracking-tight">ccockpit</div>
-          <div className="mt-0.5 text-xs text-muted">Claude Code 控制台</div>
+          <div className="mt-0.5 text-xs text-muted">{t("Claude Code 控制台")}</div>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
@@ -67,7 +70,7 @@ export function Layout() {
               {({ isActive }) => (
                 <>
                   <Icon className={`size-[18px] ${isActive ? "text-accent" : "text-muted group-hover:text-ink"}`} />
-                  {label}
+                  {t(label)}
                 </>
               )}
             </NavLink>
@@ -86,11 +89,19 @@ export function Layout() {
           )}
           <button
             type="button"
+            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink"
+          >
+            <GlobeIcon className="size-[18px]" />
+            {lang === "zh" ? "English" : "中文"}
+          </button>
+          <button
+            type="button"
             onClick={() => setTheme(nextTheme(theme))}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink"
           >
             <ThemeIcon className="size-[18px]" />
-            {themeLabel(theme)}
+            {t(themeLabel(theme))}
           </button>
         </div>
       </aside>

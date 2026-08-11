@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
+import { useI18n } from "../i18n";
 
 interface FileStamp {
   exists: boolean;
@@ -29,6 +30,7 @@ function diffKeys(before: Record<string, unknown>, after: Record<string, unknown
 }
 
 export function ConfigSettings() {
+  const { t } = useI18n();
   const [kind, setKind] = useState<Kind>("settings");
   const [scope, setScope] = useState<"user" | "project">("user");
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -95,7 +97,7 @@ export function ConfigSettings() {
       return;
     }
     setData({ ...data, content: parsed, stamp: body.stamp });
-    setStatus({ kind: "saved", message: body.backupId ? `已备份 ${body.backupId}` : "已保存" });
+    setStatus({ kind: "saved", message: body.backupId ? `已备份 ${body.backupId}` : t("已保存") });
   }
 
   async function reload() {
@@ -110,7 +112,7 @@ export function ConfigSettings() {
   return (
     <section className="rounded-2xl border border-line bg-panel p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[15px] font-medium">配置文件</h2>
+        <h2 className="text-[15px] font-medium">{t("配置文件")}</h2>
         <div className="flex rounded-lg border border-line p-0.5">
           {(["settings", "mcp"] as Kind[]).map((k) => (
             <button
@@ -132,7 +134,7 @@ export function ConfigSettings() {
                 onClick={() => setScope(s)}
                 className={`rounded-md px-3 py-1 text-sm ${scope === s ? "bg-hover font-medium" : "text-muted"}`}
               >
-                {s === "user" ? "用户级" : "项目级"}
+                {s === "user" ? "用户级" : t("项目级")}
               </button>
             ))}
           </div>
@@ -179,14 +181,14 @@ export function ConfigSettings() {
           onClick={() => void save()}
           className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-strong disabled:opacity-40 dark:text-ink"
         >
-          保存
+          {t("保存")}
         </button>
         <button
           type="button"
           onClick={() => void reload()}
           className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-hover"
         >
-          重新加载
+          {t("重新加载")}
         </button>
         {parseError && <span className="text-sm text-danger">JSON 错误:{parseError}</span>}
         {!parseError && changed.length > 0 && (
@@ -200,7 +202,7 @@ export function ConfigSettings() {
           <span className="text-sm text-danger">
             {status.message} ·{" "}
             <button type="button" onClick={() => void reload()} className="underline">
-              加载最新
+              {t("加载最新")}
             </button>
           </span>
         )}

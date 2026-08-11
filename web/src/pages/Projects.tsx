@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { listProjects, openTerminal, type ProjectRow } from "../api/sessions";
 import { fmtUsd } from "../components/EChart";
 import { TerminalPane } from "../components/Terminal";
+import { useI18n } from "../i18n";
 
 export function Projects() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
   const [terminal, setTerminal] = useState<{ name: string; title: string } | null>(null);
@@ -26,9 +28,9 @@ export function Projects() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold tracking-tight">项目</h1>
+      <h1 className="text-[26px] font-semibold tracking-tight">{t("项目")}</h1>
       <p className="mt-2 text-sm text-muted">
-        每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。
+        {t("每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。")}
       </p>
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
@@ -41,7 +43,7 @@ export function Projects() {
               onClick={() => setTerminal(null)}
               className="text-xs text-muted hover:text-ink"
             >
-              收起终端(会话继续运行)
+              {t("收起终端(会话继续运行)")}
             </button>
           </div>
           <TerminalPane name={terminal.name} />
@@ -52,11 +54,11 @@ export function Projects() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="px-4 py-2.5 font-normal">目录</th>
-              <th className="px-4 py-2.5 font-normal">账号</th>
-              <th className="px-4 py-2.5 text-right font-normal">会话</th>
-              <th className="px-4 py-2.5 text-right font-normal">费用</th>
-              <th className="px-4 py-2.5 text-right font-normal">最近</th>
+              <th className="px-4 py-2.5 font-normal">{t("目录")}</th>
+              <th className="px-4 py-2.5 font-normal">{t("账号")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("会话")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("费用")}</th>
+              <th className="px-4 py-2.5 text-right font-normal">{t("最近")}</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
@@ -64,7 +66,7 @@ export function Projects() {
             {!projects && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted">
-                  加载中…
+                  {t("加载中…")}
                 </td>
               </tr>
             )}
@@ -93,7 +95,7 @@ export function Projects() {
                     onClick={() => void startNewSession(p)}
                     className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink disabled:opacity-40"
                   >
-                    新建会话
+                    {t("新建会话")}
                   </button>
                 </td>
               </tr>

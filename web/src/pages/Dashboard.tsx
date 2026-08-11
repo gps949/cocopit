@@ -13,6 +13,7 @@ import {
   type UsageSummary,
 } from "../api/usage";
 import { chartTokens, EChart, fmtTokens, fmtUsd, type EChartsOption } from "../components/EChart";
+import { useI18n } from "../i18n";
 
 const RANGES: Array<{ key: RangeKey; label: string }> = [
   { key: "7d", label: "7 天" },
@@ -43,6 +44,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 export function Dashboard() {
+  const { t } = useI18n();
   const [range, setRange] = useState<RangeKey>("30d");
   const [themeTick, setThemeTick] = useState(0);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
@@ -107,7 +109,7 @@ export function Dashboard() {
       yAxis: { type: "value", ...axisBase, axisLine: { show: false }, axisLabel: { ...axisBase.axisLabel, formatter: (v: number) => fmtUsd(v) } },
       series: [
         {
-          name: "费用",
+          name: t("费用"),
           type: "bar",
           data: daily.days.map((d) => Number(d.costUsd.toFixed(4))),
           itemStyle: { color: tokens.accent, borderRadius: [4, 4, 0, 0] },
@@ -204,7 +206,7 @@ export function Dashboard() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-[26px] font-semibold tracking-tight">仪表盘</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight">{t("仪表盘")}</h1>
         <div className="flex rounded-lg border border-line p-0.5">
           {RANGES.map((r) => (
             <button
@@ -215,7 +217,7 @@ export function Dashboard() {
                 range === r.key ? "bg-hover font-medium text-ink" : "text-muted hover:text-ink"
               }`}
             >
-              {r.label}
+              {t(r.label)}
             </button>
           ))}
         </div>
@@ -223,27 +225,29 @@ export function Dashboard() {
 
       {unpriced && unpriced.models.length > 0 && (
         <div className="mt-4 rounded-xl border border-line bg-accent-soft px-4 py-2.5 text-sm">
-          {unpriced.models.length} 个模型未定价(
-          {unpriced.models.map((m) => m.model).join("、")}),其用量未计入费用。可在配置页添加价目。
+          {t("{n} 个模型未定价({list}),其用量未计入费用。可在配置页添加价目。", {
+            n: unpriced.models.length,
+            list: unpriced.models.map((m) => m.model).join("、"),
+          })}
         </div>
       )}
 
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="API 等价费用" value={summary ? fmtUsd(summary.costUsd) : "—"} hint={summary ? `${summary.events.toLocaleString()} 次调用` : undefined} />
-        <Stat label="输出 tokens" value={summary ? fmtTokens(summary.outputTokens) : "—"} hint={summary ? `输入 ${fmtTokens(summary.inputTokens)}` : undefined} />
-        <Stat label="缓存读取" value={summary ? fmtTokens(summary.cacheReadTokens) : "—"} hint={cache ? `命中率 ${(cache.hitRate * 100).toFixed(1)}%` : undefined} />
-        <Stat label="缓存节省" value={cache ? fmtUsd(cache.savedUsd) : "—"} hint="相对无缓存输入价" />
+        <Stat label={t("API 等价费用")} value={summary ? fmtUsd(summary.costUsd) : "—"} hint={summary ? t("{n} 次调用", { n: summary.events.toLocaleString() }) : undefined} />
+        <Stat label={t("输出 tokens")} value={summary ? fmtTokens(summary.outputTokens) : "—"} hint={summary ? t("输入 {v}", { v: fmtTokens(summary.inputTokens) }) : undefined} />
+        <Stat label={t("缓存读取")} value={summary ? fmtTokens(summary.cacheReadTokens) : "—"} hint={cache ? t("命中率 {v}", { v: `${(cache.hitRate * 100).toFixed(1)}%` }) : undefined} />
+        <Stat label={t("缓存节省")} value={cache ? fmtUsd(cache.savedUsd) : "—"} hint={t("相对无缓存输入价")} />
       </div>
 
       {byProfile && byProfile.length > 1 && (
         <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
-          <h2 className="text-[15px] font-medium">按账号</h2>
+          <h2 className="text-[15px] font-medium">{t("按账号")}</h2>
           <div className="mt-3 flex flex-wrap gap-6">
             {byProfile.map((p) => (
               <div key={p.profileId}>
                 <div className="text-xs text-muted">{p.profileId}</div>
                 <div className="mt-0.5 text-xl font-semibold tabular-nums">{fmtUsd(p.costUsd)}</div>
-                <div className="text-xs text-muted">{p.events.toLocaleString()} 次调用</div>
+                <div className="text-xs text-muted">{t("{n} 次调用", { n: p.events.toLocaleString() })}</div>
               </div>
             ))}
           </div>
@@ -252,17 +256,17 @@ export function Dashboard() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="lg:col-span-2">
-          <Card title="每日费用">{dailyOption ? <EChart option={dailyOption} height={240} /> : <ChartSkeleton />}</Card>
+          <Card title={t("每日费用")}>{dailyOption ? <EChart option={dailyOption} height={240} /> : <ChartSkeleton />}</Card>
         </div>
-        <Card title="按模型">{modelOption ? <EChart option={modelOption} height={260} /> : <ChartSkeleton />}</Card>
-        <Card title="按项目 TOP 10">{projectOption ? <EChart option={projectOption} height={260} /> : <ChartSkeleton />}</Card>
+        <Card title={t("按模型")}>{modelOption ? <EChart option={modelOption} height={260} /> : <ChartSkeleton />}</Card>
+        <Card title={t("按项目 TOP 10")}>{projectOption ? <EChart option={projectOption} height={260} /> : <ChartSkeleton />}</Card>
         <div className="lg:col-span-2">
-          <Card title="活跃时段(周 × 小时)">{heatmapOption ? <EChart option={heatmapOption} height={240} /> : <ChartSkeleton />}</Card>
+          <Card title={t("活跃时段(周 × 小时)")}>{heatmapOption ? <EChart option={heatmapOption} height={240} /> : <ChartSkeleton />}</Card>
         </div>
       </div>
 
       <div className="mt-4">
-        <Card title="价目校准(对照 Claude Code 官方 costUSD)">
+        <Card title={t("价目校准(对照 Claude Code 官方 costUSD)")}>
           {!calibration ? (
             <ChartSkeleton />
           ) : (
@@ -275,11 +279,11 @@ export function Dashboard() {
                 <table className="mt-3 w-full text-sm">
                   <thead>
                     <tr className="border-b border-line text-left text-xs text-muted">
-                      <th className="pb-2 font-normal">项目</th>
-                      <th className="pb-2 font-normal">模型</th>
-                      <th className="pb-2 text-right font-normal">官方</th>
-                      <th className="pb-2 text-right font-normal">我方区间</th>
-                      <th className="pb-2 text-right font-normal">偏差</th>
+                      <th className="pb-2 font-normal">{t("项目")}</th>
+                      <th className="pb-2 font-normal">{t("模型")}</th>
+                      <th className="pb-2 text-right font-normal">{t("官方")}</th>
+                      <th className="pb-2 text-right font-normal">{t("我方区间")}</th>
+                      <th className="pb-2 text-right font-normal">{t("偏差")}</th>
                     </tr>
                   </thead>
                   <tbody>
