@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { I18nProvider } from "./i18n";
+import { Login } from "./pages/Login";
 import { Layout } from "./components/Layout";
 import { Config } from "./pages/Config";
 import { Dashboard } from "./pages/Dashboard";
@@ -11,7 +13,35 @@ import { Placeholder } from "./pages/Placeholder";
 import { Profiles } from "./pages/Profiles";
 import { System } from "./pages/System";
 
+type AuthState = "checking" | "required" | "ready";
+
 export function App() {
+  const [auth, setAuth] = useState<AuthState>("checking");
+
+  const check = () => {
+    void fetch("/api/auth/status")
+      .then((res) => res.json() as Promise<{ required: boolean }>)
+      .then(async ({ required }) => {
+        if (!required) return setAuth("ready");
+        // a stored session cookie still counts as signed in
+        const probe = await fetch("/api/health", { headers: { "x-probe": "1" } });
+        const guarded = await fetch("/api/index/status");
+        setAuth(probe.ok && guarded.status !== 401 ? "ready" : "required");
+      })
+      .catch(() => setAuth("ready"));
+  };
+
+  useEffect(check, []);
+
+  if (auth === "checking") return null;
+  if (auth === "required") {
+    return (
+      <I18nProvider>
+        <Login onAuthenticated={() => setAuth("ready")} />
+      </I18nProvider>
+    );
+  }
+
   return (
     <I18nProvider>
       <BrowserRouter>

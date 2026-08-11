@@ -167,6 +167,19 @@ const EN: Record<string, string> = {
 
   // terminal
   "连接中…": "Connecting…",
+  "此控制台需要访问令牌": "This console requires an access token",
+  "访问令牌": "Access token",
+  "进入": "Enter",
+  "令牌不正确": "Incorrect token",
+  "连接失败": "Connection failed",
+  "令牌在服务器本机用「系统」页设置;忘记令牌可在服务器上删除 ~/.ccockpit/auth.json。": "Set the token from the System page on the server itself; if it is lost, delete ~/.ccockpit/auth.json there.",
+  "远程访问": "Remote access",
+  "未设置访问令牌。ccockpit 绑定 127.0.0.1,本机使用无需登录;若通过反代对外暴露,请设置令牌。": "No access token set. ccockpit binds to 127.0.0.1, so local use needs no login; set a token before exposing it through a reverse proxy.",
+  "已启用访问令牌。远程访问需要先登录。": "Access token enabled — remote access requires signing in.",
+  "设置令牌": "Set token",
+  "清除令牌": "Clear token",
+  "新令牌(至少 8 位)": "New token (8+ characters)",
+  "仅可在服务器本机设置": "Can only be set from the server itself",
   "已断开": "Disconnected",
   "错误": "Error",
 

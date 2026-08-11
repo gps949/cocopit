@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { join, normalize, sep } from "node:path";
+import { authorizeRequest, clearAccessToken, issueSessionCookie, loadAuthConfig, setAccessToken } from "./auth";
 import { loadConfig } from "./config";
 import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
@@ -97,6 +98,14 @@ export function originAllowed(req: Request, allowedOrigins: string[] = []): bool
   return isLoopback && parsed.port === String(new URL(req.url).port);
 }
 
+/** True when the request came from this machine rather than through a proxy. */
+export function isLoopbackRequest(req: Request): boolean {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return false; // arrived through a proxy
+  const host = new URL(req.url).hostname;
+  return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+}
+
 /** All registered profiles as scan sources (default profile → claudeDir). */
 export function profileScanSources(claudeDir: string): ScanSource[] {
   return loadProfiles().map((profile) => ({
@@ -108,6 +117,56 @@ export function profileScanSources(claudeDir: string): ScanSource[] {
 export function createServer(port?: number, deps: ServerDeps = {}) {
   const router = new Router();
   router.register("GET", "/api/health", healthHandler);
+
+  router.register("GET", "/api/auth/status", () => {
+    return Response.json({ required: loadAuthConfig().enabled });
+  });
+
+  router.register("POST", "/api/auth/login", async (req) => {
+    let token = "";
+    try {
+      token = String(((await req.json()) as { token?: string }).token ?? "");
+    } catch {
+      return Response.json({ error: "invalid JSON body" }, { status: 400 });
+    }
+    const cookie = issueSessionCookie(token);
+    if (!cookie) return Response.json({ error: "令牌不正确" }, { status: 401 });
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "content-type": "application/json", "set-cookie": cookie },
+    });
+  });
+
+  router.register("POST", "/api/auth/logout", () => {
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: {
+        "content-type": "application/json",
+        "set-cookie": "ccockpit_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+      },
+    });
+  });
+
+  // Managing the token itself is a local-only operation: it is how you recover
+  // from a lost token, so it must not be reachable through the proxy.
+  router.register("POST", "/api/auth/token", async (req) => {
+    if (!isLoopbackRequest(req)) {
+      return Response.json({ error: "仅允许在本机设置访问令牌" }, { status: 403 });
+    }
+    let body: { token?: string | null };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return Response.json({ error: "invalid JSON body" }, { status: 400 });
+    }
+    if (body.token === null || body.token === "") {
+      clearAccessToken();
+      return Response.json({ required: false });
+    }
+    if (typeof body.token !== "string" || body.token.length < 8) {
+      return Response.json({ error: "令牌至少 8 个字符" }, { status: 400 });
+    }
+    setAccessToken(body.token);
+    return Response.json({ required: true });
+  });
 
   const { db, scheduler, hub, claudeDir } = deps;
   if (db && scheduler && hub && claudeDir !== undefined) {
@@ -151,6 +210,11 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
 
       if (!originAllowed(req, allowedOrigins())) {
         return new Response("Forbidden: cross-origin request", { status: 403 });
+      }
+
+      const auth = authorizeRequest(req);
+      if (!auth.ok) {
+        return Response.json({ error: auth.reason ?? "unauthorized" }, { status: auth.status ?? 401 });
       }
 
       // WebSocket upgrades are GETs and CORS does not apply to them, so the
