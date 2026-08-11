@@ -116,7 +116,10 @@ const EN: Record<string, string> = {
   "会话运行在 tmux 中,关闭页面不会中断;重新打开即可继续。终端内 exit 退出后会话结束。":
     "The session runs in tmux — closing this page won't interrupt it; reopen to continue. Typing exit in the terminal ends it.",
   "子代理": "Subagents",
-  "加载更多消息": "Load more messages",
+  "加载更多消息": "Load newer messages",
+  "加载更早的消息": "Load older messages",
+  "跳到最新": "Jump to latest",
+  "对话大纲({n})": "Outline ({n})",
   "你": "You",
   "Claude": "Claude",
   "记录": "Record",

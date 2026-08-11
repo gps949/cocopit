@@ -68,10 +68,32 @@ export interface LiveSessionRow {
 export const listSessions = (query: string) => getJson<SessionListResponse>(`/api/sessions${query}`);
 export const getSession = (id: string) =>
   getJson<{ session: SessionSummary; subagents: SubagentInfo[] }>(`/api/sessions/${id}`);
+export interface MessageWindow {
+  messages: MessageRow[];
+  nextFromSeq: number | null;
+  prevBeforeSeq: number | null;
+}
+
 export const getMessages = (id: string, fromSeq: number, limit = 100) =>
-  getJson<{ messages: MessageRow[]; nextFromSeq: number | null }>(
-    `/api/sessions/${id}/messages?fromSeq=${fromSeq}&limit=${limit}`,
-  );
+  getJson<MessageWindow>(`/api/sessions/${id}/messages?fromSeq=${fromSeq}&limit=${limit}`);
+
+/** Newest window — the default landing spot, like a chat app. */
+export const getLatestMessages = (id: string, limit = 80) =>
+  getJson<MessageWindow>(`/api/sessions/${id}/messages?tail=${limit}`);
+
+/** The window immediately above `seq`, for scrolling back through history. */
+export const getMessagesBefore = (id: string, before: number, limit = 80) =>
+  getJson<MessageWindow>(`/api/sessions/${id}/messages?before=${before}&limit=${limit}`);
+
+export interface OutlineTurn {
+  seq: number;
+  uuid: string;
+  ts: number | null;
+  snippet: string;
+}
+
+export const getOutline = (id: string) =>
+  getJson<{ turns: OutlineTurn[]; total: number }>(`/api/sessions/${id}/outline`);
 export const getMessage = (id: string, uuid: string) =>
   getJson<MessageRow>(`/api/sessions/${id}/messages/${uuid}`);
 export const listProjects = () => getJson<{ projects: ProjectRow[] }>("/api/projects");

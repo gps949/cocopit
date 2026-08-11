@@ -151,6 +151,25 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     return Response.json({ session: toSummary(row), subagents });
   });
 
+  // The conversation outline: real user turns only. The indexer stores a
+  // snippet exactly when a user record carried actual text, so tool-result
+  // carriers are excluded without reading the transcript at all.
+  router.register("GET", "/api/sessions/:id/outline", (_req, routeParams) => {
+    const exists = db.prepare("SELECT 1 FROM sessions WHERE id = $id").get({ $id: routeParams.id! });
+    if (!exists) return Response.json({ error: "not found" }, { status: 404 });
+    const turns = db
+      .prepare(
+        `SELECT seq, uuid, ts, snippet FROM messages
+         WHERE session_id = $id AND type = 'user' AND snippet IS NOT NULL
+         ORDER BY seq`,
+      )
+      .all({ $id: routeParams.id! });
+    const total = db
+      .prepare("SELECT COUNT(*) AS n FROM messages WHERE session_id = $id")
+      .get({ $id: routeParams.id! }) as { n: number };
+    return Response.json({ turns, total: total.n });
+  });
+
   router.register("GET", "/api/sessions/:id/messages", async (req, routeParams) => {
     const session = db
       .prepare("SELECT file_path FROM sessions WHERE id = $id")
@@ -158,20 +177,49 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     if (!session) return Response.json({ error: "not found" }, { status: 404 });
 
     const url = new URL(req.url);
-    const fromSeq = Number(url.searchParams.get("fromSeq") ?? 0);
     const limit = Math.min(Number(url.searchParams.get("limit") ?? 200), 500);
-    const pointers = db
-      .prepare(
-        `SELECT seq, uuid, byte_offset, byte_len FROM messages
-         WHERE session_id = $id AND seq >= $fromSeq ORDER BY seq LIMIT $limit`,
-      )
-      .all({ $id: routeParams.id!, $fromSeq: fromSeq, $limit: limit + 1 }) as unknown as MessagePointer[];
+    const tail = url.searchParams.get("tail");
+    const before = url.searchParams.get("before");
 
-    const page = pointers.slice(0, limit);
-    const nextFromSeq = pointers.length > limit ? pointers[limit]!.seq : null;
+    let page: MessagePointer[];
+    let nextFromSeq: number | null;
+    let prevBeforeSeq: number | null;
+
+    if (tail !== null || before !== null) {
+      // walk backwards: newest-first in SQL, reversed for the response so the
+      // client always renders oldest → newest
+      const size = tail !== null ? Math.min(Number(tail) || limit, 500) : limit;
+      const rows = db
+        .prepare(
+          `SELECT seq, uuid, byte_offset, byte_len FROM messages
+           WHERE session_id = $id AND ($before IS NULL OR seq < $before)
+           ORDER BY seq DESC LIMIT $limit`,
+        )
+        .all({
+          $id: routeParams.id!,
+          $before: before === null ? null : Number(before),
+          $limit: size + 1,
+        }) as unknown as MessagePointer[];
+      const window = rows.slice(0, size).reverse();
+      page = window;
+      prevBeforeSeq = rows.length > size ? (window[0]?.seq ?? null) : null;
+      // a tail window is at the end; a before window may have newer ones below
+      nextFromSeq = null;
+    } else {
+      const fromSeq = Number(url.searchParams.get("fromSeq") ?? 0);
+      const pointers = db
+        .prepare(
+          `SELECT seq, uuid, byte_offset, byte_len FROM messages
+           WHERE session_id = $id AND seq >= $fromSeq ORDER BY seq LIMIT $limit`,
+        )
+        .all({ $id: routeParams.id!, $fromSeq: fromSeq, $limit: limit + 1 }) as unknown as MessagePointer[];
+      page = pointers.slice(0, limit);
+      nextFromSeq = pointers.length > limit ? pointers[limit]!.seq : null;
+      prevBeforeSeq = page.length > 0 && page[0]!.seq > 0 ? page[0]!.seq : null;
+    }
     const maxBodyBytes = Number(url.searchParams.get("maxBodyBytes") ?? DEFAULT_MAX_BODY_BYTES);
     const messages = await readMessageRecords(session.file_path, page, maxBodyBytes);
-    return Response.json({ messages, nextFromSeq });
+    return Response.json({ messages, nextFromSeq, prevBeforeSeq });
   });
 
   router.register("GET", "/api/sessions/:id/messages/:uuid", async (_req, routeParams) => {

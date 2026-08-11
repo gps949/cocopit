@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  getLatestMessages,
   getMessage,
   getMessages,
+  getMessagesBefore,
+  getOutline,
   getSession,
   openTerminal,
   type MessageRow,
+  type OutlineTurn,
   type SessionSummary,
   type SubagentInfo,
 } from "../api/sessions";
@@ -18,6 +22,47 @@ import {
   filterTranscript,
   type TranscriptEntry,
 } from "../lib/transcript";
+
+/** A session can spawn dozens of subagents; keep them out of the reader's way. */
+function SubagentPanel({ subagents }: { subagents: SubagentInfo[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const sorted = useMemo(
+    () => [...subagents].sort((a, b) => (b.costUsd ?? 0) - (a.costUsd ?? 0)),
+    [subagents],
+  );
+  const shown = open ? sorted : sorted.slice(0, 6);
+  const total = sorted.reduce((sum, sub) => sum + (sub.costUsd ?? 0), 0);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
+      <div className="flex items-baseline gap-3">
+        <h2 className="text-[15px] font-medium">{t("子代理")}</h2>
+        <span className="text-xs text-muted">
+          {subagents.length} · {fmtUsd(total)}
+        </span>
+        {sorted.length > 6 && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="ml-auto text-xs text-accent hover:underline"
+          >
+            {open ? t("收起") : t("展开全部")}
+          </button>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-sm">
+        {shown.map((sub) => (
+          <div key={sub.agentId} className="rounded-lg border border-line px-2.5 py-1.5">
+            <div className="text-xs text-muted">{sub.agentType ?? "agent"}</div>
+            <div className="mt-0.5 font-mono text-[11px]">{sub.agentId.slice(0, 10)}</div>
+            {sub.costUsd != null && <div className="text-[11px]">{fmtUsd(sub.costUsd)}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -221,6 +266,7 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
 
   return (
     <div
+      id={`entry-${entry.seq}`}
       className={`my-2 rounded-xl px-4 py-3 ${
         isUser
           ? "border border-line bg-bg"
@@ -259,7 +305,11 @@ export function SessionDetail() {
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
-  const [nextSeq, setNextSeq] = useState<number | null>(0);
+  const [nextSeq, setNextSeq] = useState<number | null>(null);
+  const [prevSeq, setPrevSeq] = useState<number | null>(null);
+  const [outline, setOutline] = useState<OutlineTurn[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const streamRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<string | null>(null);
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [showThinking, setShowThinking] = useState(false);
@@ -271,10 +321,14 @@ export function SessionDetail() {
       setSession(res.session);
       setSubagents(res.subagents);
     });
-    void getMessages(id, 0, 120).then((res) => {
+    // land on the newest window, the way a chat client does: order stays
+    // chronological, only the starting position changes
+    void getLatestMessages(id, 80).then((res) => {
       setMessages(res.messages);
       setNextSeq(res.nextFromSeq);
+      setPrevSeq(res.prevBeforeSeq);
     });
+    void getOutline(id).then((res) => setOutline(res.turns));
   }, [id]);
 
   const rendered = useMemo(() => {
@@ -282,11 +336,48 @@ export function SessionDetail() {
     return collapseMeta(filterTranscript(entries, { showThinking, showMeta, conversationOnly }));
   }, [messages, showThinking, showMeta, conversationOnly]);
 
-  async function loadMore() {
+  async function loadOlder() {
+    if (prevSeq === null || loadingOlder) return;
+    setLoadingOlder(true);
+    const anchor = streamRef.current;
+    const heightBefore = anchor?.scrollHeight ?? 0;
+    try {
+      const res = await getMessagesBefore(id, prevSeq, 80);
+      setMessages((prev) => [...res.messages, ...prev]);
+      setPrevSeq(res.prevBeforeSeq);
+      // keep the reader's viewport anchored on what they were reading
+      requestAnimationFrame(() => {
+        if (anchor) window.scrollBy(0, anchor.scrollHeight - heightBefore);
+      });
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+
+  async function loadNewer() {
     if (nextSeq === null) return;
-    const res = await getMessages(id, nextSeq, 120);
+    const res = await getMessages(id, nextSeq, 80);
     setMessages((prev) => [...prev, ...res.messages]);
     setNextSeq(res.nextFromSeq);
+  }
+
+  /** Jump to a turn: load the window around it and scroll it into view. */
+  async function jumpTo(seq: number) {
+    const res = await getMessages(id, seq, 80);
+    setMessages(res.messages);
+    setNextSeq(res.nextFromSeq);
+    setPrevSeq(res.prevBeforeSeq);
+    requestAnimationFrame(() => {
+      document.getElementById(`entry-${seq}`)?.scrollIntoView({ block: "start" });
+    });
+  }
+
+  async function jumpToLatest() {
+    const res = await getLatestMessages(id, 80);
+    setMessages(res.messages);
+    setNextSeq(res.nextFromSeq);
+    setPrevSeq(res.prevBeforeSeq);
+    requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight }));
   }
 
   async function startTerminal() {
@@ -347,20 +438,7 @@ export function SessionDetail() {
         <Stat label={t("子代理")} value={String(session.subagentCount)} />
       </div>
 
-      {subagents.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
-          <h2 className="text-[15px] font-medium">{t("子代理")}</h2>
-          <div className="mt-3 flex flex-wrap gap-3 text-sm">
-            {subagents.map((sub) => (
-              <div key={sub.agentId} className="rounded-lg border border-line px-3 py-2">
-                <div className="text-xs text-muted">{sub.agentType ?? "agent"}</div>
-                <div className="mt-0.5 font-mono text-xs">{sub.agentId.slice(0, 12)}</div>
-                {sub.costUsd != null && <div className="mt-0.5 text-xs">{fmtUsd(sub.costUsd)}</div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {subagents.length > 0 && <SubagentPanel subagents={subagents} />}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Toggle active={conversationOnly} onClick={() => setConversationOnly((v) => !v)}>
@@ -372,28 +450,67 @@ export function SessionDetail() {
         <Toggle active={showMeta} onClick={() => setShowMeta((v) => !v)}>
           {t("显示元数据")}
         </Toggle>
-        <span className="ml-auto text-xs text-muted">
-          {new Date(session.firstTs ?? 0).toLocaleDateString(localeOf(lang))}
-        </span>
+        <button
+          type="button"
+          onClick={() => void jumpToLatest()}
+          className="ml-auto rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+        >
+          {t("跳到最新")}
+        </button>
       </div>
 
-      <div className="mt-2 rounded-2xl border border-line bg-panel px-5 py-3">
-        {rendered.map((item, index) =>
-          Array.isArray(item) ? (
-            <MetaGroup key={`group-${index}`} entries={item} />
-          ) : (
-            <Entry key={item.key} entry={item} sessionId={id} />
-          ),
+      <div className="mt-2 flex gap-4">
+        {outline.length > 0 && (
+          <aside className="hidden w-56 shrink-0 xl:block">
+            <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-auto rounded-2xl border border-line bg-panel p-3">
+              <div className="px-1 pb-2 text-xs text-muted">
+                {t("对话大纲({n})", { n: outline.length })}
+              </div>
+              {outline.map((turn) => (
+                <button
+                  key={turn.seq}
+                  type="button"
+                  onClick={() => void jumpTo(turn.seq)}
+                  className="block w-full truncate rounded px-1.5 py-1 text-left text-xs text-muted hover:bg-hover hover:text-ink"
+                  title={turn.snippet}
+                >
+                  {turn.snippet.replace(/\s+/g, " ").slice(0, 48)}
+                </button>
+              ))}
+            </div>
+          </aside>
         )}
-        {nextSeq !== null && (
-          <button
-            type="button"
-            onClick={() => void loadMore()}
-            className="my-3 w-full rounded-lg border border-line py-2 text-sm text-muted hover:bg-hover"
-          >
-            {t("加载更多消息")}
-          </button>
-        )}
+
+        <div ref={streamRef} className="min-w-0 flex-1 rounded-2xl border border-line bg-panel px-5 py-3">
+          {prevSeq !== null && (
+            <button
+              type="button"
+              disabled={loadingOlder}
+              onClick={() => void loadOlder()}
+              className="mb-3 w-full rounded-lg border border-line py-2 text-sm text-muted hover:bg-hover disabled:opacity-50"
+            >
+              {loadingOlder ? t("加载中…") : t("加载更早的消息")}
+            </button>
+          )}
+
+          {rendered.map((item, index) =>
+            Array.isArray(item) ? (
+              <MetaGroup key={`group-${index}`} entries={item} />
+            ) : (
+              <Entry key={item.key} entry={item} sessionId={id} />
+            ),
+          )}
+
+          {nextSeq !== null && (
+            <button
+              type="button"
+              onClick={() => void loadNewer()}
+              className="my-3 w-full rounded-lg border border-line py-2 text-sm text-muted hover:bg-hover"
+            >
+              {t("加载更多消息")}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -186,6 +186,29 @@ describe("projects & sessions routes", () => {
     expect(single.record.message.content).toBe("优化数据库索引结构");
   });
 
+  test("outline lists only real user turns, straight from the index", async () => {
+    const body = await get("/api/sessions/sess-one/outline");
+    // tool-result carriers and assistant records must not appear as turns
+    expect(body.turns).toHaveLength(1);
+    expect(body.turns[0].snippet).toBe("优化数据库索引结构");
+    expect(body.turns[0].seq).toBe(0);
+    expect(body.total).toBe(2);
+  });
+
+  test("tail returns the newest window, still in chronological order", async () => {
+    const body = await get("/api/sessions/sess-one/messages?tail=1");
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0].uuid).toBe("a1"); // the last one
+    expect(body.nextFromSeq).toBeNull(); // already at the end
+    expect(body.prevBeforeSeq).toBe(1); // older messages remain above
+  });
+
+  test("before= loads the window above, ascending", async () => {
+    const body = await get("/api/sessions/sess-one/messages?before=1&limit=10");
+    expect(body.messages.map((m: any) => m.uuid)).toEqual(["u1"]);
+    expect(body.prevBeforeSeq).toBeNull(); // reached the beginning
+  });
+
   test("404 for unknown session", async () => {
     const res = await fetch(`${base}/api/sessions/nope`);
     expect(res.status).toBe(404);
