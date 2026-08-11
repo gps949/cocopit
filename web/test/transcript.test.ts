@@ -1,0 +1,201 @@
+import { describe, expect, test } from "bun:test";
+import {
+  buildTranscript,
+  collapseMeta,
+  filterTranscript,
+  summarizeTool,
+  type RawMessage,
+} from "../src/lib/transcript";
+
+let seq = 0;
+function msg(record: unknown, overrides: Partial<RawMessage> = {}): RawMessage {
+  return { seq: seq++, uuid: `u${seq}`, record, byteLen: 100, ...overrides };
+}
+
+describe("summarizeTool", () => {
+  test("uses the input key that identifies each tool", () => {
+    expect(summarizeTool("Bash", { command: "ls -la", description: "list" })).toBe("ls -la");
+    expect(summarizeTool("Read", { file_path: "/tmp/a.ts" })).toBe("/tmp/a.ts");
+    expect(summarizeTool("Edit", { file_path: "/tmp/b.ts", old_string: "x" })).toBe("/tmp/b.ts");
+    expect(summarizeTool("Skill", { skill: "superpowers:tdd", args: "run" })).toBe("superpowers:tdd run");
+    expect(summarizeTool("TaskUpdate", { taskId: "3", status: "completed" })).toBe("3 → completed");
+  });
+
+  test("mcp tools and unknown tools fall back to their first meaningful string", () => {
+    expect(summarizeTool("mcp__playwright__browser_navigate", { url: "https://x.dev" })).toBe("https://x.dev");
+    expect(summarizeTool("SomethingNew", { foo: 1, prompt: "do it" })).toBe("do it");
+    expect(summarizeTool("Empty", {})).toBe("");
+  });
+});
+
+describe("buildTranscript", () => {
+  test("a tool result is attached to its call, never rendered as a user message", () => {
+    const entries = buildTranscript([
+      msg({
+        type: "assistant",
+        timestamp: "2026-08-01T10:00:00.000Z",
+        message: {
+          model: "claude-fable-5",
+          content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "echo hi" } }],
+        },
+      }),
+      msg({
+        type: "user",
+        message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "hi" }] },
+      }),
+    ]);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.kind).toBe("tool");
+    expect(entries[0]!.tool!.name).toBe("Bash");
+    expect(entries[0]!.tool!.summary).toBe("echo hi");
+    expect(entries[0]!.tool!.result!.text).toBe("hi");
+    expect(entries.some((e) => e.kind === "user")).toBe(false);
+  });
+
+  test("an error result keeps its flag", () => {
+    const entries = buildTranscript([
+      msg({ type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "Read", input: {} }] } }),
+      msg({
+        type: "user",
+        message: { content: [{ type: "tool_result", tool_use_id: "t2", content: "nope", is_error: true }] },
+      }),
+    ]);
+    expect(entries[0]!.tool!.result!.isError).toBe(true);
+  });
+
+  test("an orphan result (its call is on an earlier page) still renders", () => {
+    const entries = buildTranscript([
+      msg({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "gone", content: "out" }] } }),
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.kind).toBe("tool");
+    expect(entries[0]!.tool!.result!.text).toBe("out");
+  });
+
+  test("slash commands are parsed out of their wrapper tags", () => {
+    const entries = buildTranscript([
+      msg({
+        type: "user",
+        message: {
+          content:
+            "<command-name>/clear</command-name>\n<command-message>clear</command-message>\n<command-args></command-args>",
+        },
+      }),
+    ]);
+    expect(entries[0]!.kind).toBe("command");
+    expect(entries[0]!.command!.name).toBe("/clear");
+  });
+
+  test("a caveat-only message is metadata, not something the user said", () => {
+    const entries = buildTranscript([
+      msg({
+        type: "user",
+        message: { content: "<local-command-caveat>Caveat: messages below were generated…</local-command-caveat>" },
+      }),
+    ]);
+    expect(entries[0]!.kind).toBe("meta");
+  });
+
+  test("tool-injected context is not attributed to the user", () => {
+    // skill bodies and similar arrive as user-role records carrying isMeta and
+    // the id of the tool call that pulled them in
+    const entries = buildTranscript([
+      msg({ type: "assistant", message: { content: [{ type: "tool_use", id: "tu9", name: "Skill", input: { skill: "x" } }] } }),
+      msg({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tu9", content: "Launching skill: x" }] } }),
+      msg({
+        type: "user",
+        isMeta: true,
+        sourceToolUseID: "tu9",
+        message: { content: [{ type: "text", text: "Base directory for this skill: /tmp/x" }] },
+      }),
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.kind).toBe("tool");
+    expect(entries[0]!.tool!.injected).toContain("Base directory");
+    expect(entries.some((e) => e.kind === "user")).toBe(false);
+  });
+
+  test("injected context without a known call collapses to metadata", () => {
+    const entries = buildTranscript([
+      msg({ type: "user", isMeta: true, message: { content: [{ type: "text", text: "系统注入" }] } }),
+    ]);
+    expect(entries[0]!.kind).toBe("meta");
+  });
+
+  test("wrapper noise is stripped from a real user message", () => {
+    const entries = buildTranscript([
+      msg({
+        type: "user",
+        message: { content: "<system-reminder>ignore me</system-reminder>\n继续执行计划" },
+      }),
+    ]);
+    expect(entries[0]!.kind).toBe("user");
+    expect(entries[0]!.text).toBe("继续执行计划");
+  });
+
+  test("hook attachments and other bookkeeping records collapse to metadata", () => {
+    const entries = buildTranscript([
+      msg({ type: "attachment", attachment: { type: "hook_success" } }),
+      msg({ type: "bridge-session" }),
+      msg({ type: "queue-operation" }),
+      msg({ type: "ai-title", title: "索引器修复" }),
+    ]);
+    expect(entries.every((e) => e.kind === "meta")).toBe(true);
+    expect(entries[0]!.metaLabel).toBe("attachment · hook_success");
+  });
+
+  test("thinking and text blocks separate, and text keeps the model", () => {
+    const entries = buildTranscript([
+      msg({
+        type: "assistant",
+        message: {
+          model: "claude-opus-5",
+          content: [
+            { type: "thinking", thinking: "weigh options" },
+            { type: "text", text: "这是回答" },
+          ],
+        },
+      }),
+    ]);
+    expect(entries.map((e) => e.kind)).toEqual(["thinking", "assistant"]);
+    expect(entries[1]!.model).toBe("claude-opus-5");
+  });
+
+  test("an oversized body becomes a metadata placeholder rather than an empty bubble", () => {
+    const entries = buildTranscript([msg(null, { truncated: true, byteLen: 11_000_000 })]);
+    expect(entries[0]!.kind).toBe("meta");
+    expect(entries[0]!.truncated).toBe(true);
+  });
+});
+
+describe("filters and collapsing", () => {
+  const entries = buildTranscript([
+    msg({ type: "user", message: { content: "hi" } }),
+    msg({ type: "assistant", message: { content: [{ type: "thinking", thinking: "hmm" }] } }),
+    msg({ type: "assistant", message: { content: [{ type: "tool_use", id: "x", name: "Bash", input: {} }] } }),
+    msg({ type: "attachment" }),
+    msg({ type: "attachment" }),
+    msg({ type: "assistant", message: { content: [{ type: "text", text: "done" }] } }),
+  ]);
+
+  test("metadata is hidden by default and thinking is opt-in", () => {
+    const shown = filterTranscript(entries, { showThinking: false, showMeta: false, conversationOnly: false });
+    expect(shown.some((e) => e.kind === "meta")).toBe(false);
+    expect(shown.some((e) => e.kind === "thinking")).toBe(false);
+    expect(shown.some((e) => e.kind === "tool")).toBe(true);
+  });
+
+  test("conversation-only drops tools and thinking", () => {
+    const shown = filterTranscript(entries, { showThinking: true, showMeta: false, conversationOnly: true });
+    expect(shown.map((e) => e.kind)).toEqual(["user", "assistant"]);
+  });
+
+  test("consecutive metadata rows group into one", () => {
+    const shown = filterTranscript(entries, { showThinking: false, showMeta: true, conversationOnly: false });
+    const grouped = collapseMeta(shown);
+    const groups = grouped.filter((g) => Array.isArray(g)) as unknown[][];
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(2);
+  });
+});

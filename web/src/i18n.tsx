@@ -135,6 +135,7 @@ const EN: Record<string, string> = {
   "{n} 条元数据记录": "{n} metadata records",
   "出错": "Error",
   "{n} 行": "{n} lines",
+  "注入上下文": "injected context",
 
   // projects
   "每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。":
