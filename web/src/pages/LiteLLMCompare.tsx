@@ -17,6 +17,21 @@ interface DiffRow {
   changed: string[];
 }
 
+const RATE_LABELS: Record<string, string> = {
+  input: "输入",
+  output: "输出",
+  cacheRead: "缓存读",
+  cacheWrite5m: "写 5m",
+  cacheWrite1h: "写 1h",
+};
+
+/** Rates span 0.0028 to 75, so a fixed precision either lies or adds noise. */
+function fmtRate(value: number | undefined): string {
+  if (value == null) return "—";
+  if (value === 0) return "0";
+  return value < 0.01 ? value.toPrecision(2) : String(Math.round(value * 1000) / 1000);
+}
+
 /**
  * LiteLLM's community catalog as a second opinion on prices. Rows are limited
  * to models we price or that appear in your own usage, and adopting one just
@@ -89,8 +104,25 @@ export function LiteLLMCompare({ onAdopt }: { onAdopt: (model: string, tier: Tie
           </thead>
           <tbody>
             {differing.map((row) => (
-              <tr key={row.model} className="border-b border-line/60">
-                <td className="py-1.5 pr-3 font-mono text-xs">{row.model}</td>
+              <tr key={row.model} className="border-b border-line/60 align-top">
+                <td className="py-1.5 pr-3">
+                  <div className="font-mono text-xs">{row.model}</div>
+                  {/* the input/output columns often match while a cache rate is
+                      what differs — spell out every changed field, or the row
+                      reads as flagged-but-identical */}
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted">
+                    {row.changed.map((field) => (
+                      <span key={field}>
+                        {t(RATE_LABELS[field] ?? field)}{" "}
+                        <span className="tabular-nums">
+                          {row.ours ? fmtRate(row.ours[field as keyof Tier]) : t("未定价")}
+                        </span>
+                        {" → "}
+                        <span className="tabular-nums text-ink">{fmtRate(row.theirs[field as keyof Tier])}</span>
+                      </span>
+                    ))}
+                  </div>
+                </td>
                 <td className="py-1.5 pr-3 text-right text-xs tabular-nums">
                   {row.ours ? `${row.ours.input} / ${row.ours.output}` : t("未定价")}
                 </td>
