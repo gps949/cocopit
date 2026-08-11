@@ -8,6 +8,7 @@ import {
   loadAuthConfig,
   setAccessToken,
 } from "./auth";
+import { resolveBindHost } from "./bindHost";
 import { loadConfig } from "./config";
 import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
@@ -75,6 +76,8 @@ export interface ServerDeps {
   sources?: ScanSource[];
   /** Extra origins allowed for writes; defaults to config.allowedOrigins. */
   allowedOrigins?: string[];
+  /** Bind address; defaults to config.host under the token interlock. */
+  hostname?: string;
 }
 
 /**
@@ -129,6 +132,8 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   // per request so routes can tell a local caller from a proxied one.
   const peers = new WeakMap<Request, string>();
   const peerAddressOf = (req: Request) => peers.get(req);
+  const bindHost = deps.hostname ?? resolveBindHost(loadConfig().host, loadAuthConfig().enabled);
+  const bindPort = port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port);
   const router = new Router();
   router.register("GET", "/api/health", healthHandler);
 
@@ -191,7 +196,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerLiveRoutes(router, db, claudeDir);
     registerTerminalRoutes(router, db);
     registerConfigRoutes(router, db, claudeDir);
-    registerSystemRoutes(router, claudeDir);
+    registerSystemRoutes(router, claudeDir, bindHost, bindPort);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
@@ -215,8 +220,8 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   const allowedOrigins = () => deps.allowedOrigins ?? loadConfig().allowedOrigins ?? [];
 
   return Bun.serve<TerminalSocketData>({
-    hostname: "127.0.0.1",
-    port: port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port),
+    hostname: bindHost,
+    port: bindPort,
     idleTimeout: 0,
     websocket: terminalWebSocketHandlers(),
     async fetch(req, server) {
@@ -267,7 +272,15 @@ if (import.meta.main) {
   const scheduler = new IndexScheduler(db);
   const hub = new SseHub();
   const sources = profileScanSources(config.claudeDir);
-  const server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir, sources });
+
+  let server: ReturnType<typeof createServer>;
+  try {
+    server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir, sources });
+  } catch (err) {
+    // the bind interlock is a configuration mistake, not a crash — say what to do
+    console.error(`\n${(err as Error).message}\n`);
+    process.exit(1);
+  }
   console.log(`listening on http://${server.hostname}:${server.port}`);
   scheduler.runScan(sources).then((summary) => {
     console.log(

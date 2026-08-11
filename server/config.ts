@@ -5,6 +5,7 @@ import type { CcockpitConfig } from "../shared/types";
 
 const DEFAULTS: CcockpitConfig = {
   port: 7433,
+  host: "127.0.0.1",
   claudeDir: join(homedir(), ".claude"),
   allowedOrigins: [],
 };

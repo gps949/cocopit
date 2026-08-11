@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadAuthConfig } from "../auth";
 import { listLiveSessions } from "../cc/liveSessions";
+import { loadConfig } from "../config";
 import type { Router } from "../http/router";
+import { updateSelfConfig, type SelfConfigPatch } from "../selfConfig";
 import { executeCleanup, scanDisk, type CategoryId } from "../system/disk";
 
 const VALID_CATEGORIES = new Set<CategoryId>([
@@ -31,7 +34,48 @@ function activeSessionIds(claudeDir: string): string[] {
     .map((session) => session.sessionId);
 }
 
-export function registerSystemRoutes(router: Router, claudeDir: string): void {
+/**
+ * `running*` are what the listener actually bound, so the UI can tell the user
+ * a saved change needs a restart instead of silently doing nothing.
+ */
+export function registerSystemRoutes(
+  router: Router,
+  claudeDir: string,
+  runningHost: string,
+  runningPort: number,
+): void {
+  router.register("GET", "/api/system/config", () => {
+    const config = loadConfig();
+    return Response.json({
+      port: config.port,
+      host: config.host,
+      allowedOrigins: config.allowedOrigins ?? [],
+      tokenConfigured: loadAuthConfig().enabled,
+      // the running listener, which differs from `host` until a restart
+      boundHost: runningHost,
+    });
+  });
+
+  router.register("PATCH", "/api/system/config", async (req) => {
+    let patch: SelfConfigPatch;
+    try {
+      patch = (await req.json()) as SelfConfigPatch;
+    } catch {
+      return Response.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    }
+    try {
+      const next = updateSelfConfig(patch, loadAuthConfig().enabled);
+      return Response.json({
+        port: next.port,
+        host: next.host,
+        allowedOrigins: next.allowedOrigins ?? [],
+        restartRequired: next.host !== runningHost || next.port !== runningPort,
+      });
+    } catch (err) {
+      return Response.json({ error: (err as Error).message }, { status: 400 });
+    }
+  });
+
   router.register("GET", "/api/system/disk", () => {
     return Response.json({
       ...scanDisk(claudeDir),

@@ -42,6 +42,109 @@ function fmtBytes(n: number): string {
   return `${n} B`;
 }
 
+interface NetConfig {
+  port: number;
+  host: string;
+  allowedOrigins: string[];
+  tokenConfigured: boolean;
+  boundHost: string;
+}
+
+/** Bind address and allowed origins — everything needed to reach this from another machine. */
+function NetworkPanel({ tokenConfigured }: { tokenConfigured: boolean }) {
+  const { t } = useI18n();
+  const [config, setConfig] = useState<NetConfig | null>(null);
+  const [host, setHost] = useState("");
+  const [origins, setOrigins] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getJson<NetConfig>("/api/system/config").then((res) => {
+      setConfig(res);
+      setHost(res.host);
+      setOrigins(res.allowedOrigins.join("\n"));
+    });
+  }, []);
+
+  async function save() {
+    setError(null);
+    setNotice(null);
+    const res = await fetch("/api/system/config", {
+      method: "PATCH",
+      body: JSON.stringify({
+        host,
+        allowedOrigins: origins.split(/[\s,]+/).filter(Boolean),
+      }),
+    });
+    const body = (await res.json()) as { error?: string; restartRequired?: boolean; allowedOrigins?: string[] };
+    if (!res.ok) return setError(body.error ?? `HTTP ${res.status}`);
+    if (body.allowedOrigins) setOrigins(body.allowedOrigins.join("\n"));
+    setNotice(body.restartRequired ? t("已保存,重启 ccockpit 后生效。") : t("已保存。"));
+  }
+
+  if (!config) return null;
+  const dirty = host !== config.host || origins !== config.allowedOrigins.join("\n");
+
+  return (
+    <div className="mt-5 border-t border-line pt-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="min-w-0 text-sm">
+          <span className="text-muted">{t("监听地址")}</span>
+          <select
+            value={host === "127.0.0.1" || host === "0.0.0.0" ? host : "custom"}
+            onChange={(e) => setHost(e.target.value === "custom" ? "" : e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+          >
+            <option value="127.0.0.1">{t("仅本机 (127.0.0.1)")}</option>
+            <option value="0.0.0.0">{t("所有网卡 (0.0.0.0)")}</option>
+            <option value="custom">{t("指定地址…")}</option>
+          </select>
+          {host !== "127.0.0.1" && host !== "0.0.0.0" && (
+            <input
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              placeholder="192.168.1.10"
+              className="mt-2 w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+            />
+          )}
+          {host !== "127.0.0.1" && !tokenConfigured && (
+            <span className="mt-1.5 block text-xs text-danger">{t("需要先设置访问令牌")}</span>
+          )}
+        </label>
+
+        <label className="min-w-0 text-sm">
+          <span className="text-muted">{t("允许来源")}</span>
+          <textarea
+            value={origins}
+            onChange={(e) => setOrigins(e.target.value)}
+            rows={3}
+            placeholder="https://cc.example.com"
+            className="mt-1.5 w-full resize-y rounded-lg border border-line bg-bg px-3 py-1.5 font-mono text-xs"
+          />
+          <span className="mt-1 block text-xs text-muted">{t("反代域名,每行一个。留空表示只允许本机来源。")}</span>
+        </label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={!dirty}
+          onClick={() => void save()}
+          className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-strong disabled:opacity-40 dark:text-ink"
+        >
+          {t("保存")}
+        </button>
+        <span className="text-xs text-muted">
+          {t("当前监听")} {config.boundHost}:{config.port}
+        </span>
+      </div>
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      {notice && <p className="mt-2 text-sm text-muted">{notice}</p>}
+    </div>
+  );
+}
+
 function AccessTokenPanel() {
   const { t } = useI18n();
   const [required, setRequired] = useState<boolean | null>(null);
@@ -67,7 +170,7 @@ function AccessTokenPanel() {
       <p className="mt-1 text-sm text-muted">
         {required
           ? t("已启用访问令牌。远程访问需要先登录。")
-          : t("未设置访问令牌。ccockpit 绑定 127.0.0.1,本机使用无需登录;若通过反代对外暴露,请设置令牌。")}
+          : t("未设置访问令牌。本机使用无需登录;监听地址超出回环范围前必须先设置令牌——内置终端等同于本机 shell。")}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -97,6 +200,7 @@ function AccessTokenPanel() {
         <span className="text-xs text-muted">{t("仅可在服务器本机设置")}</span>
       </div>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      <NetworkPanel tokenConfigured={Boolean(required)} />
     </section>
   );
 }

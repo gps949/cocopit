@@ -18,6 +18,8 @@ export interface IndexStatus {
 
 export interface CcockpitConfig {
   port: number;
+  /** Listener bind address. Anything but loopback requires an access token. */
+  host: string;
   claudeDir: string;
   /** Extra browser origins allowed to make write requests (reverse proxy / tunnel). */
   allowedOrigins: string[];
