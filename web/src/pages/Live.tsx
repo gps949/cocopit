@@ -1,0 +1,126 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { listLive, type LiveSessionRow } from "../api/sessions";
+import { TerminalPane } from "../components/Terminal";
+
+interface TerminalInfo {
+  name: string;
+  windows: number;
+  createdAt: number;
+  attached: boolean;
+}
+
+export function Live() {
+  const [sessions, setSessions] = useState<LiveSessionRow[] | null>(null);
+  const [terminals, setTerminals] = useState<TerminalInfo[]>([]);
+  const [available, setAvailable] = useState(true);
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      void listLive().then((res) => setSessions(res.sessions));
+      void fetch("/api/terminal")
+        .then((r) => r.json())
+        .then((r: { available: boolean; terminals: TerminalInfo[] }) => {
+          setAvailable(r.available);
+          setTerminals(r.terminals);
+        });
+    };
+    load();
+    const timer = setInterval(load, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  async function closeTerminal(name: string) {
+    if (!window.confirm(`关闭终端 ${name}?其中运行的会话会被结束。`)) return;
+    await fetch(`/api/terminal/${encodeURIComponent(name)}`, { method: "DELETE" });
+    if (open === name) setOpen(null);
+  }
+
+  const alive = sessions?.filter((s) => s.alive) ?? [];
+  const stale = sessions?.filter((s) => !s.alive) ?? [];
+
+  return (
+    <div>
+      <h1 className="text-[26px] font-semibold tracking-tight">实时</h1>
+      <p className="mt-2 text-sm text-muted">
+        本机正在运行的 Claude Code 进程,以及 ccockpit 管理的 tmux 终端(每 3 秒刷新)。
+      </p>
+
+      <section className="mt-5">
+        <h2 className="text-[15px] font-medium">运行中的会话({alive.length})</h2>
+        {alive.length === 0 && <p className="mt-2 text-sm text-muted">当前没有运行中的会话。</p>}
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {alive.map((s) => (
+            <div key={s.pid} className="rounded-2xl border border-line bg-panel p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{s.name || s.sessionId.slice(0, 8)}</div>
+                  <div className="truncate font-mono text-xs text-muted">{s.cwd}</div>
+                </div>
+                <span className="flex items-center gap-1.5 text-xs text-ok">
+                  <span className="size-1.5 rounded-full bg-ok" />
+                  {s.status ?? "运行中"}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                <span className="font-mono">pid {s.pid}</span>
+                <Link to={`/sessions/${s.sessionId}`} className="text-accent hover:underline">
+                  查看会话
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-[15px] font-medium">ccockpit 终端({terminals.length})</h2>
+        {!available && <p className="mt-2 text-sm text-danger">未检测到 tmux,Web 终端不可用。</p>}
+        {available && terminals.length === 0 && (
+          <p className="mt-2 text-sm text-muted">还没有终端。可在会话详情页「在终端中恢复」,或在项目页新建会话。</p>
+        )}
+        <div className="mt-3 space-y-2">
+          {terminals.map((t) => (
+            <div key={t.name} className="flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-2.5">
+              <span className="font-mono text-sm">{t.name}</span>
+              <span className="text-xs text-muted">
+                {new Date(t.createdAt).toLocaleString("zh-CN")} · {t.attached ? "已连接" : "空闲"}
+              </span>
+              <div className="ml-auto flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(open === t.name ? null : t.name)}
+                  className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+                >
+                  {open === t.name ? "收起" : "打开"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void closeTerminal(t.name)}
+                  className="rounded-lg border border-line px-2.5 py-1 text-xs text-danger hover:bg-hover"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {open && (
+          <div className="mt-3">
+            <TerminalPane name={open} />
+          </div>
+        )}
+      </section>
+
+      {stale.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-[15px] font-medium text-muted">已结束的注册项({stale.length})</h2>
+          <p className="mt-1 text-xs text-muted">
+            进程已退出但注册文件仍在(崩溃或 PID 已被复用),仅供排查。
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}

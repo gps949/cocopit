@@ -194,10 +194,18 @@ export class TmuxAttachment {
     for (const handler of this.#closeHandlers) handler(reason);
   }
 
-  /** Current screen contents (with escapes) so a reconnecting client sees state. */
+  /**
+   * Current screen contents (with escapes) so a reconnecting client sees state.
+   * capture-pane pads to the full pane height; keeping those blank rows would
+   * push the live output that follows down to the bottom of the viewport.
+   */
   snapshot(): string {
     const result = Bun.spawnSync(["tmux", "capture-pane", "-p", "-e", "-J", "-t", this.#name]);
-    return result.success ? new TextDecoder().decode(result.stdout) : "";
+    if (!result.success) return "";
+    const text = new TextDecoder().decode(result.stdout);
+    const lines = text.split("\n");
+    while (lines.length > 0 && lines[lines.length - 1]!.trim() === "") lines.pop();
+    return lines.length === 0 ? "" : lines.join("\r\n") + "\r\n";
   }
 
   write(data: string): void {
