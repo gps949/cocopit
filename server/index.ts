@@ -8,6 +8,7 @@ import { IndexScheduler, type ScanSource } from "./indexer/scheduler";
 import { FsWatcher } from "./indexer/watcher";
 import { loadProfiles } from "./profiles/registry";
 import { healthHandler } from "./routes/health";
+import { registerConfigRoutes } from "./routes/config";
 import { registerPricingRoutes } from "./routes/pricing";
 import { registerSessionRoutes } from "./routes/sessions";
 import { registerLiveRoutes } from "./routes/live";
@@ -115,6 +116,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerSessionRoutes(router, db);
     registerLiveRoutes(router, db, claudeDir);
     registerTerminalRoutes(router, db);
+    registerConfigRoutes(router, db, claudeDir);
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
     });
