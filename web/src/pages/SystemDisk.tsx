@@ -77,10 +77,23 @@ function NetworkPanel({ tokenConfigured }: { tokenConfigured: boolean }) {
         allowedOrigins: origins.split(/[\s,]+/).filter(Boolean),
       }),
     });
-    const body = (await res.json()) as { error?: string; restartRequired?: boolean; allowedOrigins?: string[] };
+    const body = (await res.json()) as {
+      error?: string;
+      applied?: boolean;
+      rebindError?: string;
+      allowedOrigins?: string[];
+      host?: string;
+      port?: number;
+    };
     if (!res.ok) return setError(body.error ?? `HTTP ${res.status}`);
     if (body.allowedOrigins) setOrigins(body.allowedOrigins.join("\n"));
-    setNotice(body.restartRequired ? t("已保存,重启 ccockpit 后生效。") : t("已保存。"));
+    if (body.rebindError) {
+      setError(t("已保存,但切换监听地址失败:{err}。旧地址仍在服务。", { err: body.rebindError }));
+    } else {
+      setNotice(t("已保存并生效。"));
+    }
+    // the address may have moved out from under this page
+    setConfig((c) => (c ? { ...c, host: body.host ?? c.host, port: body.port ?? c.port, boundHost: body.host ?? c.boundHost } : c));
   }
 
   if (!config) return null;
@@ -313,7 +326,7 @@ export function SystemDisk() {
               <span className="w-24 shrink-0 text-sm sm:w-28">{t(c.label)}</span>
               <span className="w-24 text-right text-sm tabular-nums">{fmtBytes(c.sizeBytes)}</span>
               <span className="w-20 text-right text-xs tabular-nums text-muted">{t("{n} 文件", { n: c.fileCount })}</span>
-              <span className="hidden truncate text-xs text-muted sm:block">{c.description}</span>
+              <span className="hidden truncate text-xs text-muted sm:block">{t(c.description)}</span>
             </label>
           ))}
         </div>
@@ -321,7 +334,7 @@ export function SystemDisk() {
         {report && (
           <p className="mt-3 border-t border-line pt-3 text-xs text-muted">
             {t("受保护(永不清理):")}
-            {report.protected.map((p) => ` ${p.label} ${fmtBytes(p.sizeBytes)}`).join(" ·")}
+            {report.protected.map((p) => ` ${t(p.label)} ${fmtBytes(p.sizeBytes)}`).join(" ·")}
           </p>
         )}
 

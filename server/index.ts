@@ -197,8 +197,14 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerLiveRoutes(router, db, claudeDir);
     registerTerminalRoutes(router, db);
     registerConfigRoutes(router, db, claudeDir);
-    registerSystemRoutes(router, claudeDir, bindHost, bindPort, (req) =>
-      isLoopbackRequest(req, peerAddressOf(req)),
+    registerSystemRoutes(
+      router,
+      claudeDir,
+      bindHost,
+      bindPort,
+      (req) => isLoopbackRequest(req, peerAddressOf(req)),
+      // deferred: the listener does not exist yet at registration time
+      (hostname, port) => rebind(hostname, port),
     );
     scheduler.addEventListener("progress", (event) => {
       hub.broadcast("index.progress", (event as CustomEvent).detail);
@@ -222,12 +228,12 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
 
   const allowedOrigins = () => deps.allowedOrigins ?? loadConfig().allowedOrigins ?? [];
 
-  return Bun.serve<TerminalSocketData>({
+  const serveOptions = {
     hostname: bindHost,
     port: bindPort,
     idleTimeout: 0,
     websocket: terminalWebSocketHandlers(),
-    async fetch(req, server) {
+    async fetch(req: Request, server: Bun.Server<TerminalSocketData>) {
       const url = new URL(req.url);
       const peer = server.requestIP(req);
       if (peer) peers.set(req, peer.address);
@@ -266,7 +272,53 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
 
       return serveStatic(url.pathname);
     },
-  });
+  };
+
+  type ServeArgs = Parameters<typeof Bun.serve<TerminalSocketData>>[0];
+  let listener = Bun.serve<TerminalSocketData>({ ...serveOptions } as ServeArgs);
+
+  /**
+   * Moves the listener without restarting the process. Changing where the
+   * console listens usually happens *because* you are not at that machine, so
+   * requiring a restart there defeats the purpose. On failure — the port is
+   * taken, the address is not local — the old listener is put back, so a bad
+   * value cannot strand you with nothing serving.
+   */
+  const rebind = async (hostname: string, port: number): Promise<{ ok: boolean; error?: string }> => {
+    if (listener.hostname === hostname && listener.port === port) return { ok: true };
+    // restore where it was actually listening, which is not necessarily what
+    // was configured — port 0 means "whatever the OS gave us"
+    const wasHost = listener.hostname;
+    const wasPort = listener.port;
+    // NOT stop(true): the request asking for this move is itself an active
+    // connection, and closing it means the caller never learns whether the move
+    // worked. Release the listening socket and let in-flight replies finish.
+    listener.stop(false);
+    try {
+      listener = Bun.serve<TerminalSocketData>({ ...serveOptions, hostname, port } as ServeArgs);
+      return { ok: true };
+    } catch (err) {
+      listener = Bun.serve<TerminalSocketData>({
+        ...serveOptions,
+        hostname: wasHost,
+        port: wasPort,
+      } as ServeArgs);
+      return { ok: false, error: (err as Error).message };
+    }
+  };
+
+  // a thin facade so callers keep using .port/.hostname/.stop as before while
+  // those values follow the live listener across a rebind
+  return {
+    get hostname() {
+      return listener.hostname;
+    },
+    get port() {
+      return listener.port;
+    },
+    stop: (closeActive?: boolean) => listener.stop(closeActive),
+    rebind,
+  };
 }
 
 if (import.meta.main) {

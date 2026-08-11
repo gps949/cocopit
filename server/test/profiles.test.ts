@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { detectProfile, loginCommand } from "../profiles/detect";
+import { accountFilePath, detectProfile, loginCommand } from "../profiles/detect";
 import {
   createProfile,
   deleteProfile,
@@ -134,5 +134,22 @@ describe("detect", () => {
     const p = createProfile({ name: "Quote Me", kind: "subscription" });
     const cmd = loginCommand(p);
     expect(cmd).toBe(`CLAUDE_CONFIG_DIR='${p.configDir}' claude /login`);
+  });
+});
+
+describe("where a profile's account file lives", () => {
+  test("the default profile reads ~/.claude.json, not ~/.claude/.claude.json", () => {
+    // Claude Code keeps the default profile's config beside the data directory.
+    // A stale .claude.json inside ~/.claude (left by an older layout or an
+    // experiment) would otherwise report a different account than the one in use.
+    expect(accountFilePath({ id: "default", name: "默认账号", kind: "subscription", configDir: null })).toBe(
+      join(homedir(), ".claude.json"),
+    );
+  });
+
+  test("a profile with its own config dir reads the file inside it", () => {
+    expect(
+      accountFilePath({ id: "work", name: "Work", kind: "subscription", configDir: "/tmp/cc-work" }),
+    ).toBe(join("/tmp/cc-work", ".claude.json"));
   });
 });

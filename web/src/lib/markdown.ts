@@ -16,18 +16,37 @@ export type InlineSpan =
   | { type: "italic"; text: string }
   | { type: "link"; text: string; href: string };
 
+export type CellAlign = "left" | "center" | "right";
+
 export type MdBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; level: number; text: string }
   | { type: "code"; lang: string; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
-  | { type: "quote"; text: string };
+  | { type: "quote"; text: string }
+  | { type: "rule" }
+  | { type: "table"; header: string[]; align: CellAlign[]; rows: string[][] };
 
 const HEADING = /^(#{1,6})\s+(.*)$/;
 const FENCE = /^```(\S*)\s*$/;
 const BULLET = /^\s*[-*+]\s+(.*)$/;
 const NUMBERED = /^\s*\d+[.)]\s+(.*)$/;
 const QUOTE = /^>\s?(.*)$/;
+const RULE = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
+// the row under the header, e.g. | --- | :---: | ---: |
+const TABLE_DIVIDER = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+
+function splitRow(line: string): string[] {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function alignOf(spec: string): CellAlign {
+  const s = spec.trim();
+  if (s.startsWith(":") && s.endsWith(":")) return "center";
+  if (s.endsWith(":")) return "right";
+  return "left";
+}
 
 export function parseMarkdown(source: string): MdBlock[] {
   const lines = source.split("\n");
@@ -52,6 +71,26 @@ export function parseMarkdown(source: string): MdBlock[] {
       // an unterminated fence runs to the end — transcripts get truncated
       while (i < lines.length && !/^```/.test(lines[i]!)) body.push(lines[i++]!);
       blocks.push({ type: "code", lang: fence[1] ?? "", text: body.join("\n") });
+      continue;
+    }
+
+    // a table announces itself by its divider row, so look one line ahead
+    if (i + 1 < lines.length && line.includes("|") && TABLE_DIVIDER.test(lines[i + 1]!)) {
+      flushParagraph();
+      const header = splitRow(line);
+      const align = splitRow(lines[i + 1]!).map(alignOf);
+      i += 1;
+      const rows: string[][] = [];
+      while (i + 1 < lines.length && lines[i + 1]!.includes("|") && lines[i + 1]!.trim() !== "") {
+        rows.push(splitRow(lines[++i]!));
+      }
+      blocks.push({ type: "table", header, align, rows });
+      continue;
+    }
+
+    if (RULE.test(line)) {
+      flushParagraph();
+      blocks.push({ type: "rule" });
       continue;
     }
 

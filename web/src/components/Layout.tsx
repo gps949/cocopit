@@ -65,8 +65,10 @@ export function Layout() {
           className="fixed inset-0 z-20 bg-black/40 lg:hidden"
         />
       )}
+      {/* on wide screens it rejoins the flow, so it must be pinned itself —
+          otherwise a long page scrolls the navigation off the top */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex w-56 shrink-0 flex-col border-r border-line bg-side transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 flex w-56 shrink-0 flex-col overflow-y-auto border-r border-line bg-side transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

@@ -53,3 +53,39 @@ describe("inline parsing", () => {
     expect(blocks[0]).toEqual({ type: "paragraph", text: "看 <script>alert(1)</script> 这段" });
   });
 });
+
+describe("tables and rules", () => {
+  test("a pipe table becomes a table block with its header", () => {
+    const blocks = parseMarkdown("| 模型 | 费用 |\n| --- | ---: |\n| opus | $5 |\n| sonnet | $3 |");
+    expect(blocks[0]).toEqual({
+      type: "table",
+      header: ["模型", "费用"],
+      align: ["left", "right"],
+      rows: [
+        ["opus", "$5"],
+        ["sonnet", "$3"],
+      ],
+    });
+  });
+
+  test("a table with ragged rows still renders every cell it has", () => {
+    const blocks = parseMarkdown("| a | b |\n| --- | --- |\n| 1 |");
+    expect((blocks[0] as { rows: string[][] }).rows).toEqual([["1"]]);
+  });
+
+  test("pipes inside a row are not lost to the leading/trailing delimiters", () => {
+    const blocks = parseMarkdown("a | b\n--- | ---\n1 | 2");
+    expect(blocks[0]).toMatchObject({ header: ["a", "b"], rows: [["1", "2"]] });
+  });
+
+  test("a line of dashes is a rule, not a heading underline", () => {
+    expect(parseMarkdown("上文\n\n---\n\n下文")[1]).toEqual({ type: "rule" });
+    expect(parseMarkdown("***")[0]).toEqual({ type: "rule" });
+    expect(parseMarkdown("___")[0]).toEqual({ type: "rule" });
+  });
+
+  test("a fenced block containing pipes is still code", () => {
+    const blocks = parseMarkdown("```\n| a | b |\n| --- | --- |\n```");
+    expect(blocks[0]!.type).toBe("code");
+  });
+});

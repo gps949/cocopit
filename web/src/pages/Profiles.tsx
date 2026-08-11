@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { UserIcon } from "../components/icons";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 
 interface ProfileView {
   id: string;
@@ -11,7 +11,20 @@ interface ProfileView {
   api?: { baseUrl?: string; model?: string; authKind: string; secret: string };
   lastDetected?: { email?: string; orgName?: string; at: number };
   loginCommand?: string;
-  detection: { loggedIn: boolean; email?: string; orgName?: string; billingType?: string };
+  detection: {
+    loggedIn: boolean;
+    email?: string;
+    displayName?: string;
+    orgName?: string;
+    orgType?: string;
+    orgRole?: string;
+    billingType?: string;
+    subscriptionCreatedAt?: string;
+    accountCreatedAt?: string;
+    trialEndsAt?: string | null;
+    extraUsageEnabled?: boolean;
+    rateLimitTier?: string;
+  };
 }
 
 async function fetchProfiles(): Promise<ProfileView[]> {
@@ -20,6 +33,7 @@ async function fetchProfiles(): Promise<ProfileView[]> {
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -31,13 +45,39 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       }}
       className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink"
     >
-      {copied ? "已复制" : label}
+      {copied ? t("已复制") : label}
     </button>
   );
 }
 
+/** claude_pro / claude_max_5x / … → something a person recognizes. */
+function planLabel(d: { orgType?: string; billingType?: string }, t: Translate): string | null {
+  const type = d.orgType;
+  if (type) {
+    const named: Record<string, string> = {
+      claude_pro: "Claude Pro",
+      claude_max: "Claude Max",
+      claude_max_5x: "Claude Max 5×",
+      claude_max_20x: "Claude Max 20×",
+      claude_team: "Claude Team",
+      claude_enterprise: "Claude Enterprise",
+      freeform: t("免费版"),
+    };
+    if (named[type]) return named[type]!;
+    return type.replace(/_/g, " ");
+  }
+  if (d.billingType === "stripe_subscription") return t("订阅");
+  return null;
+}
+
+function fmtDate(iso: string, lang: Lang): string {
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return iso;
+  return new Date(ts).toLocaleDateString(localeOf(lang), { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function Profiles() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [profiles, setProfiles] = useState<ProfileView[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -124,6 +164,10 @@ export function Profiles() {
       <p className="mt-2 text-sm text-muted">
         {t("每个 profile 使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按 profile 对比。")}
       </p>
+      {/* asked for repeatedly, so say why it is absent instead of leaving a gap */}
+      <p className="mt-1.5 text-xs text-muted">
+        {t("5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,ccockpit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。")}
+      </p>
 
       {creating && (
         <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
@@ -133,7 +177,7 @@ export function Profiles() {
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder={t(t("如 Work"))}
+                placeholder={t("如 Work")}
                 className="w-44 rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
               />
             </label>
@@ -198,9 +242,9 @@ export function Profiles() {
                   <UserIcon className="size-4 text-accent" />
                 </span>
                 <div>
-                  <div className="font-medium">{p.name}</div>
+                  <div className="font-medium">{t(p.name)}</div>
                   <div className="text-xs text-muted">
-                    {p.kind === "subscription" ? "订阅" : "API"} · {p.id}
+                    {p.kind === "subscription" ? t("订阅") : "API"} · {p.id}
                   </div>
                 </div>
               </div>
@@ -218,10 +262,36 @@ export function Profiles() {
                   <dd>{p.detection.email}</dd>
                 </div>
               )}
+              {planLabel(p.detection, t) && (
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-muted">{t("订阅")}</dt>
+                  <dd className="min-w-0 text-right">{planLabel(p.detection, t)}</dd>
+                </div>
+              )}
+              {p.detection.subscriptionCreatedAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-muted">{t("订阅开始")}</dt>
+                  <dd className="min-w-0 text-right">{fmtDate(p.detection.subscriptionCreatedAt, lang)}</dd>
+                </div>
+              )}
+              {p.detection.trialEndsAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-muted">{t("试用到期")}</dt>
+                  <dd className="min-w-0 text-right">{fmtDate(p.detection.trialEndsAt, lang)}</dd>
+                </div>
+              )}
+              {p.detection.extraUsageEnabled != null && p.detection.loggedIn && (
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-muted">{t("额外用量")}</dt>
+                  <dd className="min-w-0 text-right">
+                    {p.detection.extraUsageEnabled ? t("已开启") : t("未开启")}
+                  </dd>
+                </div>
+              )}
               {p.detection.orgName && (
-                <div className="flex justify-between">
-                  <dt className="text-muted">{t("组织")}</dt>
-                  <dd>{p.detection.orgName}</dd>
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-muted">{t("组织")}</dt>
+                  <dd className="min-w-0 truncate text-right">{p.detection.orgName}</dd>
                 </div>
               )}
               {p.api?.baseUrl && (

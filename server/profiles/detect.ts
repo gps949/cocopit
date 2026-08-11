@@ -5,33 +5,80 @@ import { resolveConfigDir, type CcProfile } from "./registry";
 export interface ProfileDetection {
   loggedIn: boolean;
   email?: string;
+  displayName?: string;
   orgName?: string;
+  /** claude_pro / claude_max / … — the plan behind the subscription. */
+  orgType?: string;
+  orgRole?: string;
   billingType?: string;
+  /** ISO timestamps, straight from the account record. */
+  subscriptionCreatedAt?: string;
+  accountCreatedAt?: string;
+  trialEndsAt?: string | null;
+  extraUsageEnabled?: boolean;
+  rateLimitTier?: string;
+}
+
+/**
+ * Where a profile's account file lives.
+ *
+ * Claude Code keeps the default profile's config *beside* the data directory
+ * (~/.claude.json next to ~/.claude/), and only puts it inside when
+ * CLAUDE_CONFIG_DIR points somewhere. Reading <claudeDir>/.claude.json for the
+ * default profile picks up whatever stale copy happens to be there — on this
+ * machine, an old login with a different address.
+ */
+export function accountFilePath(profile: CcProfile): string {
+  if (profile.configDir) return join(profile.configDir, ".claude.json");
+  const dir = resolveConfigDir(profile);
+  return `${dir.replace(/\/+$/, "")}.json`;
 }
 
 /**
  * Read-only login detection. Subscription profiles are logged in when their
- * <configDir>/.claude.json carries an oauthAccount; API profiles when a secret
- * is configured. Never touches the Keychain.
+ * account file carries an oauthAccount; API profiles when a secret is
+ * configured. Never touches the Keychain — which is also why per-period quota
+ * is absent here: it is not in any local file, only behind the API.
  */
 export function detectProfile(profile: CcProfile): ProfileDetection {
   if (profile.kind === "api") {
     return { loggedIn: Boolean(profile.api?.secret) };
   }
 
-  const jsonPath = join(resolveConfigDir(profile), ".claude.json");
+  const jsonPath = accountFilePath(profile);
   if (!existsSync(jsonPath)) return { loggedIn: false };
   try {
     const parsed = JSON.parse(readFileSync(jsonPath, "utf8")) as {
-      oauthAccount?: { emailAddress?: string; organizationName?: string; billingType?: string };
+      oauthAccount?: {
+        emailAddress?: string;
+        displayName?: string;
+        organizationName?: string;
+        organizationType?: string;
+        organizationRole?: string;
+        billingType?: string;
+        subscriptionCreatedAt?: string;
+        accountCreatedAt?: string;
+        claudeCodeTrialEndsAt?: string | null;
+        hasExtraUsageEnabled?: boolean;
+        organizationRateLimitTier?: string;
+        userRateLimitTier?: string | null;
+      };
     };
     const account = parsed.oauthAccount;
     if (!account?.emailAddress) return { loggedIn: false };
     return {
       loggedIn: true,
       email: account.emailAddress,
+      displayName: account.displayName,
       orgName: account.organizationName,
+      orgType: account.organizationType,
+      orgRole: account.organizationRole,
       billingType: account.billingType,
+      subscriptionCreatedAt: account.subscriptionCreatedAt,
+      accountCreatedAt: account.accountCreatedAt,
+      trialEndsAt: account.claudeCodeTrialEndsAt ?? null,
+      extraUsageEnabled: account.hasExtraUsageEnabled,
+      rateLimitTier: account.userRateLimitTier ?? account.organizationRateLimitTier,
     };
   } catch {
     return { loggedIn: false };

@@ -41,10 +41,14 @@ function activeSessionIds(claudeDir: string): string[] {
 export function registerSystemRoutes(
   router: Router,
   claudeDir: string,
-  runningHost: string,
-  runningPort: number,
+  runningHostInit: string,
+  runningPortInit: number,
   isLocal: (req: Request) => boolean = () => true,
+  rebind?: (hostname: string, port: number) => Promise<{ ok: boolean; error?: string }>,
 ): void {
+  let runningHost = runningHostInit;
+  let runningPort = runningPortInit;
+
   router.register("GET", "/api/system/config", () => {
     const config = loadConfig();
     return Response.json({
@@ -71,11 +75,28 @@ export function registerSystemRoutes(
     }
     try {
       const next = updateSelfConfig(patch, auth.enabled);
+
+      // allowedOrigins is read per request, so only the listener address needs
+      // applying — and it can be moved in place rather than asking someone to
+      // go restart the process on a machine they may not be sitting at
+      let moved = false;
+      let moveError: string | undefined;
+      if (rebind && (next.host !== runningHost || next.port !== runningPort)) {
+        const result = await rebind(next.host, next.port);
+        moved = result.ok;
+        moveError = result.error;
+        if (result.ok) {
+          runningHost = next.host;
+          runningPort = next.port;
+        }
+      }
+
       return Response.json({
         port: next.port,
         host: next.host,
         allowedOrigins: next.allowedOrigins ?? [],
-        restartRequired: next.host !== runningHost || next.port !== runningPort,
+        applied: moved || (next.host === runningHost && next.port === runningPort),
+        rebindError: moveError,
       });
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 400 });

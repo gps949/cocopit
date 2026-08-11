@@ -1,5 +1,51 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { useI18n } from "../i18n";
 import { parseInline, parseMarkdown, type InlineSpan } from "../lib/markdown";
+
+/** Code is the thing people want out of a transcript, so make it one click. */
+function CodeBlock({ lang, text }: { lang: string; text: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // clipboard API needs a secure context; fall back to a selection copy
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="group relative">
+      <pre className="overflow-x-auto rounded-lg border border-line bg-bg px-3 py-2 font-mono text-xs leading-relaxed">
+        <code>{text}</code>
+      </pre>
+      {lang && (
+        <span className="pointer-events-none absolute top-1.5 right-16 font-mono text-[10px] text-muted opacity-50">
+          {lang}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => void copy()}
+        // faint rather than hidden: a touch device never hovers
+        className="absolute top-1.5 right-1.5 rounded-md border border-line bg-panel px-2 py-0.5 text-[11px] text-muted opacity-60 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-ink"
+      >
+        {copied ? t("已复制") : t("复制")}
+      </button>
+    </div>
+  );
+}
 
 function Inline({ spans }: { spans: InlineSpan[] }) {
   return (
@@ -78,13 +124,40 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
               </div>
             );
           case "code":
+            return <CodeBlock key={i} lang={block.lang} text={block.text} />;
+          case "rule":
+            return <hr key={i} className="my-4 border-0 border-t border-line" />;
+          case "table":
             return (
-              <pre
-                key={i}
-                className="overflow-x-auto rounded-lg border border-line bg-bg px-3 py-2 font-mono text-xs leading-relaxed"
-              >
-                <code>{block.text}</code>
-              </pre>
+              // its own scroller: a wide table must not push the page sideways
+              <div key={i} className="-mx-1 overflow-x-auto px-1">
+                <table className="w-full min-w-max border-collapse text-[13px]">
+                  <thead>
+                    <tr className="border-b border-line">
+                      {block.header.map((cell, j) => (
+                        <th
+                          key={j}
+                          className="px-3 py-1.5 font-medium text-muted"
+                          style={{ textAlign: block.align[j] ?? "left" }}
+                        >
+                          <Inline spans={parseInline(cell)} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, r) => (
+                      <tr key={r} className="border-b border-line/50 last:border-0">
+                        {row.map((cell, c) => (
+                          <td key={c} className="px-3 py-1.5" style={{ textAlign: block.align[c] ?? "left" }}>
+                            <Inline spans={parseInline(cell)} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
           case "list":
             return (
