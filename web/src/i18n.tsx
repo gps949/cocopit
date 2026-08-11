@@ -215,6 +215,14 @@ const EN: Record<string, string> = {
   "新增": "new",
   "新增模型前缀,如 deepseek-v4": "New model prefix, e.g. deepseek-v4",
   "添加条目": "Add entry",
+  "对照 LiteLLM 社区价格库": "Compare with the LiteLLM community catalog",
+  "对比": "Compare",
+  "刷新": "Refresh",
+  "数据更新于 {when}": "Fetched {when}",
+  "已对比 {n} 个相关模型,{d} 处差异": "Compared {n} relevant models · {d} differ",
+  "我方": "Ours",
+  "未定价": "unpriced",
+  "采用": "Adopt",
   "为未定价模型(如 deepseek)补价后,其用量将计入费用":
     "Pricing an unpriced model (e.g. deepseek) brings its usage into cost totals",
 

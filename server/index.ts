@@ -1,6 +1,13 @@
 import type { Database } from "bun:sqlite";
 import { join, normalize, sep } from "node:path";
-import { authorizeRequest, clearAccessToken, issueSessionCookie, loadAuthConfig, setAccessToken } from "./auth";
+import {
+  authorizeRequest,
+  clearAccessToken,
+  issueSessionCookie,
+  isSecureRequest,
+  loadAuthConfig,
+  setAccessToken,
+} from "./auth";
 import { loadConfig } from "./config";
 import { openIndexDb } from "./db/db";
 import { Router } from "./http/router";
@@ -98,12 +105,15 @@ export function originAllowed(req: Request, allowedOrigins: string[] = []): bool
   return isLoopback && parsed.port === String(new URL(req.url).port);
 }
 
-/** True when the request came from this machine rather than through a proxy. */
-export function isLoopbackRequest(req: Request): boolean {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return false; // arrived through a proxy
-  const host = new URL(req.url).hostname;
-  return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+/**
+ * True when the request came from this machine rather than through a proxy.
+ * The peer address must come from the socket: req.url is built from the Host
+ * header, which any client can set to 127.0.0.1.
+ */
+export function isLoopbackRequest(req: Request, peerAddress: string | undefined): boolean {
+  if (req.headers.get("x-forwarded-for")) return false; // arrived through a proxy
+  if (!peerAddress) return false; // cannot prove locality → treat as remote
+  return peerAddress === "127.0.0.1" || peerAddress === "::1" || peerAddress === "::ffff:127.0.0.1";
 }
 
 /** All registered profiles as scan sources (default profile → claudeDir). */
@@ -115,6 +125,10 @@ export function profileScanSources(claudeDir: string): ScanSource[] {
 }
 
 export function createServer(port?: number, deps: ServerDeps = {}) {
+  // Bun exposes the socket peer on the server object, not the Request; stash it
+  // per request so routes can tell a local caller from a proxied one.
+  const peers = new WeakMap<Request, string>();
+  const peerAddressOf = (req: Request) => peers.get(req);
   const router = new Router();
   router.register("GET", "/api/health", healthHandler);
 
@@ -129,7 +143,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     } catch {
       return Response.json({ error: "invalid JSON body" }, { status: 400 });
     }
-    const cookie = issueSessionCookie(token);
+    const cookie = issueSessionCookie(token, isSecureRequest(req));
     if (!cookie) return Response.json({ error: "令牌不正确" }, { status: 401 });
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "content-type": "application/json", "set-cookie": cookie },
@@ -148,7 +162,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   // Managing the token itself is a local-only operation: it is how you recover
   // from a lost token, so it must not be reachable through the proxy.
   router.register("POST", "/api/auth/token", async (req) => {
-    if (!isLoopbackRequest(req)) {
+    if (!isLoopbackRequest(req, peerAddressOf(req))) {
       return Response.json({ error: "仅允许在本机设置访问令牌" }, { status: 403 });
     }
     let body: { token?: string | null };
@@ -207,6 +221,8 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     websocket: terminalWebSocketHandlers(),
     async fetch(req, server) {
       const url = new URL(req.url);
+      const peer = server.requestIP(req);
+      if (peer) peers.set(req, peer.address);
 
       if (!originAllowed(req, allowedOrigins())) {
         return new Response("Forbidden: cross-origin request", { status: 403 });

@@ -69,7 +69,7 @@ function signSession(expiry: number, secret: string): string {
   return `${expiry}.${createHash("sha256").update(`${expiry}:${secret}`).digest("hex")}`;
 }
 
-export function issueSessionCookie(token: string): string | null {
+export function issueSessionCookie(token: string, secure = false): string | null {
   const config = loadAuthConfig();
   if (!config.enabled || !config.tokenHash) return null;
   if (!constantTimeEqual(hashToken(token), config.tokenHash)) return null;
@@ -77,7 +77,8 @@ export function issueSessionCookie(token: string): string | null {
   const expiry = Date.now() + SESSION_TTL_MS;
   const value = signSession(expiry, config.cookieSecret ?? config.tokenHash);
   const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-  return `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
+  const flags = secure ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${flags}`;
 }
 
 function sessionValid(value: string, config: AuthConfig): boolean {
@@ -97,10 +98,15 @@ function readCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-/** Paths the browser must reach before it can possibly hold a session. */
+/**
+ * Paths the browser must reach before it can possibly hold a session. Only
+ * these two auth endpoints qualify: /api/auth/token can overwrite or clear the
+ * credential, so it goes through the gate like everything else.
+ */
+const BOOTSTRAP_PATHS = new Set(["/api/health", "/api/auth/status", "/api/auth/login"]);
+
 function isBootstrapPath(pathname: string): boolean {
-  if (pathname === "/api/health") return true;
-  if (pathname.startsWith("/api/auth/")) return true;
+  if (BOOTSTRAP_PATHS.has(pathname)) return true;
   if (pathname.startsWith("/api/")) return false;
   return true; // static assets and the SPA shell
 }
@@ -127,4 +133,11 @@ export function authorizeRequest(req: Request, config = loadAuthConfig()): AuthR
   if (cookie && sessionValid(cookie, config)) return { ok: true };
 
   return { ok: false, status: 401, reason: "需要访问令牌" };
+}
+
+/** True when the client is talking HTTPS, directly or through a TLS proxy. */
+export function isSecureRequest(req: Request): boolean {
+  const proto = req.headers.get("x-forwarded-proto");
+  if (proto) return proto.split(",")[0]!.trim() === "https";
+  return new URL(req.url).protocol === "https:";
 }

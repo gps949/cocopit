@@ -6,6 +6,7 @@ import {
   userPricingPath,
   type PricingEntry,
 } from "../cost/engine";
+import { diffAgainstLiteLLM, fetchCatalog, readCachedCatalog } from "../cost/litellm";
 import { getPricingVersion, recalculateAll, setPricingVersion } from "../cost/recalc";
 import type { Router } from "../http/router";
 import type { SseHub } from "../http/sse";
@@ -33,6 +34,27 @@ export function registerPricingRoutes(
       version: getPricingVersion(db),
       table: loadPricingTable(),
       userEntries: loadUserPricing(),
+    });
+  });
+
+  // Second-opinion prices from LiteLLM's community catalog. Comparison only —
+  // applying a row goes through the normal PUT below, as a user override.
+  router.register("GET", "/api/pricing/litellm", async (req) => {
+    const refresh = new URL(req.url).searchParams.get("refresh") === "1";
+    let snapshot = refresh ? null : readCachedCatalog();
+    if (!snapshot) {
+      try {
+        snapshot = await fetchCatalog();
+      } catch (err) {
+        return Response.json({ error: (err as Error).message }, { status: 502 });
+      }
+    }
+    const used = db
+      .prepare("SELECT DISTINCT model FROM usage_events")
+      .all() as Array<{ model: string }>;
+    return Response.json({
+      fetchedAt: snapshot.fetchedAt,
+      rows: diffAgainstLiteLLM(loadPricingTable(), snapshot.catalog, used.map((row) => row.model)),
     });
   });
 

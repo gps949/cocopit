@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJson } from "../api/usage";
 import { ConfigSettings } from "./ConfigSettings";
+import { LiteLLMCompare } from "./LiteLLMCompare";
 import { useI18n } from "../i18n";
 
 interface PricingTier {
@@ -243,6 +244,12 @@ export function Config() {
             </tbody>
           </table>
         </div>
+
+        <LiteLLMCompare
+          onAdopt={(model, tier) => {
+            setDrafts((prev) => new Map(prev).set(model, tier));
+          }}
+        />
 
         <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
           <input
