@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useIndexStatus } from "../hooks/useIndexStatus";
 import { applyTheme, loadTheme, nextTheme, themeLabel, watchSystemTheme, type Theme } from "../theme";
 import { useI18n } from "../i18n";
@@ -13,6 +13,7 @@ import {
   ServerIcon,
   SlidersIcon,
   GlobeIcon,
+  MenuIcon,
   SunIcon,
   UserIcon,
 } from "./icons";
@@ -38,6 +39,8 @@ const THEME_ICON: Record<Theme, IconType> = {
 export function Layout() {
   const { t, lang, setLang } = useI18n();
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
   const status = useIndexStatus();
 
   useEffect(() => {
@@ -46,11 +49,27 @@ export function Layout() {
 
   useEffect(() => watchSystemTheme(loadTheme), []);
 
+  // a route change means the drawer has done its job
+  useEffect(() => setDrawerOpen(false), [location.pathname]);
+
   const ThemeIcon = THEME_ICON[theme];
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-side">
+      {/* below lg the sidebar slides over the content instead of taking half the screen */}
+      {drawerOpen && (
+        <button
+          type="button"
+          aria-label="close menu"
+          onClick={() => setDrawerOpen(false)}
+          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 flex w-56 shrink-0 flex-col border-r border-line bg-side transition-transform lg:static lg:translate-x-0 ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="px-6 pt-6 pb-5">
           <div className="font-brand text-[22px] font-medium tracking-tight">ccockpit</div>
           <div className="mt-0.5 text-xs text-muted">{t("Claude Code 控制台")}</div>
@@ -107,7 +126,18 @@ export function Layout() {
       </aside>
 
       <main className="min-w-0 flex-1 overflow-auto">
-        <div className="rise-in mx-auto max-w-5xl px-8 py-10">
+        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-bg/95 px-4 py-2.5 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="menu"
+            className="flex size-9 items-center justify-center rounded-lg border border-line"
+          >
+            <MenuIcon className="size-[18px]" />
+          </button>
+          <span className="font-brand text-lg">ccockpit</span>
+        </header>
+        <div className="rise-in mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
           <Outlet />
         </div>
       </main>

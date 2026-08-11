@@ -145,10 +145,10 @@ export function SystemDisk() {
                   setPreview(null);
                 }}
               />
-              <span className="w-28 text-sm">{c.label}</span>
+              <span className="w-24 shrink-0 text-sm sm:w-28">{t(c.label)}</span>
               <span className="w-24 text-right text-sm tabular-nums">{fmtBytes(c.sizeBytes)}</span>
               <span className="w-20 text-right text-xs tabular-nums text-muted">{c.fileCount} 文件</span>
-              <span className="truncate text-xs text-muted">{c.description}</span>
+              <span className="hidden truncate text-xs text-muted sm:block">{c.description}</span>
             </label>
           ))}
         </div>

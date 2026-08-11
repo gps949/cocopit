@@ -156,7 +156,7 @@ export function Profiles() {
                     value={apiBaseUrl}
                     onChange={(e) => setApiBaseUrl(e.target.value)}
                     placeholder="https://…/anthropic"
-                    className="w-64 rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+                    className="w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-sm sm:w-64"
                   />
                 </label>
                 <label className="text-sm">

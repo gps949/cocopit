@@ -50,12 +50,12 @@ export function Projects() {
         </div>
       )}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-panel">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-panel">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="px-4 py-2.5 font-normal">{t("目录")}</th>
-              <th className="px-4 py-2.5 font-normal">{t("账号")}</th>
+              <th className="hidden px-4 py-2.5 font-normal sm:table-cell">{t("账号")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("会话")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("费用")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("最近")}</th>
@@ -82,7 +82,7 @@ export function Projects() {
                   </button>
                   <div className="truncate font-mono text-xs text-muted">{p.cwd ?? p.dirName}</div>
                 </td>
-                <td className="px-4 py-2.5 text-muted">{p.profileId}</td>
+                <td className="hidden px-4 py-2.5 text-muted sm:table-cell">{p.profileId}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-muted">{p.sessionCount}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtUsd(p.costUsd)}</td>
                 <td className="px-4 py-2.5 text-right text-muted">

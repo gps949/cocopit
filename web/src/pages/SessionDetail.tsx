@@ -66,7 +66,7 @@ function SubagentPanel({ subagents }: { subagents: SubagentInfo[] }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-line bg-panel p-4">
+    <div className="rounded-2xl border border-line bg-panel p-3 sm:p-4">
       <div className="text-xs text-muted">{label}</div>
       <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
     </div>
@@ -426,7 +426,7 @@ export function SessionDetail() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat label={t("费用")} value={session.costUsd ? fmtUsd(session.costUsd) : "—"} />
         <Stat label={t("消息")} value={String(session.userMsgCount + session.assistantMsgCount)} />
         <Stat
@@ -459,9 +459,9 @@ export function SessionDetail() {
         </button>
       </div>
 
-      <div className="mt-2 flex gap-4">
+      <div className="mt-2 flex flex-col gap-4 lg:flex-row">
         {outline.length > 0 && (
-          <aside className="hidden w-56 shrink-0 xl:block">
+          <aside className="hidden w-56 shrink-0 lg:block">
             <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-auto rounded-2xl border border-line bg-panel p-3">
               <div className="px-1 pb-2 text-xs text-muted">
                 {t("对话大纲({n})", { n: outline.length })}

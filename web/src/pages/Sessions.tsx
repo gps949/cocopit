@@ -60,12 +60,12 @@ export function Sessions() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("会话")}</h1>
-        <form onSubmit={submitSearch} className="flex gap-2">
+        <form onSubmit={submitSearch} className="flex w-full gap-2 sm:w-auto">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("全文检索(中英文,至少 3 字符)")}
-            className="w-72 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted"
+            className="w-full rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted sm:w-72"
           />
           <button
             type="submit"
@@ -108,13 +108,13 @@ export function Sessions() {
         </p>
       )}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-panel">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-panel">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="px-4 py-2.5 font-normal">{t("标题")}</th>
-              <th className="px-4 py-2.5 font-normal">{t("项目")}</th>
-              <th className="px-4 py-2.5 text-right font-normal">{t("消息")}</th>
+              <th className="hidden px-4 py-2.5 font-normal sm:table-cell">{t("项目")}</th>
+              <th className="hidden px-4 py-2.5 text-right font-normal sm:table-cell">{t("消息")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("费用")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("最近")}</th>
             </tr>
@@ -148,8 +148,8 @@ export function Sessions() {
                     {s.gitBranch && <span className="font-mono">{s.gitBranch}</span>}
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-muted">{s.cwd?.split("/").at(-1) ?? s.dirName}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-muted">
+                <td className="hidden px-4 py-2.5 text-muted sm:table-cell">{s.cwd?.split("/").at(-1) ?? s.dirName}</td>
+                <td className="hidden px-4 py-2.5 text-right tabular-nums text-muted sm:table-cell">
                   {s.userMsgCount + s.assistantMsgCount}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">

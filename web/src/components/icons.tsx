@@ -93,3 +93,5 @@ export const GlobeIcon = icon(
     <path d="M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.3-3.3-8.5S9.8 5.9 12 3.5z" />
   </>,
 );
+
+export const MenuIcon = icon(<path d="M4 7h16M4 12h16M4 17h16" />);

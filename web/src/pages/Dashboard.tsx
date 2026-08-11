@@ -205,7 +205,7 @@ export function Dashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("仪表盘")}</h1>
         <div className="flex rounded-lg border border-line p-0.5">
           {RANGES.map((r) => (

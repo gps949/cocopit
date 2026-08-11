@@ -124,7 +124,7 @@ export function TerminalPane({ name, onClosed }: { name: string; onClosed?: () =
                 : `错误${message ? ` · ${message}` : ""}`}
         </span>
       </div>
-      <div ref={hostRef} className="h-[420px] w-full px-2 py-1" />
+      <div ref={hostRef} className="h-[60vh] max-h-[520px] min-h-[280px] w-full px-2 py-1" />
     </div>
   );
 }
