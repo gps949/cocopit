@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJson } from "../api/usage";
+import { ConfigSettings } from "./ConfigSettings";
 
 interface PricingTier {
   input: number;
@@ -123,9 +124,10 @@ export function Config() {
     <div className="max-w-4xl">
       <div className="flex items-baseline gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">配置</h1>
-        <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-muted">
-          settings/权限/MCP 管理将在 Phase 4 交付
-        </span>
+      </div>
+
+      <div className="mt-6">
+        <ConfigSettings />
       </div>
 
       <section className="mt-6 rounded-2xl border border-line bg-panel p-5">

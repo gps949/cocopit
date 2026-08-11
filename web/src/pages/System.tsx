@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RefreshIcon } from "../components/icons";
 import { useIndexStatus } from "../hooks/useIndexStatus";
+import { SystemDisk } from "./SystemDisk";
 
 function fmtBytes(n: number): string {
   if (n >= 1 << 30) return `${(n / (1 << 30)).toFixed(2)} GB`;
@@ -102,6 +103,8 @@ export function System() {
           </div>
         )}
       </section>
+
+      <SystemDisk />
     </div>
   );
 }
