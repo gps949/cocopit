@@ -144,9 +144,14 @@ function ToolEntry({ entry }: { entry: TranscriptEntry }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left"
+        className="flex w-full min-w-0 items-baseline gap-2 overflow-hidden px-3 py-1.5 text-left"
       >
-        <span className={`shrink-0 text-xs ${result?.isError ? "text-danger" : "text-accent"}`}>
+        <span
+          className={`max-w-[45%] shrink-0 truncate text-xs sm:max-w-none ${
+            result?.isError ? "text-danger" : "text-accent"
+          }`}
+          title={tool.name}
+        >
           {tool.name || t("结果")}
         </span>
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted">{tool.summary || preview}</span>
@@ -203,7 +208,7 @@ function MetaGroup({ entries }: { entries: TranscriptEntry[] }) {
       {open && (
         <div className="mt-1 space-y-0.5 border-l border-line pl-3">
           {entries.map((entry) => (
-            <div key={entry.key} className="font-mono text-[11px] text-muted">
+            <div key={entry.key} className="truncate font-mono text-[11px] text-muted">
               #{entry.seq} {entry.metaLabel}
             </div>
           ))}
@@ -222,8 +227,8 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
 
   if (entry.kind === "command") {
     return (
-      <div className="my-1.5 flex items-baseline gap-2 text-xs">
-        <span className="rounded bg-hover px-1.5 py-0.5 font-mono text-muted">
+      <div className="my-1.5 flex min-w-0 items-baseline gap-2 overflow-hidden text-xs">
+        <span className="shrink-0 truncate rounded bg-hover px-1.5 py-0.5 font-mono text-muted">
           {entry.command!.name
             ? t("斜杠命令 {name}", { name: entry.command!.name })
             : t("命令输出")}
@@ -287,7 +292,7 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
         {entry.model && <span className="text-muted">{entry.model.replace(/^claude-/, "")}</span>}
         <span className="ml-auto font-mono text-muted">#{entry.seq}</span>
       </div>
-      <div className={`text-sm leading-relaxed ${isThinking ? "text-muted" : ""}`}>
+      <div className={`overflow-hidden text-sm leading-relaxed break-words ${isThinking ? "text-muted" : ""}`}>
         <Prose text={shown} />
         {long && !expanded && (
           <button type="button" onClick={() => setExpanded(true)} className="text-xs text-accent hover:underline">
@@ -481,7 +486,7 @@ export function SessionDetail() {
           </aside>
         )}
 
-        <div ref={streamRef} className="min-w-0 flex-1 rounded-2xl border border-line bg-panel px-5 py-3">
+        <div ref={streamRef} className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-line bg-panel px-3 py-3 sm:px-5">
           {prevSeq !== null && (
             <button
               type="button"
