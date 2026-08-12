@@ -88,6 +88,45 @@ const META_TYPES = new Set([
   "summary",
 ]);
 
+/**
+ * Codex Desktop can pull an external agent (e.g. a Claude Code review run)
+ * into a session; the import flattens that agent's tool activity into
+ * assistant text as [external_agent_tool_call: Name]…[/external_agent_tool_call]
+ * followed by [external_agent_tool_result]…[/external_agent_tool_result].
+ * Shown verbatim these read as broken markup — split them back into segments
+ * so calls render as the tool entries they originally were.
+ */
+export type ExternalAgentSegment =
+  | { kind: "prose"; text: string }
+  | { kind: "call"; name: string; body: string }
+  | { kind: "result"; body: string; isError: boolean };
+
+const EXT_AGENT_BLOCK =
+  /\[external_agent_tool_call:\s*([^\]]+)\]\n?([\s\S]*?)(?:\[\/external_agent_tool_call\]|(?=\[external_agent_tool_(?:call|result)))|\[external_agent_tool_result(?::\s*([^\]]*))?\]\n?([\s\S]*?)(?:\[\/external_agent_tool_result\]|(?=\[external_agent_tool_(?:call|result))|$)/g;
+
+export function hasExternalAgentBlocks(text: string): boolean {
+  return text.includes("[external_agent_tool_call") || text.includes("[external_agent_tool_result");
+}
+
+export function splitExternalAgentBlocks(text: string): ExternalAgentSegment[] {
+  const segments: ExternalAgentSegment[] = [];
+  let last = 0;
+  for (const match of text.matchAll(EXT_AGENT_BLOCK)) {
+    const before = text.slice(last, match.index).trim();
+    if (before) segments.push({ kind: "prose", text: before });
+    if (match[1] !== undefined) {
+      segments.push({ kind: "call", name: match[1].trim(), body: (match[2] ?? "").trim() });
+    } else {
+      const flag = (match[3] ?? "").trim().toLowerCase();
+      segments.push({ kind: "result", body: (match[4] ?? "").trim(), isError: flag === "error" });
+    }
+    last = match.index + match[0].length;
+  }
+  const tail = text.slice(last).trim();
+  if (tail) segments.push({ kind: "prose", text: tail });
+  return segments;
+}
+
 /** Splits a Codex assistant reply into prose + parsed memory-citation block. */
 export function extractMemCitation(text: string): { text: string; citation?: MemCitation } {
   const match = /<oai-mem-citation>([\s\S]*?)<\/oai-mem-citation>/i.exec(text);
@@ -197,6 +236,12 @@ function metaLabel(record: any): string {
 export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
   const callsById = new Map<string, ToolCall>();
+  /**
+   * external-agent calls awaiting results. The format carries no call ids, and
+   * the agent may fire several calls before any output comes back — order is
+   * the only pairing signal, so unresolved calls queue up FIFO.
+   */
+  const pendingExternalCalls: ToolCall[] = [];
 
   const textOf = (content: unknown): string =>
     Array.isArray(content)
@@ -236,7 +281,50 @@ export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] 
         const text = textOf(payload.content);
         if (payload.role === "assistant") {
           const { text: prose, citation } = extractMemCitation(text);
-          entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text: prose, memCitation: citation });
+          if (hasExternalAgentBlocks(prose)) {
+            // the call and its result usually arrive as separate assistant
+            // messages, so the pending call must survive across messages
+            splitExternalAgentBlocks(prose).forEach((seg, i) => {
+              if (seg.kind === "prose") {
+                // prose does NOT clear the pending call: the imported agent's
+                // commentary can land between a call and its result
+                entries.push({ ...base, key: `${seq}-a${i}`, kind: "assistant", text: seg.text });
+              } else if (seg.kind === "call") {
+                const call: ToolCall = {
+                  id: `${seq}-ext${i}`,
+                  name: seg.name,
+                  input: seg.body ? { args: seg.body } : {},
+                  summary: seg.body.split("\n")[0] ?? "",
+                };
+                entries.push({ ...base, key: `${seq}-x${i}`, kind: "tool", tool: call });
+                pendingExternalCalls.push(call);
+              } else if (pendingExternalCalls.length > 0) {
+                pendingExternalCalls.shift()!.result = { text: seg.body, isError: seg.isError };
+              } else {
+                // a result with no preceding call — keep the output visible
+                // as its own tool row rather than dropping it
+                entries.push({
+                  ...base,
+                  key: `${seq}-x${i}`,
+                  kind: "tool",
+                  tool: {
+                    id: `${seq}-ext${i}`,
+                    name: "result",
+                    input: {},
+                    summary: "",
+                    result: { text: seg.body, isError: seg.isError },
+                  },
+                });
+              }
+            });
+            if (citation) {
+              const lastAssistant = [...entries].reverse().find((e) => e.kind === "assistant");
+              if (lastAssistant) lastAssistant.memCitation = citation;
+            }
+          } else {
+            entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text: prose, memCitation: citation });
+            pendingExternalCalls.length = 0;
+          }
         } else if (payload.role === "user") {
           // injected context (environment, plugin ads) arrives as user text;
           // pasted Claude wrappers are stripped, keeping the actual speech

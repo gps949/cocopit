@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildCodexTranscript,
   buildTranscript,
   collapseMeta,
   extractMemCitation,
   filterTranscript,
+  splitExternalAgentBlocks,
   summarizeTool,
   type RawMessage,
 } from "../src/lib/transcript";
@@ -293,5 +295,54 @@ describe("extractMemCitation", () => {
       "答\n<oai-mem-citation>\n<citation_entries>\nMEMORY.md:1-2\n</citation_entries>\n</oai-mem-citation>",
     );
     expect(citation!.entries).toEqual([{ ref: "MEMORY.md:1-2", note: null }]);
+  });
+});
+
+describe("external agent blocks", () => {
+  // Codex Desktop flattens an imported agent's tool activity into assistant
+  // text — these markers are structure, not something the agent "said"
+  const text = [
+    "先看这个文件。",
+    "[external_agent_tool_call: Read]",
+    "file: /tmp/a.go",
+    "[/external_agent_tool_call]",
+    "[external_agent_tool_result]",
+    "package main",
+    "[/external_agent_tool_result]",
+    "没有发现问题。",
+  ].join("\n");
+
+  test("splits into prose / call / result segments", () => {
+    const segs = splitExternalAgentBlocks(text);
+    expect(segs.map((s) => s.kind)).toEqual(["prose", "call", "result", "prose"]);
+    expect(segs[1]).toMatchObject({ name: "Read", body: "file: /tmp/a.go" });
+    expect(segs[2]).toMatchObject({ body: "package main", isError: false });
+  });
+
+  test("an error-flagged result is marked as such", () => {
+    const segs = splitExternalAgentBlocks(
+      "[external_agent_tool_result: error]\nboom\n[/external_agent_tool_result]",
+    );
+    expect(segs[0]).toMatchObject({ kind: "result", isError: true, body: "boom" });
+  });
+
+  test("in a codex transcript the call renders as a tool entry with its result attached", () => {
+    const entries = buildCodexTranscript([
+      {
+        seq: 0,
+        uuid: "u0",
+        byteLen: 100,
+        record: {
+          type: "response_item",
+          payload: { type: "message", role: "assistant", content: [{ type: "output_text", text }] },
+        },
+      },
+    ]);
+    expect(entries.map((e) => e.kind)).toEqual(["assistant", "tool", "assistant"]);
+    const tool = entries[1]!.tool!;
+    expect(tool.name).toBe("Read");
+    expect(tool.summary).toBe("file: /tmp/a.go");
+    expect(tool.result).toEqual({ text: "package main", isError: false });
+    expect(entries[2]!.text).toBe("没有发现问题。");
   });
 });
