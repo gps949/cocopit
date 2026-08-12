@@ -51,6 +51,10 @@
 
 Everything is derived from Claude Code's own files (`~/.claude/`). cocopit never writes to them except the settings files you explicitly save from the Config page — and every such write is preceded by a backup.
 
+## The name
+
+**co**·**co**·**pit**: the *co* of **Co**dex and the *co* of Claude **Co**de, sharing one *pit* — a **cockpit** to fly them both from, and, in Chinese, 可可坑 ("cocoa pit"): a pit full of cocoa pods, which is also what the logo is. Every reading is intentional.
+
 ## Quick start
 
 Requires [Bun](https://bun.sh) (and `tmux` for the web terminal). No other runtime dependencies — the server uses Bun built-ins only.

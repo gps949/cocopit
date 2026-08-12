@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
 import { join, normalize, sep } from "node:path";
+import pkg from "../package.json" with { type: "json" };
 import {
   authorizeRequest,
   clearAccessToken,
@@ -336,8 +337,26 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   };
 }
 
+/** A pit of cocoa pods, in the terminal's own medium. */
+function printBanner(): void {
+  const o = "\x1b[38;5;173m"; // terracotta pods
+  const d = "\x1b[2m"; // dim earth
+  const r = "\x1b[0m";
+  const version = (pkg as { version?: string }).version ?? "";
+  console.log(
+    [
+      "",
+      `    ${d}.-~~~~~-.${r}`,
+      `   ${d}(${r} ${o}o  o  o${r} ${d})${r}    cocopit ${version} — 可可坑`,
+      `    ${d}\`-.___.-'${r}     ${d}a cockpit for Claude Code & Codex${r}`,
+      "",
+    ].join("\n"),
+  );
+}
+
 /** Entry point shared by `bun server/index.ts` and the packaged `cocopit` bin. */
 export function runServer(opts: { port?: number; host?: string } = {}): void {
+  printBanner();
   const config = loadConfig();
   const db = openIndexDb();
   const scheduler = new IndexScheduler(db);

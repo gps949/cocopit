@@ -132,7 +132,7 @@ function QuotaSection({ profileId, product }: { profileId: string; product: "cla
   return (
     <div className="mt-4 border-t border-line pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted">
           {t("订阅额度")}
           <InfoHint
             text={

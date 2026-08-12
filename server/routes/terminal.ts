@@ -88,10 +88,11 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
 
       if (row.product === "codex") {
         // resume always runs under the account that owns the session — codex
-        // only finds sessions inside its own CODEX_HOME
-        const owner = profiles.find((p) => p.id === row.profileId);
-        const env = owner?.product === "codex" && owner.configDir ? `CODEX_HOME=${shellQuote(owner.configDir)} ` : "";
-        command = `cd ${shellQuote(row.cwd)} && ${env}codex resume ${shellQuote(row.id)}`;
+        // only finds sessions inside its own CODEX_HOME. Always explicit: the
+        // machine default may be a custom codexDir, not the ambient ~/.codex.
+        const owner = profiles.find((p) => p.id === row.profileId && p.product === "codex");
+        const home = owner?.configDir ?? loadConfig().codexDir;
+        command = `cd ${shellQuote(row.cwd)} && CODEX_HOME=${shellQuote(home)} codex resume ${shellQuote(row.id)}`;
         target = {
           name: sessionNameFor(row.id),
           title: row.title ?? row.id,
@@ -163,10 +164,9 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (project.product === "codex") {
         const chosen = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
         if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
-        const owner = chosen ?? profiles.find((p) => p.id === project.profileId);
-        const env =
-          owner?.product === "codex" && owner.configDir ? `CODEX_HOME=${shellQuote(owner.configDir)} ` : "";
-        command = `cd ${shellQuote(project.cwd)} && ${env}codex`;
+        const owner = chosen ?? profiles.find((p) => p.id === project.profileId && p.product === "codex");
+        const home = (owner?.product === "codex" ? owner.configDir : null) ?? loadConfig().codexDir;
+        command = `cd ${shellQuote(project.cwd)} && CODEX_HOME=${shellQuote(home)} codex`;
       } else {
         // a new session may be started under any profile — nothing ties it to
         // the one that happens to own the project's past sessions
@@ -206,9 +206,8 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (body.product === "codex") {
         const chosen = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
         if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
-        const env =
-          chosen?.product === "codex" && chosen.configDir ? `CODEX_HOME=${shellQuote(chosen.configDir)} ` : "";
-        command = `cd ${shellQuote(cwd)} && ${env}codex`;
+        const home = (chosen?.product === "codex" ? chosen.configDir : null) ?? loadConfig().codexDir;
+        command = `cd ${shellQuote(cwd)} && CODEX_HOME=${shellQuote(home)} codex`;
       } else {
         const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
         if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });

@@ -35,6 +35,43 @@
   --danger: #d47b6e;
 }
 
+/*
+ * The Codex view wears OpenAI's clothes — cool neutral grays, teal-green
+ * accent — so which product you are looking at is legible from any corner of
+ * the screen, not just the nav switcher. Same tokens, different values;
+ * every component and chart follows automatically.
+ */
+:root[data-product="codex"] {
+  --bg: #f7f7f8;
+  --bg-side: #ececf1;
+  --panel: #ffffff;
+  --hover: #e3e3ea;
+  --ink: #202123;
+  --muted: #6e6e80;
+  --line: #dfdfe7;
+  --accent: #10a37f;
+  --accent-strong: #0d8a6a;
+  --accent-soft: #e2f2ec;
+  --ok: #5f8f6d;
+  --danger: #c23b3b;
+}
+
+.dark:root[data-product="codex"],
+:root[data-product="codex"].dark {
+  --bg: #202123;
+  --bg-side: #17181a;
+  --panel: #2a2b2e;
+  --hover: #37383c;
+  --ink: #ececf1;
+  --muted: #9a9aa8;
+  --line: #3c3d42;
+  --accent: #19c37d;
+  --accent-strong: #34d399;
+  --accent-soft: #143a2d;
+  --ok: #7fae8c;
+  --danger: #e06c6c;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-side: var(--bg-side);

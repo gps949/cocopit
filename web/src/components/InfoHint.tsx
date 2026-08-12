@@ -50,7 +50,7 @@ export function InfoHint({ text, className }: { text: string; className?: string
         <span
           ref={popRef}
           style={{ transform: `translateX(${shift}px)` }}
-          className="absolute -left-2 top-full z-20 mt-1.5 w-72 max-w-[85vw] rounded-xl border border-line bg-panel p-3 text-left text-xs font-normal leading-relaxed text-muted shadow-lg"
+          className="absolute -left-2 top-full z-20 mt-1.5 w-72 max-w-[85vw] rounded-xl border border-line bg-panel p-3 text-left text-xs font-normal normal-case tracking-normal leading-relaxed text-muted shadow-lg"
         >
           {text}
         </span>

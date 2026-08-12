@@ -1,4 +1,4 @@
-import { humanUserText } from "../../shared/userText";
+import { CODEX_INJECTED_USER_TEXT, humanUserText } from "../../shared/userText";
 import type { RawLine } from "./scanner-lines";
 
 export interface NormalizedUsage {
@@ -127,7 +127,7 @@ export interface CodexContext {
 
 /** True for user text that is injected context rather than typed speech. */
 function codexUserNoise(text: string): boolean {
-  return text.startsWith("<") || text.startsWith("# AGENTS.md");
+  return CODEX_INJECTED_USER_TEXT.test(text);
 }
 
 function codexTextOf(content: unknown): string {

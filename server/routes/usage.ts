@@ -239,16 +239,20 @@ export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath
     });
   });
 
-  router.register("GET", "/api/usage/unpriced", () => {
+  router.register("GET", "/api/usage/unpriced", (req) => {
+    // product-scoped like every other usage route — a codex-only model must
+    // not tell a Claude user their pricing table has holes
+    const product = new URL(req.url).searchParams.get("product") ?? "claude";
     const models = db
       .prepare(
         `SELECT model,
                 COUNT(*) AS events,
                 SUM(input_tokens + output_tokens + cache_read_tokens + cache_w5m_tokens + cache_w1h_tokens) AS totalTokens,
                 MIN(ts) AS firstTs, MAX(ts) AS lastTs
-         FROM usage_events WHERE cost_usd IS NULL GROUP BY model ORDER BY totalTokens DESC`,
+         FROM usage_events WHERE cost_usd IS NULL AND product = $product
+         GROUP BY model ORDER BY totalTokens DESC`,
       )
-      .all();
+      .all({ $product: product });
     return Response.json({ models });
   });
 

@@ -21,6 +21,16 @@ export const SYSTEM_WRAPPER_TAGS = [
   "command-args",
 ] as const;
 
+/**
+ * Codex injected-context user messages, by their known opening tags — a
+ * bare "starts with <" test would also swallow a human pasting XML/HTML.
+ * Inventory from real rollouts: environment_context, user_action,
+ * turn_aborted; permissions/user_instructions arrive as developer role but
+ * are matched here defensively.
+ */
+export const CODEX_INJECTED_USER_TEXT =
+  /^(<(environment_context|user_action|turn_aborted|permissions|user_instructions|ide_context|system)[\s>]|# AGENTS\.md)/i;
+
 // requires a real tag: `<tag>` or `<tag attr="...">`, not the tag name in prose
 const wrapperPattern = (tag: string) => new RegExp(`<${tag}(\\s[^>]*)?>[\\s\\S]*?</${tag}>`, "gi");
 

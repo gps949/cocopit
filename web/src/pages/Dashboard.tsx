@@ -103,13 +103,18 @@ export function Dashboard() {
     } else {
       setCalibration(null);
     }
-    void getJson<UnpricedModels>("/api/usage/unpriced").then(setUnpriced);
+    void getJson<UnpricedModels>(`/api/usage/unpriced${product === "codex" ? "?product=codex" : ""}`).then(
+      setUnpriced,
+    );
   }, [product]);
 
-  // re-render charts when the theme class flips
+  // re-render charts when the theme class or product palette flips
   useEffect(() => {
     const observer = new MutationObserver(() => setThemeTick((n) => n + 1));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-product"],
+    });
     return () => observer.disconnect();
   }, []);
 

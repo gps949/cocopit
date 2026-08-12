@@ -54,6 +54,11 @@ export function Layout() {
     applyTheme(theme);
   }, [theme]);
 
+  // the Codex view restyles via CSS tokens keyed off this attribute
+  useEffect(() => {
+    document.documentElement.dataset.product = product;
+  }, [product]);
+
   useEffect(() => watchSystemTheme(loadTheme), []);
 
   // a route change means the drawer has done its job
@@ -80,7 +85,10 @@ export function Layout() {
         }`}
       >
         <div className="px-6 pt-6 pb-4">
-          <div className="font-brand text-[22px] font-medium tracking-tight">cocopit</div>
+          <div className="flex items-center gap-2">
+            <img src="/favicon.png" alt="" className="size-7" />
+            <div className="font-brand text-[22px] font-medium tracking-tight">cocopit</div>
+          </div>
           <div className="mt-0.5 text-xs text-muted">
             {product === "codex" ? t("Codex 控制台") : t("Claude Code 控制台")}
           </div>
@@ -167,6 +175,7 @@ export function Layout() {
           >
             <MenuIcon className="size-[18px]" />
           </button>
+          <img src="/favicon.png" alt="" className="size-6" />
           <span className="font-brand text-lg">cocopit</span>
         </header>
         <div className="rise-in mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">

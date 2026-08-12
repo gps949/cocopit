@@ -252,7 +252,10 @@ export class Ingestor {
           if (!agg.cwd && line.cwd) agg.cwd = line.cwd;
         }
 
-        if (agg && task.product === "codex" && line.type === "turn_context" && line.model) {
+        // first turn_context wins: the only events that need backfilling are
+        // the ones BEFORE any turn_context, and the first one is nearest to
+        // them — later /model switches are handled forward by the parser ctx
+        if (agg && task.product === "codex" && line.type === "turn_context" && line.model && !agg.codexModel) {
           agg.codexModel = line.model;
         }
 

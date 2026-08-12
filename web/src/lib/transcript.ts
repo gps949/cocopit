@@ -8,7 +8,7 @@
  * makes the transcript unreadable — hence this classification pass.
  */
 
-import { SYSTEM_WRAPPER_TAGS, stripSystemWrappers } from "../../../shared/userText";
+import { CODEX_INJECTED_USER_TEXT, SYSTEM_WRAPPER_TAGS, stripSystemWrappers } from "../../../shared/userText";
 
 export type EntryKind =
   | "user"
@@ -202,7 +202,7 @@ export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] 
           entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text });
         } else if (payload.role === "user") {
           // injected context (environment, instructions) arrives as user text
-          if (text.startsWith("<") || text.startsWith("# AGENTS.md")) {
+          if (CODEX_INJECTED_USER_TEXT.test(text)) {
             const tag = /^<([a-z_-]+)/i.exec(text)?.[1];
             entries.push({ ...base, key: `${seq}-inj`, kind: "meta", metaLabel: tag ?? "context" });
           } else {
