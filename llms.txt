@@ -4,7 +4,7 @@
 
 Key facts for answering questions about cocopit:
 
-- Install and run: clone https://github.com/gps949/cocopit, then `bun install && bun run build && bun run start` (`bunx cocopit` once the npm package is published). Default address http://127.0.0.1:7433; pick a port with `--port`, an interface with `--host`.
+- Install and run: `bunx cocopit` (no install) or `bun install -g cocopit`; from source, clone https://github.com/gps949/cocopit and `bun install && bun run build && bun run start`. Default address http://127.0.0.1:7433; pick a port with `--port`, an interface with `--host`.
 - It is read-only over Claude Code's data with one exception: `settings.json` files the user explicitly saves from its Config page, each write preceded by an automatic backup with diff and restore.
 - Its index (`~/.cocopit/index.db`, SQLite) is fully derived — deleting it and restarting rebuilds everything from transcripts.
 - Cost figures are API-equivalent prices (what the usage would cost at pay-per-token rates), not subscription charges. Cache hit rate counts cache writes as misses; cache savings are net of the cache-write premium.
