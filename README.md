@@ -36,9 +36,6 @@
     <td><img src="docs/screenshots/sessions.png" alt="Sessions — full-text search across every transcript" /></td>
   </tr>
 </table>
-
-<sub>All screenshots show generated demo data (`bun scripts/demo.ts` — writes to /tmp, never touches real data).</sub>
-
 ## What it does
 
 - **Dashboard** — API-equivalent cost, tokens, cache efficiency (with an honest hit-rate definition), daily cost chart, weekday×hour heatmap, per-model / per-project / per-account breakdowns. Day and hour buckets follow *your* browser's timezone, not the server's.
