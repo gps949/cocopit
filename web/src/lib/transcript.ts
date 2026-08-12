@@ -29,6 +29,19 @@ export interface ToolCall {
   injected?: string;
 }
 
+/**
+ * Codex memory citations: the memory system instructs the model to end its
+ * final reply with a machine-parseable <oai-mem-citation> block naming which
+ * MEMORY.md lines / rollout summaries informed the answer. Codex's own UI
+ * strips it; shown raw it reads as garbage, so it is parsed into this.
+ */
+export interface MemCitation {
+  /** e.g. { ref: "MEMORY.md:72-74", note: "neutral engineering language" } */
+  entries: Array<{ ref: string; note: string | null }>;
+  /** ids of prior sessions the answer drew on — linkable if indexed */
+  rolloutIds: string[];
+}
+
 export interface TranscriptEntry {
   key: string;
   kind: EntryKind;
@@ -38,6 +51,8 @@ export interface TranscriptEntry {
   model?: string;
   /** Prose for user/assistant/thinking entries. */
   text?: string;
+  /** Codex: memory citations stripped off the end of an assistant reply. */
+  memCitation?: MemCitation;
   tool?: ToolCall;
   /** Slash command invocation. */
   command?: { name: string; args?: string; output?: string };
@@ -72,6 +87,27 @@ const META_TYPES = new Set([
   "pr-link",
   "summary",
 ]);
+
+/** Splits a Codex assistant reply into prose + parsed memory-citation block. */
+export function extractMemCitation(text: string): { text: string; citation?: MemCitation } {
+  const match = /<oai-mem-citation>([\s\S]*?)<\/oai-mem-citation>/i.exec(text);
+  if (!match) return { text };
+  const body = match[1]!;
+  const entries: MemCitation["entries"] = [];
+  for (const line of tagContent(body, "citation_entries")?.split("\n") ?? []) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const noteMatch = /^(.*?)\|note=\[([\s\S]*?)\]$/.exec(trimmed);
+    if (noteMatch) entries.push({ ref: noteMatch[1]!, note: noteMatch[2]! });
+    else entries.push({ ref: trimmed, note: null });
+  }
+  const rolloutIds = (tagContent(body, "rollout_ids")?.split("\n") ?? [])
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const stripped = (text.slice(0, match.index) + text.slice(match.index + match[0].length)).trim();
+  if (entries.length === 0 && rolloutIds.length === 0) return { text: stripped };
+  return { text: stripped, citation: { entries, rolloutIds } };
+}
 
 function tagContent(text: string, tag: string): string | null {
   const match = new RegExp(`<${tag}(\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i").exec(text);
@@ -199,7 +235,8 @@ export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] 
       case "message": {
         const text = textOf(payload.content);
         if (payload.role === "assistant") {
-          entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text });
+          const { text: prose, citation } = extractMemCitation(text);
+          entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text: prose, memCitation: citation });
         } else if (payload.role === "user") {
           // injected context (environment, plugin ads) arrives as user text;
           // pasted Claude wrappers are stripped, keeping the actual speech

@@ -156,6 +156,8 @@ const EN: Record<string, string> = {
     "Enablement lives in config.toml's plugins tables — click to toggle; the edit is line-surgical, preserves comments, and is backed up first.",
   "子代理 · {name}": "subagent · {name}",
   桌面版: "Desktop",
+  记忆引用: "Memory citations",
+  "引用会话:": "Cited sessions:",
   "ChatGPT 远程": "ChatGPT remote",
   "Chrome 扩展": "Chrome extension",
   "子代理会话({n})": "Agent sessions ({n})",

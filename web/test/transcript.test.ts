@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildTranscript,
   collapseMeta,
+  extractMemCitation,
   filterTranscript,
   summarizeTool,
   type RawMessage,
@@ -253,5 +254,44 @@ describe("rewound content", () => {
     });
     expect(shown).toHaveLength(2);
     expect(shown[0]!.superseded).toBe(true);
+  });
+});
+
+describe("extractMemCitation", () => {
+  // Codex memory instructs the model to append this machine-readable block
+  // to its final reply; Codex's own UI strips it, and so must ours.
+  const block = [
+    "<oai-mem-citation>",
+    "<citation_entries>",
+    "MEMORY.md:72-74|note=[neutral engineering language]",
+    "rollout_summaries/2026-07-31-example.md:19-28|note=[prior isolation approach]",
+    "</citation_entries>",
+    "<rollout_ids>",
+    "019fb750-6e1a-7ce2-8450-1d6361402ac1",
+    "</rollout_ids>",
+    "</oai-mem-citation>",
+  ].join("\n");
+
+  test("strips the block from the prose and parses its parts", () => {
+    const { text, citation } = extractMemCitation(`PASS。两项均已关闭。\n\n${block}`);
+    expect(text).toBe("PASS。两项均已关闭。");
+    expect(citation!.entries).toEqual([
+      { ref: "MEMORY.md:72-74", note: "neutral engineering language" },
+      { ref: "rollout_summaries/2026-07-31-example.md:19-28", note: "prior isolation approach" },
+    ]);
+    expect(citation!.rolloutIds).toEqual(["019fb750-6e1a-7ce2-8450-1d6361402ac1"]);
+  });
+
+  test("text without a citation block passes through untouched", () => {
+    const { text, citation } = extractMemCitation("普通回复");
+    expect(text).toBe("普通回复");
+    expect(citation).toBeUndefined();
+  });
+
+  test("an entry without a note keeps its reference", () => {
+    const { citation } = extractMemCitation(
+      "答\n<oai-mem-citation>\n<citation_entries>\nMEMORY.md:1-2\n</citation_entries>\n</oai-mem-citation>",
+    );
+    expect(citation!.entries).toEqual([{ ref: "MEMORY.md:1-2", note: null }]);
   });
 });

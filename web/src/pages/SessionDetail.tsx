@@ -30,6 +30,7 @@ import {
   buildTranscript,
   collapseMeta,
   filterTranscript,
+  type MemCitation,
   type TranscriptEntry,
 } from "../lib/transcript";
 
@@ -456,7 +457,38 @@ function Entry({
             {t("展开全部")}
           </button>
         )}
+        {entry.memCitation && <MemCitationNote citation={entry.memCitation} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Codex memory citations, rendered as a footnote. The raw block is meant for
+ * machines; what a reader wants is "this answer drew on these memory notes
+ * and these past sessions" — with the sessions clickable when indexed.
+ */
+function MemCitationNote({ citation }: { citation: MemCitation }) {
+  const { t } = useI18n();
+  return (
+    <div className="mt-2 border-t border-line/60 pt-2 text-xs text-muted">
+      <div className="mb-1 font-medium">{t("记忆引用")}</div>
+      {citation.entries.map((e, i) => (
+        <div key={i} className="flex flex-wrap items-baseline gap-1.5">
+          <code className="rounded bg-hover px-1 py-px font-mono text-[11px]">{e.ref}</code>
+          {e.note && <span>{e.note}</span>}
+        </div>
+      ))}
+      {citation.rolloutIds.length > 0 && (
+        <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
+          <span>{t("引用会话:")}</span>
+          {citation.rolloutIds.map((id) => (
+            <Link key={id} to={`/codex/sessions/${id}`} className="font-mono text-[11px] text-accent hover:underline">
+              {id.slice(0, 13)}…
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
