@@ -4,6 +4,7 @@ import { I18nProvider } from "./i18n";
 import { Login } from "./pages/Login";
 import { Layout } from "./components/Layout";
 import { Config } from "./pages/Config";
+import { Extensions } from "./pages/Extensions";
 import { Dashboard } from "./pages/Dashboard";
 import { Live } from "./pages/Live";
 import { Projects } from "./pages/Projects";
@@ -55,6 +56,7 @@ export function App() {
           <Route path="/sessions/:id" element={<SessionDetail />} />
           <Route path="/live" element={<Live />} />
           <Route path="/config" element={<Config />} />
+          <Route path="/extensions" element={<Extensions />} />
           <Route path="/system" element={<System />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

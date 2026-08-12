@@ -11,6 +11,7 @@ import {
   MoonIcon,
   PulseIcon,
   ServerIcon,
+  PuzzleIcon,
   SlidersIcon,
   GlobeIcon,
   MenuIcon,
@@ -27,6 +28,7 @@ const NAV: Array<{ to: string; label: string; icon: IconType }> = [
   { to: "/sessions", label: "会话", icon: ChatIcon },
   { to: "/live", label: "实时", icon: PulseIcon },
   { to: "/config", label: "配置", icon: SlidersIcon },
+  { to: "/extensions", label: "扩展", icon: PuzzleIcon },
   { to: "/system", label: "系统", icon: ServerIcon },
 ];
 

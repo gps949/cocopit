@@ -226,6 +226,26 @@ const EN: Record<string, string> = {
   "原账号": "Same account",
   "新会话使用账号": "New session runs as",
   "项目默认": "Project default",
+  "扩展": "Extensions",
+  "MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。此页只读——增删请在 Claude Code 中操作。":
+    "MCP servers, plugins and skills all live under a config directory, so each profile has its own set. Read-only here — add and remove them from Claude Code.",
+  "MCP 服务器": "MCP servers",
+  "按项目配置——只在对应工作目录下的会话中可用。":
+    "Configured per project — available only to sessions in that working directory.",
+  "没有配置 MCP 服务器。": "No MCP servers configured.",
+  "传输": "Transport",
+  "地址 / 命令": "URL / command",
+  "生效范围": "Applies to",
+  "插件": "Plugins",
+  "安装在配置目录下,启用状态记在 settings.json。":
+    "Installed under the config directory; enabled state lives in settings.json.",
+  "{on} 个已启用 / 共 {all} 个": "{on} enabled of {all}",
+  "只看已启用": "Enabled only",
+  "显示未启用的": "Show disabled",
+  "技能": "Skills",
+  "配置目录下带 SKILL.md 的目录;插件也会自带技能,不计入此处。":
+    "Directories under the config dir carrying a SKILL.md; plugins bring their own, not counted here.",
+  "没有个人技能。": "No personal skills.",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",

@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { listLiveSessions } from "../cc/liveSessions";
 import type { Router } from "../http/router";
+import { readExtensions } from "../cc/extensions";
+import { loadProfiles, resolveConfigDir } from "../profiles/registry";
 import { listBackups, restoreBackup } from "../writeops/backup";
 import { fileStamp, safeWriteJson, WriteConflictError, type FileStamp } from "../writeops/safeWrite";
 
@@ -86,6 +88,21 @@ function activeSessionsFor(claudeDir: string): Array<{ pid: number; sessionId: s
 }
 
 export function registerConfigRoutes(router: Router, db: Database, claudeDir: string): void {
+  /**
+   * MCP servers, plugins and skills, read-only. Grouped per profile because all
+   * three live under a config directory — a profile with its own directory has
+   * its own set.
+   */
+  router.register("GET", "/api/extensions", () => {
+    const profiles = loadProfiles().map((profile) => {
+      const dir = resolveConfigDir(profile);
+      // the default profile's config file sits beside its data directory
+      const jsonPath = profile.configDir ? join(profile.configDir, ".claude.json") : `${dir}.json`;
+      return { profileId: profile.id, name: profile.name, configDir: dir, ...readExtensions(dir, jsonPath) };
+    });
+    return Response.json({ profiles });
+  });
+
   for (const kind of ["settings", "mcp"] as const) {
     router.register("GET", `/api/config/${kind}`, (req) => {
       const url = new URL(req.url);
