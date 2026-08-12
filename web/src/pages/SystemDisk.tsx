@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
+import { InfoHint } from "../components/InfoHint";
 import { localeOf, useI18n } from "../i18n";
 
 interface DiskCategory {
@@ -378,11 +379,15 @@ export function SystemDisk() {
       </section>
 
       <section className="mt-4 rounded-2xl border border-line bg-panel p-5">
-        <h2 className="text-[15px] font-medium">{t("配置备份({n})", { n: backups.length })}</h2>
+        <h2 className="inline-flex items-center gap-1.5 text-[15px] font-medium">
+          {t("配置备份({n})", { n: backups.length })}
+          <InfoHint
+            text={t(
+              "备份是文件的完整副本,恢复即原子写回,并先备份当前内容。展开可看它与当前的差异——机制不会过期,但内容会:比如里面的模型名或插件可能已经不存在了。",
+            )}
+          />
+        </h2>
         {backups.length === 0 && <p className="mt-2 text-sm text-muted">{t("还没有备份。修改配置时会自动创建。")}</p>}
-        <p className="mt-1 text-xs text-muted">
-          {t("备份是文件的完整副本,恢复即原子写回,并先备份当前内容。展开可看它与当前的差异——机制不会过期,但内容会:比如里面的模型名或插件可能已经不存在了。")}
-        </p>
         <div className="mt-3 space-y-1">
           {backups.slice(0, 20).map((b) => {
             const open = expanded === b.id;

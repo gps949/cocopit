@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listSessions, type SessionSummary } from "../api/sessions";
-import { fmtUsd } from "../components/EChart";
+import { fmtUsd } from "../lib/format";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 
 // module scope has no hook access — the caller passes its translator in

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { InfoHint } from "../components/InfoHint";
 import { UserIcon } from "../components/icons";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 
@@ -170,7 +171,14 @@ function QuotaSection({ profileId }: { profileId: string }) {
   return (
     <div className="mt-4 border-t border-line pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">{t("订阅额度")}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+          {t("订阅额度")}
+          <InfoHint
+            text={t(
+              "订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。",
+            )}
+          />
+        </span>
         {result.stale && <span className="text-xs text-muted">{t("缓存值")}</span>}
       </div>
       {result.status === "ok" && result.quota ? (
@@ -280,11 +288,11 @@ export function Profiles() {
           {t("新建账号")}
         </button>
       </div>
-      <p className="mt-2 text-sm text-muted">
-        {t("每个账号使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按账号对比。")}
-      </p>
-      <p className="mt-1.5 text-xs text-muted">
-        {t("订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。")}
+      <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted">
+        {t("每个账号使用独立的 CLAUDE_CONFIG_DIR,登录互不干扰。")}
+        <InfoHint
+          text={t("每个账号的会话与费用自动纳入索引,可在仪表盘按账号对比;删除账号只移除注册条目,登录数据目录保留。")}
+        />
       </p>
 
       {creating && (
@@ -441,8 +449,14 @@ export function Profiles() {
                 onClick={() => void activate(p.id)}
                 className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink"
               >
-                {activated === p.id ? "已写入 current-profile.sh" : t("设为 shell 默认")}
+                {activated === p.id ? t("已写入 current-profile.sh") : t("设为 shell 默认")}
               </button>
+              <InfoHint
+                className="self-center"
+                text={t(
+                  "「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属账号的配置目录,与此设置无关。",
+                )}
+              />
               {p.id !== "default" && (
                 <button
                   type="button"
@@ -457,9 +471,6 @@ export function Profiles() {
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-muted">
-        {t("「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属账号的配置目录,与此设置无关。")}
-      </p>
     </div>
   );
 }

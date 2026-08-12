@@ -8,12 +8,13 @@ import {
   type ProfileOption,
   type ProjectRow,
 } from "../api/sessions";
-import { fmtUsd } from "../components/EChart";
+import { fmtUsd } from "../lib/format";
+import { InfoHint } from "../components/InfoHint";
 import { TerminalPane } from "../components/Terminal";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n } from "../i18n";
 
 export function Projects() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
   const [terminal, setTerminal] = useState<{ name: string; title: string } | null>(null);
@@ -69,8 +70,9 @@ export function Projects() {
   return (
     <div>
       <h1 className="text-[26px] font-semibold tracking-tight">{t("项目")}</h1>
-      <p className="mt-2 text-sm text-muted">
-        {t("每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。")}
+      <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted">
+        {t("每个项目对应一个工作目录,可直接在此新建会话。")}
+        <InfoHint text={t("会话命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID;关闭页面不会中断会话。")} />
       </p>
       <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
         <h2 className="text-[15px] font-medium">{t("在新目录中开始")}</h2>
@@ -148,7 +150,43 @@ export function Projects() {
         </div>
       )}
 
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-panel">
+      {/* same trade as the sessions list: a table cannot fit a 390px screen
+          without sideways scrolling, so below sm each project is a card */}
+      <div className="mt-5 space-y-2 sm:hidden">
+        {!projects && <p className="rounded-2xl border border-line bg-panel px-4 py-8 text-center text-sm text-muted">{t("加载中…")}</p>}
+        {projects?.map((p) => (
+          <div key={p.id} className="min-w-0 rounded-2xl border border-line bg-panel px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/sessions?project=${p.id}`)}
+                className="min-w-0 truncate text-left text-sm hover:text-accent"
+              >
+                {p.cwd?.split("/").at(-1) ?? p.dirName}
+              </button>
+              <button
+                type="button"
+                disabled={!p.cwd}
+                onClick={() => void startNewSession(p)}
+                className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink disabled:opacity-40"
+              >
+                {t("新建会话")}
+              </button>
+            </div>
+            <div className="mt-0.5 truncate font-mono text-xs text-muted">{p.cwd ?? p.dirName}</div>
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted">
+              <span className="min-w-0 truncate">{p.profileId}</span>
+              <span className="tabular-nums">{p.sessionCount} {t("会话")}</span>
+              <span className="tabular-nums">{fmtUsd(p.costUsd)}</span>
+              <span className="ml-auto shrink-0">
+                {p.lastSessionTs ? new Date(p.lastSessionTs).toLocaleDateString(localeOf(lang)) : "—"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-line bg-panel sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
@@ -184,7 +222,7 @@ export function Projects() {
                 <td className="px-4 py-2.5 text-right tabular-nums text-muted">{p.sessionCount}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtUsd(p.costUsd)}</td>
                 <td className="px-4 py-2.5 text-right text-muted">
-                  {p.lastSessionTs ? new Date(p.lastSessionTs).toLocaleDateString("zh-CN") : "—"}
+                  {p.lastSessionTs ? new Date(p.lastSessionTs).toLocaleDateString(localeOf(lang)) : "—"}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <button

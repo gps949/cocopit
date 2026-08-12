@@ -12,7 +12,8 @@ import {
   type UnpricedModels,
   type UsageSummary,
 } from "../api/usage";
-import { chartTokens, EChart, fmtTokens, fmtUsd, type EChartsOption } from "../components/EChart";
+import { chartTokens, EChart, type EChartsOption } from "../components/EChart";
+import { fmtTokens, fmtUsd } from "../lib/format";
 import { useI18n } from "../i18n";
 
 const RANGES: Array<{ key: RangeKey; label: string }> = [

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listLive, type LiveSessionRow } from "../api/sessions";
 import { TerminalPane } from "../components/Terminal";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n } from "../i18n";
 
 interface TerminalInfo {
   name: string;
@@ -12,7 +12,7 @@ interface TerminalInfo {
 }
 
 export function Live() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [sessions, setSessions] = useState<LiveSessionRow[] | null>(null);
   const [terminals, setTerminals] = useState<TerminalInfo[]>([]);
   const [available, setAvailable] = useState(true);
@@ -87,7 +87,7 @@ export function Live() {
             <div key={term.name} className="flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-2.5">
               <span className="font-mono text-sm">{term.name}</span>
               <span className="text-xs text-muted">
-                {new Date(term.createdAt).toLocaleString("zh-CN")} · {term.attached ? "已连接" : t("空闲")}
+                {new Date(term.createdAt).toLocaleString(localeOf(lang))} · {term.attached ? t("已连接") : t("空闲")}
               </span>
               <div className="ml-auto flex gap-2">
                 <button
@@ -95,7 +95,7 @@ export function Live() {
                   onClick={() => setOpen(open === term.name ? null : term.name)}
                   className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
                 >
-                  {open === term.name ? "收起" : t("打开")}
+                  {open === term.name ? t("收起") : t("打开")}
                 </button>
                 <button
                   type="button"

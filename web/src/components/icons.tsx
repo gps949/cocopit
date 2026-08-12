@@ -104,3 +104,11 @@ export const GlobeIcon = icon(
 );
 
 export const MenuIcon = icon(<path d="M4 7h16M4 12h16M4 17h16" />);
+
+export const HelpIcon = icon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.33c-.68.27-.9.72-.9 1.42v.25" />
+    <path d="M12 16.75v.05" />
+  </>,
+);

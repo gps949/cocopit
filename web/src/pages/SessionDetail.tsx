@@ -19,7 +19,8 @@ import {
   type RelatedSession,
   type SubagentInfo,
 } from "../api/sessions";
-import { fmtTokens, fmtUsd } from "../components/EChart";
+import { fmtTokens, fmtUsd } from "../lib/format";
+import { InfoHint } from "../components/InfoHint";
 import { Markdown } from "../components/Markdown";
 import { TerminalPane } from "../components/Terminal";
 import { localeOf, useI18n } from "../i18n";
@@ -563,8 +564,10 @@ export function SessionDetail() {
            continued separately. No direction is claimed — both sides carry the
            same start time, so neither can be called the original. */
         <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
-          <h2 className="text-[15px] font-medium">{t("相关会话")}</h2>
-          <p className="mt-1 text-sm text-muted">{t("这些会话与本会话包含相同的对话记录——同一段对话在不同文件里的延续。")}</p>
+          <h2 className="inline-flex items-center gap-1.5 text-[15px] font-medium">
+            {t("相关会话")}
+            <InfoHint text={t("这些会话与本会话包含相同的对话记录——同一段对话在不同文件里的延续。")} />
+          </h2>
           <div className="mt-3 space-y-1.5">
             {related.map((r) => (
               <Link

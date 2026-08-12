@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
+import { InfoHint } from "../components/InfoHint";
 import { localeOf, useI18n } from "../i18n";
 
 interface SnapshotRow {
@@ -55,10 +56,13 @@ export function ConfigSnapshots() {
 
   return (
     <section className="mt-6 rounded-2xl border border-line bg-panel p-5">
-      <h2 className="text-[15px] font-medium">{t("配置方案")}</h2>
-      <p className="mt-1 text-sm text-muted">
-        {t("把当前设置存成一份命名快照,之后一键套用。快照与账号无关——同一个账号可以有多套设置,同一套设置也可以用在不同账号上。")}
-      </p>
+      <h2 className="inline-flex items-center gap-1.5 text-[15px] font-medium">
+        {t("配置方案")}
+        <InfoHint
+          text={t("快照与账号无关——同一个账号可以有多套设置,同一套设置也可以用在不同账号上;套用前会列出将改动的键。")}
+        />
+      </h2>
+      <p className="mt-1 text-sm text-muted">{t("把当前设置存成一份命名快照,之后一键套用。")}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input

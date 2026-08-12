@@ -71,8 +71,10 @@ const EN: Record<string, string> = {
 
   // profiles
   "新建账号": "New profile",
-  "每个账号使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按账号对比。":
-    "Each profile uses its own CLAUDE_CONFIG_DIR, so subscription logins stay separate; their sessions and cost are indexed and comparable on the dashboard.",
+  "每个账号使用独立的 CLAUDE_CONFIG_DIR,登录互不干扰。":
+    "Each profile uses its own CLAUDE_CONFIG_DIR, so logins stay separate.",
+  "每个账号的会话与费用自动纳入索引,可在仪表盘按账号对比;删除账号只移除注册条目,登录数据目录保留。":
+    "Each profile's sessions and cost are indexed and comparable on the dashboard; deleting a profile only removes the registry entry — its login data directory is kept.",
   "名称": "Name",
   "类型": "Kind",
   "订阅账号": "Subscription",
@@ -142,8 +144,10 @@ const EN: Record<string, string> = {
   "注入上下文": "injected context",
 
   // projects
-  "每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。":
-    "Each project maps to a working directory. Start a session here — the command is built server-side and runs in tmux; the browser only sends a project id.",
+  "每个项目对应一个工作目录,可直接在此新建会话。":
+    "Each project maps to a working directory; start a session right here.",
+  "会话命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID;关闭页面不会中断会话。":
+    "The command is built server-side and runs in tmux; the browser only sends a project id. Closing the page does not interrupt the session.",
   "目录": "Directory",
   "新建会话": "New session",
   "收起终端(会话继续运行)": "Hide terminal (session keeps running)",
@@ -262,8 +266,10 @@ const EN: Record<string, string> = {
     "Directories under the config dir carrying a SKILL.md; plugins bring their own, not counted here.",
   "没有个人技能。": "No personal skills.",
   "配置方案": "Settings presets",
-  "把当前设置存成一份命名快照,之后一键套用。快照与账号无关——同一个账号可以有多套设置,同一套设置也可以用在不同账号上。":
-    "Save the current settings under a name and put them back later. Presets are independent of accounts — one account can have several, and one preset can be used under different accounts.",
+  "把当前设置存成一份命名快照,之后一键套用。":
+    "Save the current settings under a name and put them back later.",
+  "快照与账号无关——同一个账号可以有多套设置,同一套设置也可以用在不同账号上;套用前会列出将改动的键。":
+    "Presets are independent of accounts — one account can have several, and one preset can be used under different accounts. Applying shows which keys will change first.",
   "方案名称,如 严格权限": "Preset name, e.g. strict",
   "存为方案": "Save as preset",
   "已保存当前设置": "Saved the current settings",

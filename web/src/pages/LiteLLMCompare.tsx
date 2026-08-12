@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n } from "../i18n";
 
 interface Tier {
   input: number;
@@ -38,7 +38,7 @@ function fmtRate(value: number | undefined): string {
  * stages a normal user override — nothing is written until you save.
  */
 export function LiteLLMCompare({ onAdopt }: { onAdopt: (model: string, tier: Tier) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [rows, setRows] = useState<DiffRow[] | null>(null);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,7 +79,7 @@ export function LiteLLMCompare({ onAdopt }: { onAdopt: (model: string, tier: Tie
         </button>
         {fetchedAt && (
           <span className="text-xs text-muted">
-            {t("数据更新于 {when}", { when: new Date(fetchedAt).toLocaleString() })}
+            {t("数据更新于 {when}", { when: new Date(fetchedAt).toLocaleString(localeOf(lang)) })}
           </span>
         )}
       </div>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RefreshIcon } from "../components/icons";
 import { useIndexStatus } from "../hooks/useIndexStatus";
 import { SystemDisk } from "./SystemDisk";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n } from "../i18n";
 
 function fmtBytes(n: number): string {
   if (n >= 1 << 30) return `${(n / (1 << 30)).toFixed(2)} GB`;
@@ -21,7 +21,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export function System() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const status = useIndexStatus();
   const [busy, setBusy] = useState(false);
   const scanning = status?.phase === "scanning";
@@ -89,7 +89,7 @@ export function System() {
               <Stat label={t("解析错误")} value={String(status.errors)} />
               <Stat
                 label={t("上次完成")}
-                value={status.finishedAt ? new Date(status.finishedAt).toLocaleTimeString("zh-CN") : "—"}
+                value={status.finishedAt ? new Date(status.finishedAt).toLocaleTimeString(localeOf(lang)) : "—"}
               />
             </dl>
 
