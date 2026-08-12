@@ -36,10 +36,11 @@
 }
 
 /*
- * The Codex view wears OpenAI's clothes — cool neutral grays, teal-green
- * accent — so which product you are looking at is legible from any corner of
- * the screen, not just the nav switcher. Same tokens, different values;
- * every component and chart follows automatically.
+ * The Codex view follows Codex's own TUI style guide (codex-rs/tui/styles.md):
+ * cyan is its UI accent — bright on dark backgrounds, a darker cyan on light
+ * ones, exactly their contrast rule — over cool neutral grays. Same tokens,
+ * different values; every component and chart follows automatically, so which
+ * product you are looking at is legible from any corner of the screen.
  */
 :root[data-product="codex"] {
   --bg: #f7f7f8;
@@ -49,9 +50,9 @@
   --ink: #202123;
   --muted: #6e6e80;
   --line: #dfdfe7;
-  --accent: #10a37f;
-  --accent-strong: #0d8a6a;
-  --accent-soft: #e2f2ec;
+  --accent: #0e7c95;
+  --accent-strong: #0b6478;
+  --accent-soft: #e1f2f6;
   --ok: #5f8f6d;
   --danger: #c23b3b;
 }
@@ -65,9 +66,9 @@
   --ink: #ececf1;
   --muted: #9a9aa8;
   --line: #3c3d42;
-  --accent: #19c37d;
-  --accent-strong: #34d399;
-  --accent-soft: #143a2d;
+  --accent: #4dd6e8;
+  --accent-strong: #7ce4f2;
+  --accent-soft: #123a42;
   --ok: #7fae8c;
   --danger: #e06c6c;
 }
