@@ -16,9 +16,20 @@ export const SYSTEM_WRAPPER_TAGS = [
   "user-prompt-submit-hook",
   "local-command-caveat",
   "local-command-stdout",
+  "local-command-stderr",
   "command-name",
   "command-message",
   "command-args",
+  // IDE integration context (open file, selection) and fork-session boilerplate
+  "ide_opened_file",
+  "ide_selection",
+  "ide_diagnostics",
+  "fork-boilerplate",
+  // the CLI's `!` shell passthrough — an action, not speech (the transcript
+  // renders these as command entries before wrappers are stripped)
+  "bash-input",
+  "bash-stdout",
+  "bash-stderr",
 ] as const;
 
 /**

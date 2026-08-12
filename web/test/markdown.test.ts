@@ -70,6 +70,22 @@ describe("inline parsing", () => {
     const spans = parseInline("[x](javascript:alert(1))");
     expect(spans.find((s) => s.type === "link")).toBeUndefined();
   });
+
+  test("local file paths never become links — they would 404 on this server", () => {
+    const spans = parseInline("[AgentRoProvisioner.php:230](/Users/me/proj/AgentRoProvisioner.php:230)");
+    expect(spans.find((s) => s.type === "link")).toBeUndefined();
+    // path contains the label, so it prints once
+    expect(spans).toEqual([{ type: "code", text: "/Users/me/proj/AgentRoProvisioner.php:230" }]);
+  });
+
+  test("a path link whose label is not part of the path keeps both", () => {
+    const spans = parseInline("[配置文件](/etc/app/config.toml)");
+    expect(spans).toEqual([
+      { type: "text", text: "配置文件 (" },
+      { type: "code", text: "/etc/app/config.toml" },
+      { type: "text", text: ")" },
+    ]);
+  });
 });
 
 describe("tables and rules", () => {

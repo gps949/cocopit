@@ -298,6 +298,50 @@ describe("extractMemCitation", () => {
   });
 });
 
+describe("shell passthrough and IDE context", () => {
+  const userMsg = (text: string, seq: number) => ({
+    seq,
+    uuid: `u${seq}`,
+    byteLen: 100,
+    record: { type: "user", message: { role: "user", content: text } },
+  });
+
+  test("a `!` shell command renders as a command entry, its later output attached", () => {
+    const entries = buildTranscript([
+      userMsg("<bash-input>go build ./...</bash-input>", 0),
+      userMsg("<bash-stdout>ok</bash-stdout><bash-stderr></bash-stderr>", 1),
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.kind).toBe("command");
+    expect(entries[0]!.command).toEqual({ name: "!", args: "go build ./...", output: "ok" });
+  });
+
+  test("IDE-injected context is metadata, not the user speaking", () => {
+    const entries = buildTranscript([userMsg("<ide_opened_file>The user opened /tmp/a.ts</ide_opened_file>", 0)]);
+    expect(entries[0]!.kind).toBe("meta");
+  });
+
+  test("a compaction reply splits into thinking (analysis) and text (summary)", () => {
+    const entries = buildTranscript([
+      {
+        seq: 0,
+        uuid: "u0",
+        byteLen: 100,
+        record: {
+          type: "assistant",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "<analysis>逐条梳理对话……</analysis>\n<summary>1. 主要请求</summary>" }],
+          },
+        },
+      },
+    ]);
+    expect(entries.map((e) => e.kind)).toEqual(["thinking", "assistant"]);
+    expect(entries[0]!.text).toBe("逐条梳理对话……");
+    expect(entries[1]!.text).toBe("1. 主要请求");
+  });
+});
+
 describe("external agent blocks", () => {
   // Codex Desktop flattens an imported agent's tool activity into assistant
   // text — these markers are structure, not something the agent "said"

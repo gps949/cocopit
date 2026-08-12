@@ -460,9 +460,30 @@ export function buildTranscript(messages: RawMessage[]): TranscriptEntry[] {
         });
         continue;
       }
+      // the CLI's `!` passthrough: the command echoes as <bash-input>, its
+      // output follows in a later message as <bash-stdout>/<bash-stderr>
+      const bashInput = tagContent(content, "bash-input");
+      if (bashInput !== null) {
+        entries.push({ ...base, key: `${seq}-bash`, kind: "command", command: { name: "!", args: bashInput } });
+        continue;
+      }
+      const bashStdout = tagContent(content, "bash-stdout");
+      const bashStderr = tagContent(content, "bash-stderr");
+      if (bashStdout !== null || bashStderr !== null) {
+        const output = [bashStdout, bashStderr].filter(Boolean).join("\n");
+        const prev = [...entries].reverse().find((e) => e.kind === "command");
+        if (prev?.command?.name === "!" && prev.command.output === undefined) {
+          prev.command.output = output;
+        } else {
+          entries.push({ ...base, key: `${seq}-bashout`, kind: "command", command: { name: "!", output } });
+        }
+        continue;
+      }
       const stdout = tagContent(content, "local-command-stdout");
-      if (stdout !== null && !stripWrappers(content)) {
-        entries.push({ ...base, key: `${seq}-out`, kind: "command", command: { name: "", output: stdout } });
+      const stderr = tagContent(content, "local-command-stderr");
+      if ((stdout !== null || stderr !== null) && !stripWrappers(content)) {
+        const output = [stdout, stderr].filter(Boolean).join("\n");
+        entries.push({ ...base, key: `${seq}-out`, kind: "command", command: { name: "", output } });
         continue;
       }
       const text = stripWrappers(content);
@@ -496,7 +517,18 @@ export function buildTranscript(messages: RawMessage[]): TranscriptEntry[] {
       const key = `${seq}-${index}`;
 
       if (block.type === "text") {
-        const text = stripWrappers(String(block.text ?? ""));
+        const raw = String(block.text ?? "");
+        // a compaction agent's reply is <analysis>…</analysis><summary>…</summary>;
+        // the analysis is its working-through, the summary its actual product
+        if (type === "assistant" && /^\s*<analysis>/i.test(raw)) {
+          const analysis = tagContent(raw, "analysis");
+          const summary = tagContent(raw, "summary");
+          if (analysis) entries.push({ ...base, key: `${key}-an`, kind: "thinking", text: analysis, model });
+          const rest = summary ?? raw.replace(/<analysis>[\s\S]*?<\/analysis>/i, "").trim();
+          if (rest) entries.push({ ...base, key, kind: "assistant", text: rest, model });
+          continue;
+        }
+        const text = stripWrappers(raw);
         if (!text) continue;
         entries.push({
           ...base,

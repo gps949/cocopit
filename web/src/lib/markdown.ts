@@ -163,11 +163,16 @@ export function parseInline(text: string): InlineSpan[] {
       const split = token.indexOf("](");
       const label = token.slice(1, split);
       const href = token.slice(split + 2, -1);
-      // only schemes a browser can actually follow become anchors; opaque app
-      // URIs (chatgpt-conversation://…) and javascript: stay visible as text —
-      // a dead or dangerous hyperlink is worse than no hyperlink
-      if (/^(https?:\/\/|mailto:|#|\/)/i.test(href)) {
+      // only destinations a browser can actually follow become anchors.
+      // Transcript "links" are routinely local file paths (/Users/…/x.php:230)
+      // or app URIs (chatgpt-conversation://…) — as hyperlinks those 404 or do
+      // nothing, which is worse than no hyperlink
+      if (/^(https?:\/\/|mailto:)/i.test(href)) {
         spans.push({ type: "link", text: label, href });
+      } else if (href.replace(/^file:\/\//, "").endsWith(label)) {
+        // [x.php:230](/full/path/x.php:230) — the path already contains the
+        // label, so print it once
+        spans.push({ type: "code", text: href.replace(/^file:\/\//, "") });
       } else {
         spans.push({ type: "text", text: `${label} (` }, { type: "code", text: href }, { type: "text", text: ")" });
       }
