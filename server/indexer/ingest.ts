@@ -69,9 +69,8 @@ export class Ingestor {
   #db: Database;
   #pricing: IngestPricing | null;
   #agg = new Map<string, SessionAgg>();
-  /** Freshest Codex rate-limit snapshot seen this scan; flushed per file. */
-  #rateLimits: unknown = null;
-  #rateLimitsTs = 0;
+  /** Freshest Codex rate-limit snapshot per profile; flushed per file. */
+  #rateLimits = new Map<string, { ts: number; limits: unknown }>();
   #insMsg: Statement;
   #insUsage: Statement;
   #insTool: Statement;
@@ -263,10 +262,9 @@ export class Ingestor {
           line.codexRateLimits &&
           (line.codexRateLimits.primary || line.codexRateLimits.secondary) &&
           line.ts != null &&
-          line.ts > this.#rateLimitsTs
+          line.ts > (this.#rateLimits.get(task.profileId)?.ts ?? 0)
         ) {
-          this.#rateLimitsTs = line.ts;
-          this.#rateLimits = line.codexRateLimits;
+          this.#rateLimits.set(task.profileId, { ts: line.ts, limits: line.codexRateLimits });
         }
       }
     })();
@@ -417,17 +415,18 @@ export class Ingestor {
         // of this session has been written
         recomputeSuperseded(this.#db, task.sessionId);
 
-        if (this.#rateLimits) {
+        const snapshot = this.#rateLimits.get(task.profileId);
+        if (snapshot) {
           // quota straight from the transcript — Codex writes its rate-limit
           // state into every token_count event, no API call required
           this.#db
             .prepare(
-              `INSERT INTO meta (key, value) VALUES ('codex_rate_limits', $v)
+              `INSERT INTO meta (key, value) VALUES ($k, $v)
                ON CONFLICT(key) DO UPDATE SET value = excluded.value
                WHERE json_extract(excluded.value, '$.ts') > json_extract(meta.value, '$.ts')`,
             )
-            .run({ $v: JSON.stringify({ ts: this.#rateLimitsTs, limits: this.#rateLimits }) });
-          this.#rateLimits = null;
+            .run({ $k: `codex_rate_limits:${task.profileId}`, $v: JSON.stringify(snapshot) });
+          this.#rateLimits.delete(task.profileId);
         }
       } else {
         let meta: Record<string, unknown> = {};

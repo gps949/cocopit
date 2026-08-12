@@ -244,6 +244,11 @@ const EN: Record<string, string> = {
   "每周 Sonnet": "Weekly Sonnet",
   "重置于 {time}": "resets {time}",
   "缓存值": "cached",
+  "数据截至 {when}": "as of {when}",
+  "还没有该账号的会话被索引——跑一次 codex 之后额度会自动出现。":
+    "No sessions from this account have been indexed yet — quota appears automatically after running codex once.",
+  "Codex 把配额窗口写进每条会话记录,这里显示的是该账号最近一次被索引的会话里的快照——不需要读取任何凭据,但新鲜度取决于上次会话的时间。":
+    "Codex writes its quota windows into every transcript; this shows the snapshot from the account's most recently indexed session — no credentials are read, but freshness depends on when that session ran.",
   "未读到凭据——该账号可能未在本机登录。": "No credentials found — this profile may not be logged in on this machine.",
   "登录令牌已过期,在终端里运行一次 claude 即可刷新。":
     "The login token has expired; running claude once in a terminal refreshes it.",

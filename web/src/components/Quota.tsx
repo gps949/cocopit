@@ -7,7 +7,7 @@ export interface QuotaWindow {
 }
 
 export interface QuotaResult {
-  status: "ok" | "unsupported" | "no_credentials" | "token_expired" | "rate_limited" | "error";
+  status: "ok" | "unsupported" | "no_credentials" | "token_expired" | "rate_limited" | "error" | "no_data";
   quota?: {
     fiveHour: QuotaWindow | null;
     sevenDay: QuotaWindow | null;
@@ -16,6 +16,8 @@ export interface QuotaResult {
     extraUsage: { enabled: boolean; utilization: number | null } | null;
   };
   stale?: boolean;
+  /** Codex: the snapshot is only as fresh as the last indexed session. */
+  asOf?: number;
 }
 
 export function fmtReset(iso: string, lang: Lang): string {
@@ -61,7 +63,7 @@ export function QuotaBar({ label, window: w }: { label: string; window: QuotaWin
  * profile answers — the accounts page explains failures, this strip does not.
  */
 export function QuotaStrip({ product = "claude" }: { product?: "claude" | "codex" }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [rows, setRows] = useState<Array<{ id: string; name: string; result: QuotaResult }>>([]);
 
   useEffect(() => {
@@ -70,9 +72,23 @@ export function QuotaStrip({ product = "claude" }: { product?: "claude" | "codex
       try {
         if (product === "codex") {
           // Codex embeds its rate-limit state in every transcript; the server
-          // hands back the freshest snapshot the index has seen
-          const result = (await (await fetch("/api/codex/quota")).json()) as QuotaResult;
-          if (!cancelled) setRows(result.status === "ok" ? [{ id: "codex", name: "Codex", result }] : []);
+          // hands back the freshest snapshot the index has seen, per account
+          const res = await fetch("/api/profiles?product=codex");
+          const { profiles } = (await res.json()) as {
+            profiles: Array<{ id: string; name: string; detection: { loggedIn: boolean } }>;
+          };
+          const results = await Promise.all(
+            profiles
+              .filter((p) => p.detection.loggedIn)
+              .map(async (p) => ({
+                id: p.id,
+                name: p.name,
+                result: (await (
+                  await fetch(`/api/codex/quota?profileId=${encodeURIComponent(p.id)}`)
+                ).json()) as QuotaResult,
+              })),
+          );
+          if (!cancelled) setRows(results.filter((r) => r.result.status === "ok"));
           return;
         }
         const res = await fetch("/api/profiles");
@@ -112,6 +128,11 @@ export function QuotaStrip({ product = "claude" }: { product?: "claude" | "codex
               {result.quota?.fiveHour && <QuotaBar label={t("5 小时窗口")} window={result.quota.fiveHour} />}
               {result.quota?.sevenDay && <QuotaBar label={t("每周(全部模型)")} window={result.quota.sevenDay} />}
             </div>
+            {result.asOf && (
+              <div className="mt-1.5 text-[11px] text-muted">
+                {t("数据截至 {when}", { when: fmtReset(new Date(result.asOf).toISOString(), lang) })}
+              </div>
+            )}
           </div>
         ))}
       </div>

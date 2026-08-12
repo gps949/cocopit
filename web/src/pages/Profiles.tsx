@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { InfoHint } from "../components/InfoHint";
 import { UserIcon } from "../components/icons";
-import { QuotaBar, type QuotaResult } from "../components/Quota";
+import { fmtReset, QuotaBar, type QuotaResult } from "../components/Quota";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 import { useProduct } from "../product";
 
@@ -86,17 +86,23 @@ function fmtDate(iso: string, lang: Lang): string {
 }
 
 /**
- * Subscription quota — the same numbers as Claude Code's /usage. The server
- * reads the OAuth token for one upstream call and returns percentages only.
+ * Subscription quota. Claude: the server reads the OAuth token for one
+ * upstream call and returns percentages only. Codex: the numbers come out of
+ * the account's own transcripts, so no credentials are involved at all — the
+ * trade is that the snapshot is only as fresh as the last indexed session.
  */
-function QuotaSection({ profileId }: { profileId: string }) {
-  const { t } = useI18n();
+function QuotaSection({ profileId, product }: { profileId: string; product: "claude" | "codex" }) {
+  const { t, lang } = useI18n();
   const [result, setResult] = useState<QuotaResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const url =
+      product === "codex"
+        ? `/api/codex/quota?profileId=${encodeURIComponent(profileId)}`
+        : `/api/profiles/${profileId}/quota`;
     const load = () =>
-      fetch(`/api/profiles/${profileId}/quota`)
+      fetch(url)
         .then((res) => res.json())
         .then((data: QuotaResult) => {
           if (!cancelled) setResult(data);
@@ -111,7 +117,7 @@ function QuotaSection({ profileId }: { profileId: string }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [profileId]);
+  }, [profileId, product]);
 
   if (!result || result.status === "unsupported") return null;
 
@@ -120,6 +126,7 @@ function QuotaSection({ profileId }: { profileId: string }) {
     token_expired: t("登录令牌已过期,在终端里运行一次 claude 即可刷新。"),
     rate_limited: t("官方接口暂时限流,稍后会自动重试。"),
     error: t("额度查询失败,稍后会自动重试。"),
+    no_data: t("还没有该账号的会话被索引——跑一次 codex 之后额度会自动出现。"),
   };
 
   return (
@@ -128,12 +135,21 @@ function QuotaSection({ profileId }: { profileId: string }) {
         <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
           {t("订阅额度")}
           <InfoHint
-            text={t(
-              "订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。",
-            )}
+            text={
+              product === "codex"
+                ? t(
+                    "Codex 把配额窗口写进每条会话记录,这里显示的是该账号最近一次被索引的会话里的快照——不需要读取任何凭据,但新鲜度取决于上次会话的时间。",
+                  )
+                : t(
+                    "订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。",
+                  )
+            }
           />
         </span>
-        {result.stale && <span className="text-xs text-muted">{t("缓存值")}</span>}
+        <span className="text-xs text-muted">
+          {result.stale && t("缓存值")}
+          {result.asOf && t("数据截至 {when}", { when: fmtReset(new Date(result.asOf).toISOString(), lang) })}
+        </span>
       </div>
       {result.status === "ok" && result.quota ? (
         <div className="space-y-2.5">
@@ -405,8 +421,8 @@ export function Profiles() {
               </div>
             </dl>
 
-            {p.kind === "subscription" && p.detection.loggedIn && p.product !== "codex" && (
-              <QuotaSection profileId={p.id} />
+            {p.kind === "subscription" && p.detection.loggedIn && (
+              <QuotaSection profileId={p.id} product={p.product ?? "claude"} />
             )}
 
             <div className="mt-4 flex flex-wrap gap-2">

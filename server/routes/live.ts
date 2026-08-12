@@ -43,10 +43,15 @@ export function registerLiveRoutes(router: Router, db: Database, claudeDir: stri
 
   // Codex writes its rate-limit state into every token_count event, so the
   // freshest snapshot falls out of indexing — no credentials, no API call.
-  router.register("GET", "/api/codex/quota", () => {
-    const row = db.prepare("SELECT value FROM meta WHERE key = 'codex_rate_limits'").get() as
-      | { value: string }
-      | null;
+  router.register("GET", "/api/codex/quota", (req) => {
+    const profileId = new URL(req.url).searchParams.get("profileId") ?? "default";
+    const row = (db
+      .prepare("SELECT value FROM meta WHERE key = $k")
+      .get({ $k: `codex_rate_limits:${profileId}` }) ??
+      // pre-per-profile snapshots lived under one global key
+      (profileId === "default"
+        ? db.prepare("SELECT value FROM meta WHERE key = 'codex_rate_limits'").get()
+        : null)) as { value: string } | null;
     if (!row) return Response.json({ status: "no_data" });
     const parsed = JSON.parse(row.value) as {
       ts: number;
