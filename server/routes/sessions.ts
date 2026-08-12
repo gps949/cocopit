@@ -149,7 +149,15 @@ export function registerSessionRoutes(router: Router, db: Database): void {
          FROM subagents WHERE session_id = $id ORDER BY agent_id`,
       )
       .all({ $id: routeParams.id! });
-    return Response.json({ session: toSummary(row), subagents });
+    const related = db
+      .prepare(
+        `SELECT l.related_session_id AS id, l.shared_records AS sharedRecords,
+                s.title, s.line_count AS lineCount, s.last_ts AS lastTs
+         FROM session_links l JOIN sessions s ON s.id = l.related_session_id
+         WHERE l.session_id = $id ORDER BY l.shared_records DESC`,
+      )
+      .all({ $id: routeParams.id! });
+    return Response.json({ session: toSummary(row), subagents, related });
   });
 
   // The conversation outline: real user turns only. The indexer stores a

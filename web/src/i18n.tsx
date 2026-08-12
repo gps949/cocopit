@@ -216,6 +216,10 @@ const EN: Record<string, string> = {
   "LiteLLM 输入/输出": "LiteLLM in/out",
   "显示已回退({n})": "Show rewound ({n})",
   "已回退": "rewound",
+  "相关会话": "Related sessions",
+  "这些会话与本会话包含相同的对话记录,应是同一段对话的不同分支。":
+    "These sessions contain the same conversation records as this one — branches of a single conversation.",
+  "共享 {n} 条": "{n} shared",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",

@@ -68,8 +68,18 @@ export interface LiveSessionRow {
 }
 
 export const listSessions = (query: string) => getJson<SessionListResponse>(`/api/sessions${query}`);
+export interface RelatedSession {
+  id: string;
+  sharedRecords: number;
+  title: string | null;
+  lineCount: number;
+  lastTs: number | null;
+}
+
 export const getSession = (id: string) =>
-  getJson<{ session: SessionSummary; subagents: SubagentInfo[] }>(`/api/sessions/${id}`);
+  getJson<{ session: SessionSummary; subagents: SubagentInfo[]; related: RelatedSession[] }>(
+    `/api/sessions/${id}`,
+  );
 export interface MessageWindow {
   messages: MessageRow[];
   nextFromSeq: number | null;

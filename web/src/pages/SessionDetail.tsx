@@ -14,6 +14,7 @@ import {
   type OutlineTurn,
   type SubagentTranscript,
   type SessionSummary,
+  type RelatedSession,
   type SubagentInfo,
 } from "../api/sessions";
 import { fmtTokens, fmtUsd } from "../components/EChart";
@@ -394,6 +395,7 @@ export function SessionDetail() {
   const { id = "" } = useParams();
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
+  const [related, setRelated] = useState<RelatedSession[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [nextSeq, setNextSeq] = useState<number | null>(null);
   const [prevSeq, setPrevSeq] = useState<number | null>(null);
@@ -411,6 +413,7 @@ export function SessionDetail() {
     void getSession(id).then((res) => {
       setSession(res.session);
       setSubagents(res.subagents);
+      setRelated(res.related ?? []);
     });
     // land on the newest window, the way a chat client does: order stays
     // chronological, only the starting position changes
@@ -530,6 +533,30 @@ export function SessionDetail() {
         />
         <Stat label={t("子代理")} value={String(session.subagentCount)} />
       </div>
+
+      {related.length > 0 && (
+        /* two files holding the same records: a branch of this conversation
+           continued separately. No direction is claimed — both sides carry the
+           same start time, so neither can be called the original. */
+        <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
+          <h2 className="text-[15px] font-medium">{t("相关会话")}</h2>
+          <p className="mt-1 text-sm text-muted">{t("这些会话与本会话包含相同的对话记录,应是同一段对话的不同分支。")}</p>
+          <div className="mt-3 space-y-1.5">
+            {related.map((r) => (
+              <Link
+                key={r.id}
+                to={`/sessions/${r.id}`}
+                className="flex min-w-0 items-baseline gap-3 rounded-lg border border-line px-3 py-2 text-sm transition-colors hover:border-accent hover:bg-hover"
+              >
+                <span className="min-w-0 flex-1 truncate">{r.title ?? r.id.slice(0, 8)}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  {t("共享 {n} 条", { n: r.sharedRecords })} · {t("{n} 行", { n: r.lineCount })}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {subagents.length > 0 && <SubagentPanel subagents={subagents} sessionId={id} />}
 
