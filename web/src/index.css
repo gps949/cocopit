@@ -71,3 +71,17 @@ body {
 .rise-in {
   animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/*
+ * Native select chrome on macOS draws its own bevel and arrow, which sits a
+ * couple of pixels taller than the text inputs beside it and ignores the theme
+ * entirely. Draw the arrow ourselves so a dropdown matches every other field.
+ */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 12px;
+  padding-right: 2rem;
+}

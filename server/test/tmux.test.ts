@@ -136,3 +136,23 @@ describe("live tmux integration", () => {
     attachment.close();
   }, 10000);
 });
+
+
+describe("which config a terminal runs under", () => {
+  test("the default profile inherits the machine's config — no CLAUDE_CONFIG_DIR", () => {
+    // Setting it to ~/.claude makes Claude Code read ~/.claude/.claude.json
+    // instead of ~/.claude.json, i.e. a config with no login, no trusted
+    // folders and none of the user's settings — which is why terminals opened
+    // here asked to sign in again.
+    expect(buildResumeCommand({ cwd: "/w", sessionId: "s1", configDir: null })).toBe(
+      "cd '/w' && claude --resume 's1'",
+    );
+    expect(buildNewSessionCommand({ cwd: "/w", configDir: null })).toBe("cd '/w' && claude");
+  });
+
+  test("a profile with its own directory still gets it", () => {
+    expect(buildResumeCommand({ cwd: "/w", sessionId: "s1", configDir: "/home/me/cc-work" })).toBe(
+      "cd '/w' && CLAUDE_CONFIG_DIR='/home/me/cc-work' claude --resume 's1'",
+    );
+  });
+});

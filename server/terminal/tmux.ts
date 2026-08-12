@@ -28,12 +28,26 @@ export function sessionNameFor(id: string): string {
   return `cc-${safe || "session"}`;
 }
 
-export function buildResumeCommand(opts: { cwd: string; sessionId: string; configDir: string }): string {
-  return `cd ${shellQuote(opts.cwd)} && CLAUDE_CONFIG_DIR=${shellQuote(opts.configDir)} claude --resume ${shellQuote(opts.sessionId)}`;
+/**
+ * CLAUDE_CONFIG_DIR is set only for profiles that have their own directory.
+ *
+ * Pointing it at ~/.claude — the data directory — is not a no-op: Claude Code
+ * then reads ~/.claude/.claude.json rather than ~/.claude.json, which is a
+ * different config with no login, no trusted folders and none of the user's
+ * settings. Terminals opened from here asked to sign in again for exactly that
+ * reason. Leaving the variable unset lets the default profile inherit whatever
+ * the machine is already configured with.
+ */
+function configEnv(configDir: string | null): string {
+  return configDir ? `CLAUDE_CONFIG_DIR=${shellQuote(configDir)} ` : "";
 }
 
-export function buildNewSessionCommand(opts: { cwd: string; configDir: string }): string {
-  return `cd ${shellQuote(opts.cwd)} && CLAUDE_CONFIG_DIR=${shellQuote(opts.configDir)} claude`;
+export function buildResumeCommand(opts: { cwd: string; sessionId: string; configDir: string | null }): string {
+  return `cd ${shellQuote(opts.cwd)} && ${configEnv(opts.configDir)}claude --resume ${shellQuote(opts.sessionId)}`;
+}
+
+export function buildNewSessionCommand(opts: { cwd: string; configDir: string | null }): string {
+  return `cd ${shellQuote(opts.cwd)} && ${configEnv(opts.configDir)}claude`;
 }
 
 export function hasSession(name: string): boolean {

@@ -89,13 +89,18 @@ export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-/** The command a user runs in their own terminal to log this profile in. */
+/**
+ * The command a user runs in their own terminal to log this profile in. The
+ * default profile must NOT carry CLAUDE_CONFIG_DIR — see configEnv in tmux.ts:
+ * pointing it at ~/.claude selects a different config file entirely.
+ */
 export function loginCommand(profile: CcProfile): string {
-  return `CLAUDE_CONFIG_DIR=${shellQuote(resolveConfigDir(profile))} claude /login`;
+  const env = profile.configDir ? `CLAUDE_CONFIG_DIR=${shellQuote(profile.configDir)} ` : "";
+  return `${env}claude /login`;
 }
 
 /** Resume command for a session belonging to this profile (always its own dir). */
 export function resumeCommand(profile: CcProfile, cwd: string, sessionId: string): string {
-  const env = `CLAUDE_CONFIG_DIR=${shellQuote(resolveConfigDir(profile))}`;
-  return `cd ${shellQuote(cwd)} && ${env} claude --resume ${shellQuote(sessionId)}`;
+  const env = profile.configDir ? `CLAUDE_CONFIG_DIR=${shellQuote(profile.configDir)} ` : "";
+  return `cd ${shellQuote(cwd)} && ${env}claude --resume ${shellQuote(sessionId)}`;
 }

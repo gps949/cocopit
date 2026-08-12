@@ -67,7 +67,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       command = buildResumeCommand({
         cwd: row.cwd,
         sessionId: row.id,
-        configDir: resolveConfigDir(profile),
+        configDir: profile.configDir ?? null,
       });
       target = {
         name: sessionNameFor(row.id),
@@ -85,7 +85,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (!project.cwd) return Response.json({ error: "project has no recorded cwd" }, { status: 409 });
 
       const profile = profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
-      command = buildNewSessionCommand({ cwd: project.cwd, configDir: resolveConfigDir(profile) });
+      command = buildNewSessionCommand({ cwd: project.cwd, configDir: profile.configDir ?? null });
       target = {
         name: sessionNameFor(`proj-${project.id}-${Date.now()}`),
         title: `新会话 · ${project.cwd.split("/").at(-1)}`,
