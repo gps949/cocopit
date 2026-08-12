@@ -13,6 +13,7 @@ interface Cursor {
   file_mtime_ms: number;
   parsed_bytes: number;
   line_count: number;
+  file_path: string | null;
 }
 
 /**
@@ -23,10 +24,10 @@ interface Cursor {
  */
 export function computeWork(db: Database, tasks: FileTask[]): WorkItem[] {
   const sessionStmt = db.prepare(
-    `SELECT file_size, file_mtime_ms, parsed_bytes, line_count FROM sessions WHERE id = $id`,
+    `SELECT file_size, file_mtime_ms, parsed_bytes, line_count, file_path FROM sessions WHERE id = $id`,
   );
   const subagentStmt = db.prepare(
-    `SELECT file_size, file_mtime_ms, parsed_bytes, 0 AS line_count FROM subagents
+    `SELECT file_size, file_mtime_ms, parsed_bytes, 0 AS line_count, file_path FROM subagents
      WHERE session_id = $id AND agent_id = $agentId`,
   );
 
@@ -50,10 +51,17 @@ export function computeWork(db: Database, tasks: FileTask[]): WorkItem[] {
         mode: "append",
         seqStart: cursor.line_count,
       });
-    } else if (task.size < cursor.file_size || cursor.parsed_bytes > task.size) {
+    } else if (
+      task.size < cursor.file_size ||
+      cursor.parsed_bytes > task.size ||
+      // moved without changing (Codex archives sessions this way): the
+      // content is already indexed, but reads seek into the recorded path —
+      // a stale one would break the detail view
+      (cursor.file_path !== null && cursor.file_path !== task.path)
+    ) {
       work.push({ task, startOffset: 0, mode: "reparse", seqStart: 0 });
     }
-    // same size and a cursor within bounds: nothing to do (mtime-only change)
+    // same size, same path, cursor within bounds: nothing to do (mtime-only change)
   }
 
   work.sort((a, b) => b.task.mtimeMs - a.task.mtimeMs);

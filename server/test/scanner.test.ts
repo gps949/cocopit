@@ -82,6 +82,15 @@ describe("computeWork", () => {
     expect(computeWork(db, [sessionTask({ size: 100, mtimeMs: 9000 })])).toHaveLength(0);
   });
 
+  test("moved without changing (codex archive) → reparse so the path follows", () => {
+    insertSessionRow({ id: "s1", size: 100, mtimeMs: 5000, parsedBytes: 100 });
+    const work = computeWork(db, [
+      sessionTask({ path: "/fake/archived_sessions/s1.jsonl", size: 100, mtimeMs: 5000 }),
+    ]);
+    expect(work).toHaveLength(1);
+    expect(work[0]!.mode).toBe("reparse");
+  });
+
   test("same size, changed mtime, parsed_bytes beyond size → reparse", () => {
     insertSessionRow({ id: "s1", size: 100, mtimeMs: 4000, parsedBytes: 150 });
     const work = computeWork(db, [sessionTask({ size: 100, mtimeMs: 9000 })]);
