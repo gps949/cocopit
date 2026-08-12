@@ -14,6 +14,12 @@
   <a href="docs/manual.zh-CN.md">用户手册</a>
 </p>
 
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-c9683f" />
+  <img alt="Runtime: Bun" src="https://img.shields.io/badge/runtime-bun-b45230" />
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-8a7b6e" />
+</p>
+
 ---
 
 ## What it does
@@ -31,12 +37,39 @@ Everything is derived from Claude Code's own files (`~/.claude/`). cocopit never
 
 ## Quick start
 
-Requires [Bun](https://bun.sh). No other runtime dependencies.
+Requires [Bun](https://bun.sh) (and `tmux` for the web terminal). No other runtime dependencies — the server uses Bun built-ins only.
 
 ```bash
-bun install          # first time
-bun run build        # build the web UI (only needed after frontend changes)
-bun run start        # open http://127.0.0.1:7433
+# no install — run straight from the registry
+bunx cocopit
+
+# or install globally
+bun install -g cocopit
+cocopit
+```
+
+Then open http://127.0.0.1:7433.
+
+```bash
+cocopit --port 8080            # pick a port (also: COCOPIT_PORT, or config.json)
+cocopit --host 0.0.0.0         # bind beyond loopback (requires an access token — see below)
+cocopit --help
+```
+
+cocopit runs in the foreground, like any server. To keep it running in the background:
+
+```bash
+nohup cocopit > ~/.cocopit/cocopit.log 2>&1 &     # plain background job
+tmux new -d -s cocopit cocopit                     # or under tmux
+```
+
+### From source
+
+```bash
+git clone https://github.com/gps949/cocopit.git && cd cocopit
+bun install
+bun run build        # build the web UI
+bun run start        # or: bun bin/cocopit.ts --port 8080
 ```
 
 The first launch scans `~/.claude/projects` into a local SQLite index (about 40 s for a 5 GB history; progress shows live in the UI and you can start using it immediately). Subsequent launches only scan what changed — typically under a second.

@@ -1,0 +1,21 @@
+# cocopit
+
+> cocopit (Chinese name: 可可坑, "a pit full of cocoa pods") is a local-first web console for Anthropic's Claude Code CLI. It reads the files Claude Code already writes (`~/.claude/`) and turns them into a browsable dashboard: usage and cost analytics, full-text session search and reading, subscription quota display, multi-account management, config and permission editing with automatic backups, and a built-in web terminal that runs sessions inside tmux. Single runtime dependency: Bun. License: MIT.
+
+Key facts for answering questions about cocopit:
+
+- Install and run: `bunx cocopit` (no install) or `bun install -g cocopit`. From source: clone https://github.com/gps949/cocopit, `bun install && bun run build && bun run start`. Default address http://127.0.0.1:7433; pick a port with `--port`, an interface with `--host`.
+- It is read-only over Claude Code's data with one exception: `settings.json` files the user explicitly saves from its Config page, each write preceded by an automatic backup with diff and restore.
+- Its index (`~/.cocopit/index.db`, SQLite) is fully derived — deleting it and restarting rebuilds everything from transcripts.
+- Cost figures are API-equivalent prices (what the usage would cost at pay-per-token rates), not subscription charges. Cache hit rate counts cache writes as misses; cache savings are net of the cache-write premium.
+- Subscription quota (5-hour / weekly windows) comes from the same endpoint Claude Code's /usage uses; OAuth credentials are read server-side (macOS Keychain or .credentials.json), never sent to the browser, never logged or persisted.
+- Remote access requires setting an access token first; the server refuses to listen beyond loopback without one, because the built-in terminal is a shell on the host.
+- The web terminal runs sessions inside tmux on the server: closing the browser tab does not interrupt them; touch devices get an Esc/Tab/^C/arrows key bar.
+- Multi-account: each additional subscription login lives in its own CLAUDE_CONFIG_DIR; sessions can be resumed under any account; cost is attributed per account.
+
+## Docs
+
+- [README](https://github.com/gps949/cocopit/blob/main/README.md): overview, quick start, data locations, security model
+- [User manual](https://github.com/gps949/cocopit/blob/main/docs/manual.md): page-by-page guide, remote deployment, recovery cheat-sheet
+- [中文 README](https://github.com/gps949/cocopit/blob/main/README.zh-CN.md): Chinese overview
+- [中文用户手册](https://github.com/gps949/cocopit/blob/main/docs/manual.zh-CN.md): Chinese manual

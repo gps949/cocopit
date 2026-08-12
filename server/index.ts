@@ -321,7 +321,8 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   };
 }
 
-if (import.meta.main) {
+/** Entry point shared by `bun server/index.ts` and the packaged `cocopit` bin. */
+export function runServer(opts: { port?: number; host?: string } = {}): void {
   const config = loadConfig();
   const db = openIndexDb();
   const scheduler = new IndexScheduler(db);
@@ -330,7 +331,10 @@ if (import.meta.main) {
 
   let server: ReturnType<typeof createServer>;
   try {
-    server = createServer(undefined, { db, scheduler, hub, claudeDir: config.claudeDir, sources });
+    // a CLI --host still goes through the token interlock — flags must not be
+    // a side door around it
+    const hostname = opts.host !== undefined ? resolveBindHost(opts.host, loadAuthConfig().enabled) : undefined;
+    server = createServer(opts.port, { db, scheduler, hub, claudeDir: config.claudeDir, sources, hostname });
   } catch (err) {
     // the bind interlock is a configuration mistake, not a crash — say what to do
     console.error(`\n${(err as Error).message}\n`);
@@ -344,4 +348,8 @@ if (import.meta.main) {
     warmUsageCache(db);
   });
   new FsWatcher(scheduler, sources).start();
+}
+
+if (import.meta.main) {
+  runServer();
 }
