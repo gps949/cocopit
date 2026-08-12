@@ -9,11 +9,13 @@ import {
   getOutline,
   getSubagentTranscript,
   getSession,
+  listProfileOptions,
   openTerminal,
   type MessageRow,
   type OutlineTurn,
   type SubagentTranscript,
   type SessionSummary,
+  type ProfileOption,
   type RelatedSession,
   type SubagentInfo,
 } from "../api/sessions";
@@ -396,6 +398,8 @@ export function SessionDetail() {
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
   const [related, setRelated] = useState<RelatedSession[]>([]);
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [runAs, setRunAs] = useState("");
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [nextSeq, setNextSeq] = useState<number | null>(null);
   const [prevSeq, setPrevSeq] = useState<number | null>(null);
@@ -423,6 +427,7 @@ export function SessionDetail() {
       setPrevSeq(res.prevBeforeSeq);
     });
     void getOutline(id).then((res) => setOutline(res.turns));
+    void listProfileOptions().then(setProfiles);
   }, [id]);
 
   const supersededCount = useMemo(() => messages.filter((m) => m.superseded).length, [messages]);
@@ -479,7 +484,7 @@ export function SessionDetail() {
   async function startTerminal() {
     setTerminalError(null);
     try {
-      const term = await openTerminal({ sessionId: id });
+      const term = await openTerminal({ sessionId: id, profileId: runAs || undefined });
       setTerminal(term.name);
     } catch (err) {
       setTerminalError((err as Error).message);
@@ -503,13 +508,32 @@ export function SessionDetail() {
             <span>{session.profileId}</span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void startTerminal()}
-          className="shrink-0 rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-strong dark:text-ink"
-        >
-          {t("在终端中恢复")}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* only worth offering when there is somewhere else to run it */}
+          {profiles.filter((p) => p.configDir).length > 0 && (
+            <select
+              value={runAs}
+              onChange={(e) => setRunAs(e.target.value)}
+              className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+            >
+              <option value="">{t("原账号")}</option>
+              {profiles
+                .filter((p) => p.configDir)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {t(p.name)}
+                  </option>
+                ))}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={() => void startTerminal()}
+            className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-strong dark:text-ink"
+          >
+            {t("在终端中恢复")}
+          </button>
+        </div>
       </div>
 
       {terminalError && <p className="mt-3 text-sm text-danger">{terminalError}</p>}

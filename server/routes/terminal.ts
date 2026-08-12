@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { handOffSession } from "../cc/handoff";
 import type { Database } from "bun:sqlite";
 import { loadConfig } from "../config";
 import type { Router } from "../http/router";
@@ -36,7 +38,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       return Response.json({ error: "tmux 未安装,Web 终端不可用" }, { status: 503 });
     }
 
-    let body: { sessionId?: string; projectId?: number; cols?: number; rows?: number };
+    let body: { sessionId?: string; projectId?: number; profileId?: string; cols?: number; rows?: number };
     try {
       body = (await req.json()) as typeof body;
     } catch {
@@ -62,15 +64,48 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (!row) return Response.json({ error: "session not found" }, { status: 404 });
       if (!row.cwd) return Response.json({ error: "session has no recorded cwd" }, { status: 409 });
 
-      const profile = profiles.find((p) => p.id === row.profileId) ?? profiles[0]!;
-      // resume always runs under the profile that owns the session
+      const owner = profiles.find((p) => p.id === row.profileId) ?? profiles[0]!;
+      let profile = owner;
+      let resumeId = row.id;
+
+      // Continuing under another account: --resume only looks under its own
+      // config directory, so the transcript is copied there first, under a new
+      // id (session ids are the index's primary key). Message uuids are kept,
+      // which is what lets the console show where the copy came from.
+      if (body.profileId && body.profileId !== owner.id) {
+        const chosen = profiles.find((p) => p.id === body.profileId);
+        if (!chosen) return Response.json({ error: "profile not found" }, { status: 404 });
+        if (!chosen.configDir) {
+          return Response.json(
+            { error: "目标 profile 没有独立配置目录,无法在其下继续会话" },
+            { status: 409 },
+          );
+        }
+        const file = db.prepare("SELECT file_path AS filePath FROM sessions WHERE id = $id").get({
+          $id: row.id,
+        }) as { filePath: string } | null;
+        if (!file) return Response.json({ error: "session not found" }, { status: 404 });
+        resumeId = randomUUID();
+        try {
+          await handOffSession({
+            sourceFile: file.filePath,
+            targetConfigDir: chosen.configDir,
+            cwd: row.cwd,
+            newSessionId: resumeId,
+          });
+        } catch (err) {
+          return Response.json({ error: `移交失败: ${(err as Error).message}` }, { status: 409 });
+        }
+        profile = chosen;
+      }
+
       command = buildResumeCommand({
         cwd: row.cwd,
-        sessionId: row.id,
+        sessionId: resumeId,
         configDir: profile.configDir ?? null,
       });
       target = {
-        name: sessionNameFor(row.id),
+        name: sessionNameFor(resumeId),
         title: row.title ?? row.id,
         cwd: row.cwd,
         kind: "resume",
@@ -84,7 +119,11 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (!project) return Response.json({ error: "project not found" }, { status: 404 });
       if (!project.cwd) return Response.json({ error: "project has no recorded cwd" }, { status: 409 });
 
-      const profile = profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
+      // a new session may be started under any profile — nothing ties it to the
+      // one that happens to own the project's past sessions
+      const wanted = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
+      if (body.profileId && !wanted) return Response.json({ error: "profile not found" }, { status: 404 });
+      const profile = wanted ?? profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
       command = buildNewSessionCommand({ cwd: project.cwd, configDir: profile.configDir ?? null });
       target = {
         name: sessionNameFor(`proj-${project.id}-${Date.now()}`),

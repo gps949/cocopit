@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listProjects, openTerminal, type ProjectRow } from "../api/sessions";
+import { listProfileOptions, listProjects, openTerminal, type ProfileOption, type ProjectRow } from "../api/sessions";
 import { fmtUsd } from "../components/EChart";
 import { TerminalPane } from "../components/Terminal";
 import { useI18n } from "../i18n";
@@ -12,14 +12,18 @@ export function Projects() {
   const [terminal, setTerminal] = useState<{ name: string; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [runAs, setRunAs] = useState("");
+
   useEffect(() => {
     void listProjects().then((res) => setProjects(res.projects));
+    void listProfileOptions().then(setProfiles);
   }, []);
 
   async function startNewSession(project: ProjectRow) {
     setError(null);
     try {
-      const term = await openTerminal({ projectId: project.id });
+      const term = await openTerminal({ projectId: project.id, profileId: runAs || undefined });
       setTerminal({ name: term.name, title: term.title });
     } catch (err) {
       setError((err as Error).message);
@@ -32,6 +36,23 @@ export function Projects() {
       <p className="mt-2 text-sm text-muted">
         {t("每个项目对应一个工作目录。可直接在此新建会话——命令由服务端构造并运行在 tmux 中,浏览器只发送项目 ID。")}
       </p>
+      {profiles.length > 1 && (
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <span className="text-muted">{t("新会话使用账号")}</span>
+          <select
+            value={runAs}
+            onChange={(e) => setRunAs(e.target.value)}
+            className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+          >
+            <option value="">{t("项目默认")}</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {t(p.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       {terminal && (

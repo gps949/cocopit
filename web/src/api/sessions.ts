@@ -125,9 +125,18 @@ export const getSubagentTranscript = (id: string, agentId: string, offset = 0, l
 export const getMessage = (id: string, uuid: string) =>
   getJson<MessageRow>(`/api/sessions/${id}/messages/${uuid}`);
 export const listProjects = () => getJson<{ projects: ProjectRow[] }>("/api/projects");
+
+export interface ProfileOption {
+  id: string;
+  name: string;
+  configDir: string | null;
+}
+
+export const listProfileOptions = () =>
+  getJson<{ profiles: ProfileOption[] }>("/api/profiles").then((r) => r.profiles);
 export const listLive = () => getJson<{ sessions: LiveSessionRow[] }>("/api/live");
 
-export async function openTerminal(body: { sessionId?: string; projectId?: number }) {
+export async function openTerminal(body: { sessionId?: string; projectId?: number; profileId?: string }) {
   const res = await fetch("/api/terminal", { method: "POST", body: JSON.stringify(body) });
   if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? `HTTP ${res.status}`);
   return (await res.json()) as { name: string; title: string; cwd: string; kind: "resume" | "new" };
