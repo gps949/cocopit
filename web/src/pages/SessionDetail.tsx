@@ -535,6 +535,11 @@ export function SessionDetail() {
             {session.gitBranch && <span className="font-mono">{session.gitBranch}</span>}
             {session.ccVersion && <span>{isCodex ? "Codex" : "CC"} {session.ccVersion}</span>}
             <span>{session.profileId}</span>
+            {session.agentLabel && (
+              <span className="rounded bg-accent-soft px-1.5 py-0.5 text-accent">
+                {t("子代理 · {name}", { name: session.agentLabel })}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">

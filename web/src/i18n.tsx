@@ -60,6 +60,8 @@ const EN: Record<string, string> = {
   "活跃时段(周 × 小时)": "Activity (weekday × hour)",
   "按账号": "By account",
   "价目校准(对照 Claude Code 官方 costUSD)": "Price calibration (vs Claude Code's costUSD)",
+  "自检:仪表盘费用是「本地 token 数 × 价目表」算出来的;这里按官方记录的 token 量用同一价目表推出合理区间,再看 Claude Code 自己记的 costUSD 是否落在区间内——落外说明该模型价目可能记错。":
+    "A self-check: dashboard cost is computed as local token counts × the pricing table. This derives a plausible range from Claude Code's officially recorded token counts under the same table, then checks whether its own costUSD falls inside — a miss means that model's prices are probably wrong.",
   "{ok}/{total} 项目·模型在容差内": "{ok}/{total} project·model pairs within tolerance",
   ",{n} 项偏差": ", {n} off",
   "模型": "Model",
@@ -120,6 +122,22 @@ const EN: Record<string, string> = {
   // history
   "历史": "History",
   "Codex 控制台": "Codex console",
+  "MCP 与插件配置在 config.toml,技能是 CODEX_HOME 下的目录;此处均为只读,增删请在 Codex CLI 中进行。":
+    "MCP and plugins are configured in config.toml; skills are directories under CODEX_HOME. Everything here is read-only — make changes in the Codex CLI.",
+  "配置在 config.toml 的 mcp_servers 表;env 中的密钥不在此显示。":
+    "Configured in config.toml's mcp_servers tables; env secrets are not shown here.",
+  "启用状态记在 config.toml 的 plugins 表,此处只读。":
+    "Enablement lives in config.toml's plugins tables; read-only here.",
+  "Codex 的配置只读展示;修改请在 Codex CLI 中进行。":
+    "Codex configuration, read-only; make changes in the Codex CLI.",
+  "密钥类字段(key/token/secret)已打码;env 表中的凭据不会离开服务器。":
+    "Secret-looking fields (key/token/secret) are masked; env credentials never leave the server.",
+  "Codex 自带方案机制:<名称>.config.toml 以 codex --profile <名称> 叠加在 config.toml 之上——相当于 Claude 侧的「配置方案」,但由 Codex 原生支持。":
+    "Codex has presets natively: <name>.config.toml overlays config.toml via codex --profile <name> — the counterpart of the Claude-side settings presets.",
+  "还没有配置方案。在 CODEX_HOME 下创建 <名称>.config.toml 即可,用 codex --profile <名称> 启用。":
+    "No config profiles yet. Create <name>.config.toml under CODEX_HOME and activate with codex --profile <name>.",
+  "文件不存在。": "The file does not exist.",
+  "子代理 · {name}": "subagent · {name}",
   "提示词历史": "Prompt history",
   "搜索你输入过的提示词": "Search your past prompts",
   "你在 Claude Code 中输入过的每一条提示词,跨项目与会话。":

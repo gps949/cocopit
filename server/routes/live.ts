@@ -45,38 +45,47 @@ export function registerLiveRoutes(router: Router, db: Database, claudeDir: stri
   // freshest snapshot falls out of indexing — no credentials, no API call.
   router.register("GET", "/api/codex/quota", (req) => {
     const profileId = new URL(req.url).searchParams.get("profileId") ?? "default";
-    const row = (db
-      .prepare("SELECT value FROM meta WHERE key = $k")
-      .get({ $k: `codex_rate_limits:${profileId}` }) ??
-      // pre-per-profile snapshots lived under one global key
-      (profileId === "default"
-        ? db.prepare("SELECT value FROM meta WHERE key = 'codex_rate_limits'").get()
-        : null)) as { value: string } | null;
+    // pre-per-profile snapshots lived under one global key; whichever carries
+    // the newer timestamp wins (re-indexing old files can write an older
+    // snapshot under the new key)
+    const keys = [`codex_rate_limits:${profileId}`, ...(profileId === "default" ? ["codex_rate_limits"] : [])];
+    const candidates = keys
+      .map((k) => db.prepare("SELECT value FROM meta WHERE key = $k").get({ $k: k }) as { value: string } | null)
+      .filter((r): r is { value: string } => r !== null);
+    const row = candidates.sort(
+      (a, b) => (JSON.parse(b.value) as { ts: number }).ts - (JSON.parse(a.value) as { ts: number }).ts,
+    )[0];
     if (!row) return Response.json({ status: "no_data" });
+    interface RawWindow {
+      used_percent?: number;
+      window_minutes?: number;
+      resets_at?: number;
+    }
     const parsed = JSON.parse(row.value) as {
       ts: number;
-      limits: {
-        primary?: { used_percent?: number; window_minutes?: number; resets_at?: number };
-        secondary?: { used_percent?: number; window_minutes?: number; resets_at?: number };
-      };
+      limits: { primary?: RawWindow | null; secondary?: RawWindow | null };
     };
-    const window = (w?: { used_percent?: number; resets_at?: number }) =>
-      w && typeof w.used_percent === "number"
-        ? {
-            utilization: w.used_percent,
-            resetsAt: typeof w.resets_at === "number" ? new Date(w.resets_at * 1000).toISOString() : null,
-          }
-        : null;
+    const shape = (w: RawWindow) => ({
+      utilization: w.used_percent as number,
+      resetsAt: typeof w.resets_at === "number" ? new Date(w.resets_at * 1000).toISOString() : null,
+    });
+    // Classify by window length, not by position: OpenAI has (for now) dropped
+    // the 5-hour window entirely, so "primary" currently IS the weekly window
+    // (window_minutes 10080) — labeling by slot would call it 5-hour.
+    let fiveHour: ReturnType<typeof shape> | null = null;
+    let sevenDay: ReturnType<typeof shape> | null = null;
+    for (const w of [parsed.limits.primary, parsed.limits.secondary]) {
+      if (!w || typeof w.used_percent !== "number") continue;
+      if ((w.window_minutes ?? 0) >= 1440) {
+        sevenDay ??= shape(w);
+      } else {
+        fiveHour ??= shape(w);
+      }
+    }
     return Response.json({
       status: "ok",
       asOf: parsed.ts,
-      quota: {
-        fiveHour: window(parsed.limits.primary),
-        sevenDay: window(parsed.limits.secondary),
-        sevenDayOpus: null,
-        sevenDaySonnet: null,
-        extraUsage: null,
-      },
+      quota: { fiveHour, sevenDay, sevenDayOpus: null, sevenDaySonnet: null, extraUsage: null },
     });
   });
 }

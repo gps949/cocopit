@@ -43,31 +43,39 @@ async function fileTask(base: Omit<FileTask, "size" | "mtimeMs">): Promise<FileT
  */
 export async function listCodexFiles(codexDir: string, profileId = "default"): Promise<FileTask[]> {
   const tasks: FileTask[] = [];
-  const root = join(codexDir, "sessions");
-
-  for (const year of await safeReaddir(root)) {
-    if (!year.isDirectory()) continue;
-    for (const month of await safeReaddir(join(root, year.name))) {
-      if (!month.isDirectory()) continue;
-      for (const day of await safeReaddir(join(root, year.name, month.name))) {
-        if (!day.isDirectory()) continue;
-        const dayDir = join(root, year.name, month.name, day.name);
-        for (const entry of await safeReaddir(dayDir)) {
-          const match = entry.isFile() ? ROLLOUT_FILE.exec(entry.name) : null;
-          if (!match) continue;
-          const task = await fileTask({
-            kind: "session",
-            product: "codex",
-            profileId,
-            path: join(dayDir, entry.name),
-            projectDirName: "codex:pending",
-            sessionId: match[1]!,
-          });
-          if (task) tasks.push(task);
-        }
-      }
-    }
+  // archived sessions keep the same rollout format — history is history
+  for (const rootName of ["sessions", "archived_sessions"]) {
+    tasks.push(...(await listCodexRollouts(join(codexDir, rootName), profileId)));
   }
+  return tasks;
+}
+
+/**
+ * sessions/ nests rollouts under YYYY/MM/DD; archived_sessions/ keeps them
+ * flat. Walking both shapes from the same root covers either.
+ */
+async function listCodexRollouts(root: string, profileId: string): Promise<FileTask[]> {
+  const tasks: FileTask[] = [];
+  const collect = async (dir: string, depth: number): Promise<void> => {
+    for (const entry of await safeReaddir(dir)) {
+      if (entry.isDirectory() && depth < 3) {
+        await collect(join(dir, entry.name), depth + 1);
+        continue;
+      }
+      const match = entry.isFile() ? ROLLOUT_FILE.exec(entry.name) : null;
+      if (!match) continue;
+      const task = await fileTask({
+        kind: "session",
+        product: "codex",
+        profileId,
+        path: join(dir, entry.name),
+        projectDirName: "codex:pending",
+        sessionId: match[1]!,
+      });
+      if (task) tasks.push(task);
+    }
+  };
+  await collect(root, 0);
   return tasks;
 }
 

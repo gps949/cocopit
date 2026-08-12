@@ -30,6 +30,9 @@ interface SessionAgg {
   cwd: string | null;
   /** Codex: model learned from any turn_context, wherever it appears. */
   codexModel: string | null;
+  /** Codex multi-agent: parent thread + agent nickname from session_meta. */
+  parentSessionId: string | null;
+  agentLabel: string | null;
 }
 
 function emptyAgg(): SessionAgg {
@@ -52,6 +55,8 @@ function emptyAgg(): SessionAgg {
     version: null,
     cwd: null,
     codexModel: null,
+    parentSessionId: null,
+    agentLabel: null,
   };
 }
 
@@ -147,6 +152,9 @@ export class Ingestor {
         // Codex records cwd only on line 1 (session_meta), so an append batch
         // never sees it again — losing it here would null the session's cwd
         agg.cwd = (row.cwd as string | null) ?? null;
+        // like cwd, these only ever appear on line 1 (session_meta)
+        agg.parentSessionId = (row.parent_session_id as string | null) ?? null;
+        agg.agentLabel = (row.agent_label as string | null) ?? null;
         if (task.product === "codex") {
           agg.codexModel = [...agg.models].find((m) => m !== "codex-unknown") ?? null;
         }
@@ -250,6 +258,8 @@ export class Ingestor {
           if (!agg.gitBranch && line.gitBranch) agg.gitBranch = line.gitBranch;
           if (!agg.version && line.version) agg.version = line.version;
           if (!agg.cwd && line.cwd) agg.cwd = line.cwd;
+          if (!agg.parentSessionId && line.parentSessionId) agg.parentSessionId = line.parentSessionId;
+          if (!agg.agentLabel && line.agentLabel) agg.agentLabel = line.agentLabel;
         }
 
         // first turn_context wins: the only events that need backfilling are
@@ -370,11 +380,12 @@ export class Ingestor {
             `INSERT INTO sessions (id, project_id, file_path, file_size, file_mtime_ms, parsed_bytes,
                first_ts, last_ts, title, slug, git_branch, cc_version,
                line_count, user_msg_count, assistant_msg_count, models,
-               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd, cwd)
+               input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd, cwd,
+               parent_session_id, agent_label)
              VALUES ($id, $pid, $path, $size, $mtime, $parsed, $first, $last, $title, $slug, $branch, $ver,
                $lines, $users, $assts, $models, $in, $out, $cw, $cr,
                (SELECT COUNT(*) FROM subagents WHERE session_id = $id),
-               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd)
+               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd, $parent, $agentLabel)
              ON CONFLICT(id) DO UPDATE SET
                project_id = excluded.project_id, file_path = excluded.file_path,
                file_size = excluded.file_size, file_mtime_ms = excluded.file_mtime_ms,
@@ -388,7 +399,8 @@ export class Ingestor {
                cache_creation_tokens = excluded.cache_creation_tokens,
                cache_read_tokens = excluded.cache_read_tokens,
                subagent_count = excluded.subagent_count,
-               cost_usd = excluded.cost_usd, cwd = excluded.cwd`,
+               cost_usd = excluded.cost_usd, cwd = excluded.cwd,
+               parent_session_id = excluded.parent_session_id, agent_label = excluded.agent_label`,
           )
           .run({
             $id: task.sessionId,
@@ -412,6 +424,8 @@ export class Ingestor {
             $cw: agg.cacheCreation,
             $cr: agg.cacheRead,
             $cwd: agg.cwd,
+            $parent: agg.parentSessionId,
+            $agentLabel: agg.agentLabel,
           });
 
         // depends on the whole file, so it can only be settled once every line

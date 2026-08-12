@@ -65,6 +65,7 @@ const Projects = lazyPage(() => import("./pages/Projects"), (m) => m.Projects);
 const SessionDetail = lazyPage(() => import("./pages/SessionDetail"), (m) => m.SessionDetail);
 const Sessions = lazyPage(() => import("./pages/Sessions"), (m) => m.Sessions);
 const History = lazyPage(() => import("./pages/History"), (m) => m.History);
+const CodexConfig = lazyPage(() => import("./pages/CodexConfig"), (m) => m.CodexConfig);
 const Profiles = lazyPage(() => import("./pages/Profiles"), (m) => m.Profiles);
 const System = lazyPage(() => import("./pages/System"), (m) => m.System);
 
@@ -123,6 +124,8 @@ export function App() {
           <Route path="/codex/sessions" element={<Sessions key="codex" />} />
           <Route path="/codex/sessions/:id" element={<SessionDetail />} />
           <Route path="/codex/history" element={<History key="codex" />} />
+          <Route path="/codex/config" element={<CodexConfig />} />
+          <Route path="/codex/extensions" element={<Extensions key="codex" />} />
           <Route path="/live" element={<Live />} />
           <Route path="/config" element={<Config />} />
           <Route path="/extensions" element={<Extensions />} />

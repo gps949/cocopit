@@ -74,13 +74,52 @@ export function readExtensions(configDir: string, claudeJsonPath: string): Exten
     });
   }
 
-  const skillsDir = join(configDir, "skills");
-  if (existsSync(skillsDir)) {
-    for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      if (existsSync(join(skillsDir, entry.name, "SKILL.md"))) report.skills.push({ name: entry.name });
+  collectSkills(join(configDir, "skills"), report);
+  return report;
+}
+
+function collectSkills(skillsDir: string, report: ExtensionsReport): void {
+  if (!existsSync(skillsDir)) return;
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    if (existsSync(join(skillsDir, entry.name, "SKILL.md"))) report.skills.push({ name: entry.name });
+  }
+}
+
+/**
+ * What is extending Codex, read-only, from a CODEX_HOME. Same three families,
+ * different homes: MCP servers and plugin enablement live in config.toml
+ * (machine-wide, not per project like Claude's), skills are SKILL.md
+ * directories just like Claude's. MCP env tables are deliberately not
+ * surfaced — they carry API keys.
+ */
+export function readCodexExtensions(codexHome: string): ExtensionsReport {
+  const report: ExtensionsReport = { mcpServers: [], plugins: [], skills: [] };
+
+  const configPath = join(codexHome, "config.toml");
+  if (existsSync(configPath)) {
+    let config: Record<string, unknown> = {};
+    try {
+      config = Bun.TOML.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
+    } catch {
+      // a broken file is one missing section, not a broken page
+    }
+    const servers = (config.mcp_servers ?? {}) as Record<
+      string,
+      { type?: string; url?: string; command?: string; args?: string[] }
+    >;
+    for (const [name, server] of Object.entries(servers)) {
+      if (!server || typeof server !== "object") continue;
+      const transport = server.type ?? (server.command ? "stdio" : "unknown");
+      const detail = server.url ?? [server.command, ...(server.args ?? [])].filter(Boolean).join(" ");
+      report.mcpServers.push({ name, scope: "config.toml", transport, detail });
+    }
+    const plugins = (config.plugins ?? {}) as Record<string, { enabled?: boolean }>;
+    for (const [name, plugin] of Object.entries(plugins)) {
+      report.plugins.push({ name, version: null, enabled: plugin?.enabled === true });
     }
   }
 
+  collectSkills(join(codexHome, "skills"), report);
   return report;
 }

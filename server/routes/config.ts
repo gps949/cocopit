@@ -1,9 +1,10 @@
 import type { Database } from "bun:sqlite";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { listLiveSessions } from "../cc/liveSessions";
 import type { Router } from "../http/router";
-import { readExtensions } from "../cc/extensions";
+import { readCodexExtensions, readExtensions } from "../cc/extensions";
+import { loadConfig } from "../config";
 import { setPluginEnabled } from "../cc/pluginToggle";
 import {
   applySnapshot,
@@ -101,14 +102,58 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
    * three live under a config directory — a profile with its own directory has
    * its own set.
    */
-  router.register("GET", "/api/extensions", () => {
-    const profiles = loadProfiles().map((profile) => {
-      const dir = resolveConfigDir(profile);
-      // the default profile's config file sits beside its data directory
-      const jsonPath = profile.configDir ? join(profile.configDir, ".claude.json") : `${dir}.json`;
-      return { profileId: profile.id, name: profile.name, configDir: dir, ...readExtensions(dir, jsonPath) };
-    });
+  router.register("GET", "/api/extensions", (req) => {
+    const product = new URL(req.url).searchParams.get("product") ?? "claude";
+    if (product === "codex") {
+      const codexDir = loadConfig().codexDir;
+      const entries = [
+        { profileId: "default", name: "默认账号", dir: codexDir },
+        ...loadProfiles()
+          .filter((p) => p.product === "codex" && p.configDir)
+          .map((p) => ({ profileId: p.id, name: p.name, dir: p.configDir! })),
+      ];
+      const profiles = entries.map((entry) => ({
+        profileId: entry.profileId,
+        name: entry.name,
+        configDir: entry.dir,
+        ...readCodexExtensions(entry.dir),
+      }));
+      return Response.json({ profiles });
+    }
+    const profiles = loadProfiles()
+      .filter((p) => p.product !== "codex")
+      .map((profile) => {
+        const dir = resolveConfigDir(profile);
+        // the default profile's config file sits beside its data directory
+        const jsonPath = profile.configDir ? join(profile.configDir, ".claude.json") : `${dir}.json`;
+        return { profileId: profile.id, name: profile.name, configDir: dir, ...readExtensions(dir, jsonPath) };
+      });
     return Response.json({ profiles });
+  });
+
+  /**
+   * Codex configuration, read-only: config.toml with secret-looking values
+   * masked, plus the named config profiles (<name>.config.toml) that
+   * `codex --profile` overlays — Codex's own preset mechanism.
+   */
+  router.register("GET", "/api/codex/config", () => {
+    const codexDir = loadConfig().codexDir;
+    const configPath = join(codexDir, "config.toml");
+    let content: string | null = null;
+    if (existsSync(configPath)) {
+      // mask values whose keys look like credentials — the raw file carries
+      // MCP server API keys in env tables
+      content = readFileSync(configPath, "utf8").replace(
+        /^(\s*[\w-]*(?:key|token|secret|password)[\w-]*\s*=\s*)"[^"]*"/gim,
+        '$1"****"',
+      );
+    }
+    const profiles: string[] = [];
+    for (const entry of existsSync(codexDir) ? readdirSync(codexDir) : []) {
+      const match = /^(.+)\.config\.toml$/.exec(entry);
+      if (match) profiles.push(match[1]!);
+    }
+    return Response.json({ path: configPath, content, profiles });
   });
 
   /**

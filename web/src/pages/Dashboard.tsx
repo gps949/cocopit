@@ -14,6 +14,7 @@ import {
 } from "../api/usage";
 import { chartTokens, EChart, type EChartsOption } from "../components/EChart";
 import { fmtTokens, fmtUsd } from "../lib/format";
+import { InfoHint } from "../components/InfoHint";
 import { QuotaStrip } from "../components/Quota";
 import { useProduct } from "../product";
 import { useI18n } from "../i18n";
@@ -37,10 +38,13 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-line bg-panel p-5">
-      <h2 className="text-[15px] font-medium">{title}</h2>
+      <h2 className="inline-flex items-center gap-1.5 text-[15px] font-medium">
+        {title}
+        {hint && <InfoHint text={hint} />}
+      </h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -315,8 +319,17 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* calibration cross-checks our cost math against Claude Code's own
+          costUSD records; Codex keeps no such ledger, so there is nothing to
+          calibrate against — no card, not a forever-loading one */}
+      {product === "claude" && (
       <div className="mt-4">
-        <Card title={t("价目校准(对照 Claude Code 官方 costUSD)")}>
+        <Card
+          title={t("价目校准(对照 Claude Code 官方 costUSD)")}
+          hint={t(
+            "自检:仪表盘费用是「本地 token 数 × 价目表」算出来的;这里按官方记录的 token 量用同一价目表推出合理区间,再看 Claude Code 自己记的 costUSD 是否落在区间内——落外说明该模型价目可能记错。",
+          )}
+        >
           {!calibration ? (
             <ChartSkeleton />
           ) : (
@@ -358,6 +371,7 @@ export function Dashboard() {
           )}
         </Card>
       </div>
+      )}
       </div>
     </div>
   );

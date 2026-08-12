@@ -31,8 +31,8 @@ const NAV: Array<{ to: string; label: string; icon: IconType; products?: Array<"
   { to: "/sessions", label: "会话", icon: ChatIcon, products: ["claude", "codex"] },
   { to: "/history", label: "历史", icon: HistoryIcon, products: ["claude", "codex"] },
   { to: "/live", label: "实时", icon: PulseIcon },
-  { to: "/config", label: "配置", icon: SlidersIcon },
-  { to: "/extensions", label: "扩展", icon: PuzzleIcon },
+  { to: "/config", label: "配置", icon: SlidersIcon, products: ["claude", "codex"] },
+  { to: "/extensions", label: "扩展", icon: PuzzleIcon, products: ["claude", "codex"] },
   { to: "/system", label: "系统", icon: ServerIcon },
 ];
 

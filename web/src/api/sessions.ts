@@ -20,6 +20,8 @@ export interface SessionSummary {
   tokens: { input: number; output: number; cacheCreation: number; cacheRead: number };
   costUsd: number | null;
   subagentCount: number;
+  parentSessionId: string | null;
+  agentLabel: string | null;
 }
 
 export interface SessionListResponse {

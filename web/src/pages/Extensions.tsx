@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
 import { useI18n } from "../i18n";
+import { useProduct } from "../product";
 
 interface McpServer {
   name: string;
@@ -57,17 +58,22 @@ function Section({
  */
 export function Extensions() {
   const { t } = useI18n();
+  const product = useProduct();
   const [profiles, setProfiles] = useState<ProfileExtensions[] | null>(null);
   const [showAllPlugins, setShowAllPlugins] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () =>
-    getJson<{ profiles: ProfileExtensions[] }>("/api/extensions").then((r) => setProfiles(r.profiles));
+    getJson<{ profiles: ProfileExtensions[] }>(
+      `/api/extensions${product === "codex" ? "?product=codex" : ""}`,
+    ).then((r) => setProfiles(r.profiles));
 
   useEffect(() => {
+    setProfiles(null);
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product]);
 
   async function toggle(profileId: string, plugin: string, enabled: boolean) {
     setBusy(plugin);
@@ -91,7 +97,9 @@ export function Extensions() {
     <div className="max-w-4xl">
       <h1 className="text-[26px] font-semibold tracking-tight">{t("扩展")}</h1>
       <p className="mt-2 text-sm text-muted">
-        {t("MCP、插件与技能都存放在配置目录下,因此每个账号各有一套。插件可在此启用/停用;MCP 与技能只读。")}
+        {product === "codex"
+          ? t("MCP 与插件配置在 config.toml,技能是 CODEX_HOME 下的目录;此处均为只读,增删请在 Codex CLI 中进行。")
+          : t("MCP、插件与技能都存放在配置目录下,因此每个账号各有一套。插件可在此启用/停用;MCP 与技能只读。")}
       </p>
 
       {profiles.map((profile) => {
@@ -106,7 +114,11 @@ export function Extensions() {
             <Section
               title={t("MCP 服务器")}
               count={profile.mcpServers.length}
-              hint={t("按项目配置,存放在 ~/.claude.json——该文件 cocopit 只读,故此处不可改。")}
+              hint={
+                product === "codex"
+                  ? t("配置在 config.toml 的 mcp_servers 表;env 中的密钥不在此显示。")
+                  : t("按项目配置,存放在 ~/.claude.json——该文件 cocopit 只读,故此处不可改。")
+              }
             >
               {profile.mcpServers.length === 0 ? (
                 <p className="text-sm text-muted">{t("没有配置 MCP 服务器。")}</p>
@@ -143,7 +155,11 @@ export function Extensions() {
             <Section
               title={t("插件")}
               count={profile.plugins.length}
-              hint={t("安装在配置目录下,启用状态记在 settings.json——点击卡片即可启用/停用,写入前自动备份。")}
+              hint={
+                product === "codex"
+                  ? t("启用状态记在 config.toml 的 plugins 表,此处只读。")
+                  : t("安装在配置目录下,启用状态记在 settings.json——点击卡片即可启用/停用,写入前自动备份。")
+              }
             >
               {error && <p className="mb-2 text-sm text-danger">{error}</p>}
               <div className="flex flex-wrap items-center gap-2">
@@ -165,8 +181,10 @@ export function Extensions() {
                   <button
                     key={plugin.name}
                     type="button"
-                    disabled={busy === plugin.name}
-                    onClick={() => void toggle(profile.profileId, plugin.name, !plugin.enabled)}
+                    disabled={busy === plugin.name || product === "codex"}
+                    onClick={() =>
+                      product === "codex" ? undefined : void toggle(profile.profileId, plugin.name, !plugin.enabled)
+                    }
                     title={`${plugin.name}${plugin.version ? ` v${plugin.version}` : ""} — ${
                       plugin.enabled ? t("点击停用") : t("点击启用")
                     }`}

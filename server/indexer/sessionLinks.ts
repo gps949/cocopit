@@ -29,6 +29,22 @@ interface Overlap {
 export function rebuildSessionLinks(db: Database): void {
   db.run("DELETE FROM session_links");
 
+  // Codex multi-agent runs declare their parent outright (session_meta's
+  // parent_thread_id) — no inference needed, just both directions. The child
+  // row carries the agent's nickname for display.
+  db.run(`
+    INSERT INTO session_links (session_id, related_session_id, shared_records, role)
+    SELECT c.id, c.parent_session_id, 0, 'parent'
+    FROM sessions c JOIN sessions p ON p.id = c.parent_session_id
+    WHERE c.parent_session_id IS NOT NULL
+  `);
+  db.run(`
+    INSERT INTO session_links (session_id, related_session_id, shared_records, role)
+    SELECT c.parent_session_id, c.id, 0, 'child'
+    FROM sessions c JOIN sessions p ON p.id = c.parent_session_id
+    WHERE c.parent_session_id IS NOT NULL
+  `);
+
   const overlaps = db
     .prepare(
       `SELECT a.session_id AS a, b.session_id AS b, COUNT(*) AS shared

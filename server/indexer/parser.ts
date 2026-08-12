@@ -40,6 +40,10 @@ export interface ParsedLine {
   toolNames?: string[];
   /** Codex: rate-limit snapshot riding on a token_count event. */
   codexRateLimits?: CodexRateLimits;
+  /** Codex multi-agent: the thread this rollout was spawned from. */
+  parentSessionId?: string;
+  /** Codex multi-agent: the agent's nickname (e.g. "Epicurus"). */
+  agentLabel?: string;
 }
 
 const SNIPPET_MAX = 300;
@@ -180,6 +184,9 @@ export function parseCodexLine(raw: RawLine, seq: number, ctx: CodexContext): Pa
       out.type = "session_meta";
       out.cwd = str(payload.cwd);
       out.version = str(payload.cli_version);
+      // multi-agent rollouts: a subagent's file names its parent thread
+      out.parentSessionId = str(payload.parent_thread_id);
+      out.agentLabel = str(payload.agent_nickname);
       break;
     }
     case "turn_context": {

@@ -34,6 +34,8 @@ interface SessionRow {
   dir_name: string;
   profile_id: string;
   product: string;
+  parent_session_id: string | null;
+  agent_label: string | null;
 }
 
 function toSummary(row: SessionRow) {
@@ -62,6 +64,8 @@ function toSummary(row: SessionRow) {
     },
     costUsd: row.cost_usd,
     subagentCount: row.subagent_count,
+    parentSessionId: row.parent_session_id,
+    agentLabel: row.agent_label,
   };
 }
 
@@ -96,6 +100,13 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     // pre-codex client and bookmark meaning what it always meant
     clauses.push("p.product = $product");
     params.$product = url.searchParams.get("product") ?? "claude";
+
+    // Codex multi-agent children are sessions in their own right, but listing
+    // 87 of them alongside the runs that spawned them buries the real work —
+    // reachable through their parent's related links instead
+    if (url.searchParams.get("includeAgents") !== "1") {
+      clauses.push("s.parent_session_id IS NULL");
+    }
 
     const q = url.searchParams.get("q");
     if (q !== null) {
@@ -161,7 +172,8 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     const related = db
       .prepare(
         `SELECT l.related_session_id AS id, l.shared_records AS sharedRecords, l.role,
-                s.title, s.line_count AS lineCount, s.last_ts AS lastTs
+                s.title, s.line_count AS lineCount, s.last_ts AS lastTs,
+                s.agent_label AS agentLabel, s.cost_usd AS costUsd
          FROM session_links l JOIN sessions s ON s.id = l.related_session_id
          WHERE l.session_id = $id ORDER BY l.shared_records DESC`,
       )
