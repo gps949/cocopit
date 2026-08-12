@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useIndexStatus } from "../hooks/useIndexStatus";
+import { ScrollNav } from "./ScrollNav";
 import { applyTheme, loadTheme, nextTheme, themeLabel, watchSystemTheme, type Theme } from "../theme";
 import { useI18n } from "../i18n";
 import {
@@ -144,6 +145,7 @@ export function Layout() {
         <div className="rise-in mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
           <Outlet />
         </div>
+        <ScrollNav />
       </main>
     </div>
   );

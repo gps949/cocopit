@@ -105,6 +105,10 @@ export const GlobeIcon = icon(
 
 export const MenuIcon = icon(<path d="M4 7h16M4 12h16M4 17h16" />);
 
+export const ChevronUpIcon = icon(<path d="M6 14.5l6-6 6 6" />);
+
+export const ChevronDownIcon = icon(<path d="M6 9.5l6 6 6-6" />);
+
 export const HelpIcon = icon(
   <>
     <circle cx="12" cy="12" r="9" />
