@@ -27,6 +27,23 @@ interface ProfileView {
   };
 }
 
+interface QuotaWindow {
+  utilization: number;
+  resetsAt: string | null;
+}
+
+interface QuotaResult {
+  status: "ok" | "unsupported" | "no_credentials" | "token_expired" | "rate_limited" | "error";
+  quota?: {
+    fiveHour: QuotaWindow | null;
+    sevenDay: QuotaWindow | null;
+    sevenDayOpus: QuotaWindow | null;
+    sevenDaySonnet: QuotaWindow | null;
+    extraUsage: { enabled: boolean; utilization: number | null } | null;
+  };
+  stale?: boolean;
+}
+
 async function fetchProfiles(): Promise<ProfileView[]> {
   const res = await fetch("/api/profiles");
   return ((await res.json()) as { profiles: ProfileView[] }).profiles;
@@ -74,6 +91,108 @@ function fmtDate(iso: string, lang: Lang): string {
   const ts = Date.parse(iso);
   if (Number.isNaN(ts)) return iso;
   return new Date(ts).toLocaleDateString(localeOf(lang), { year: "numeric", month: "short", day: "numeric" });
+}
+
+function fmtReset(iso: string, lang: Lang): string {
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return iso;
+  return new Date(ts).toLocaleString(localeOf(lang), {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function QuotaBar({ label, window: w }: { label: string; window: QuotaWindow }) {
+  const { t, lang } = useI18n();
+  const pct = Math.max(0, Math.min(100, w.utilization));
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-muted">{label}</span>
+        <span className={pct >= 100 ? "font-medium text-danger" : undefined}>
+          {pct.toFixed(0)}%
+          {w.resetsAt && (
+            <span className="ml-1.5 font-normal text-muted">
+              {t("重置于 {time}", { time: fmtReset(w.resetsAt, lang) })}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: pct >= 90 ? "var(--danger)" : "var(--accent)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Subscription quota — the same numbers as Claude Code's /usage. The server
+ * reads the OAuth token for one upstream call and returns percentages only.
+ */
+function QuotaSection({ profileId }: { profileId: string }) {
+  const { t } = useI18n();
+  const [result, setResult] = useState<QuotaResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch(`/api/profiles/${profileId}/quota`)
+        .then((res) => res.json())
+        .then((data: QuotaResult) => {
+          if (!cancelled) setResult(data);
+        })
+        .catch(() => {
+          if (!cancelled) setResult({ status: "error" });
+        });
+    void load();
+    // the server caches for 2 min; polling faster only re-reads that cache
+    const timer = setInterval(load, 180_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [profileId]);
+
+  if (!result || result.status === "unsupported") return null;
+
+  const note: Partial<Record<QuotaResult["status"], string>> = {
+    no_credentials: t("未读到凭据——该账号可能未在本机登录。"),
+    token_expired: t("登录令牌已过期,在终端里运行一次 claude 即可刷新。"),
+    rate_limited: t("官方接口暂时限流,稍后会自动重试。"),
+    error: t("额度查询失败,稍后会自动重试。"),
+  };
+
+  return (
+    <div className="mt-4 border-t border-line pt-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">{t("订阅额度")}</span>
+        {result.stale && <span className="text-xs text-muted">{t("缓存值")}</span>}
+      </div>
+      {result.status === "ok" && result.quota ? (
+        <div className="space-y-2.5">
+          {result.quota.fiveHour && <QuotaBar label={t("5 小时窗口")} window={result.quota.fiveHour} />}
+          {result.quota.sevenDay && <QuotaBar label={t("每周(全部模型)")} window={result.quota.sevenDay} />}
+          {result.quota.sevenDayOpus && <QuotaBar label={t("每周 Opus")} window={result.quota.sevenDayOpus} />}
+          {result.quota.sevenDaySonnet && (
+            <QuotaBar label={t("每周 Sonnet")} window={result.quota.sevenDaySonnet} />
+          )}
+          {result.quota.extraUsage?.enabled && result.quota.extraUsage.utilization != null && (
+            <QuotaBar
+              label={t("额外用量")}
+              window={{ utilization: result.quota.extraUsage.utilization, resetsAt: null }}
+            />
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted">{note[result.status]}</p>
+      )}
+    </div>
+  );
 }
 
 export function Profiles() {
@@ -164,9 +283,8 @@ export function Profiles() {
       <p className="mt-2 text-sm text-muted">
         {t("每个账号使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按账号对比。")}
       </p>
-      {/* asked for repeatedly, so say why it is absent instead of leaving a gap */}
       <p className="mt-1.5 text-xs text-muted">
-        {t("5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,cocopit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。")}
+        {t("订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。")}
       </p>
 
       {creating && (
@@ -311,6 +429,8 @@ export function Profiles() {
                 <dd className="truncate font-mono text-xs">{p.configDir ?? t("~/.claude(默认)")}</dd>
               </div>
             </dl>
+
+            {p.kind === "subscription" && p.detection.loggedIn && <QuotaSection profileId={p.id} />}
 
             <div className="mt-4 flex flex-wrap gap-2">
               {p.kind === "subscription" && !p.detection.loggedIn && p.loginCommand && (

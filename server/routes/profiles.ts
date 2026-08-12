@@ -4,6 +4,7 @@ import { resolveCocopitHome } from "../config";
 import type { Router } from "../http/router";
 import type { IndexScheduler, ScanSource } from "../indexer/scheduler";
 import { detectProfile, loginCommand, shellQuote } from "../profiles/detect";
+import { fetchProfileQuota } from "../profiles/quota";
 import {
   createProfile,
   deleteProfile,
@@ -133,6 +134,14 @@ export function registerProfileRoutes(
       });
     }
     return Response.json(detection);
+  });
+
+  // Quota percentages only — the OAuth token this reads stays inside the
+  // process and is never part of the response. See profiles/quota.ts.
+  router.register("GET", "/api/profiles/:id/quota", async (_req, params) => {
+    const profile = loadProfiles().find((p) => p.id === params.id);
+    if (!profile) return Response.json({ error: "not found" }, { status: 404 });
+    return Response.json(await fetchProfileQuota(profile));
   });
 
   router.register("GET", "/api/profiles/:id/login-command", (_req, params) => {

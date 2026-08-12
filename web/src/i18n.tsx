@@ -211,8 +211,20 @@ const EN: Record<string, string> = {
   "未开启": "Disabled",
   "免费版": "Free",
   "复制": "Copy",
-  "5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,cocopit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。":
-    "Per-5h and weekly quota usage and reset times are in no local file — they come from the API, and the credential lives only in the system keychain, which cocopit does not read. Check them with /usage inside Claude Code. The dashboard's cost figures are local records priced at published rates, which is a different thing from subscription quota.",
+  "订阅额度与 Claude Code 里 /usage 显示的是同一数据:服务端用该账号的登录凭据向官方接口做一次查询,凭据不落盘、不进日志、也不会发给浏览器——页面只收到百分比和重置时间。":
+    "Subscription quota is the same data /usage shows inside Claude Code: the server makes one query to the official endpoint with the profile's own login credential, which is never written to disk, logged, or sent to the browser — this page only receives percentages and reset times.",
+  "订阅额度": "Subscription quota",
+  "5 小时窗口": "5-hour window",
+  "每周(全部模型)": "Weekly (all models)",
+  "每周 Opus": "Weekly Opus",
+  "每周 Sonnet": "Weekly Sonnet",
+  "重置于 {time}": "resets {time}",
+  "缓存值": "cached",
+  "未读到凭据——该账号可能未在本机登录。": "No credentials found — this profile may not be logged in on this machine.",
+  "登录令牌已过期,在终端里运行一次 claude 即可刷新。":
+    "The login token has expired; running claude once in a terminal refreshes it.",
+  "官方接口暂时限流,稍后会自动重试。": "The official endpoint is rate-limiting; it will retry automatically.",
+  "额度查询失败,稍后会自动重试。": "Quota lookup failed; it will retry automatically.",
   "我方 输入/输出": "Ours in/out",
   "LiteLLM 输入/输出": "LiteLLM in/out",
   "显示已回退({n})": "Show rewound ({n})",
