@@ -31,6 +31,10 @@
     <td><img src="docs/screenshots/session-detail.png" alt="Session detail — outline, markdown rendering, in-session search" /></td>
     <td><img src="docs/screenshots/accounts.png" alt="Accounts — plan, quota, isolated logins" /></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/terminal.png" alt="Web terminal — sessions run in tmux, survive the browser" /></td>
+    <td><img src="docs/screenshots/sessions.png" alt="Sessions — full-text search across every transcript" /></td>
+  </tr>
 </table>
 
 <sub>All screenshots show generated demo data (`bun scripts/demo.ts` — writes to /tmp, never touches real data).</sub>
