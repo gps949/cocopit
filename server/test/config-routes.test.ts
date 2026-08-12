@@ -17,11 +17,11 @@ let server: ReturnType<typeof createServer>;
 let base: string;
 
 beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-cfg-"));
-  home = mkdtempSync(join(tmpdir(), "ccockpit-cfg-home-"));
-  projectDir = mkdtempSync(join(tmpdir(), "ccockpit-cfg-proj-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  dir = mkdtempSync(join(tmpdir(), "cocopit-cfg-"));
+  home = mkdtempSync(join(tmpdir(), "cocopit-cfg-home-"));
+  projectDir = mkdtempSync(join(tmpdir(), "cocopit-cfg-proj-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 
   writeFileSync(
     join(dir, "settings.json"),
@@ -66,8 +66,8 @@ beforeAll(async () => {
 afterAll(() => {
   server.stop(true);
   for (const d of [dir, home, projectDir]) rmSync(d, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 async function getJson(path: string): Promise<any> {

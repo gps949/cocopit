@@ -121,7 +121,7 @@ const AAA_COMPLETE = l(userA) + l(asstA) + l(titleA) + BROKEN_LINE;
 const AAA_CONTENT = AAA_COMPLETE + TRUNC_HEAD;
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-pipeline-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-pipeline-"));
   const p1 = join(dir, "projects", "-p1");
   const p2 = join(dir, "projects", "-p2");
   mkdirSync(p1, { recursive: true });
@@ -143,7 +143,7 @@ beforeAll(() => {
   writeFileSync(join(p2, "s-ccc.jsonl"), l(commandNoiseC) + l(userC));
 
   // a second profile's config dir with its own project/session
-  workDir = mkdtempSync(join(tmpdir(), "ccockpit-pipeline-work-"));
+  workDir = mkdtempSync(join(tmpdir(), "cocopit-pipeline-work-"));
   const wp = join(workDir, "projects", "-wp1");
   mkdirSync(wp, { recursive: true });
   writeFileSync(

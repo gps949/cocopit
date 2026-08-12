@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, renameSync, writeFileSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { loadConfig, resolveCcockpitHome } from "../config";
+import { loadConfig, resolveCocopitHome } from "../config";
 
 export interface CcProfileApi {
   baseUrl?: string;
@@ -31,12 +31,12 @@ const DEFAULT_PROFILE: CcProfile = {
 };
 
 export function profilesPath(): string {
-  return join(resolveCcockpitHome(), "profiles.json");
+  return join(resolveCocopitHome(), "profiles.json");
 }
 
 /** Base directory holding per-profile CLAUDE_CONFIG_DIRs. */
 export function profilesBaseDir(): string {
-  return process.env.CCOCKPIT_PROFILES_BASE || join(homedir(), ".claude-profiles");
+  return process.env.COCOPIT_PROFILES_BASE || join(homedir(), ".claude-profiles");
 }
 
 export function loadProfiles(): CcProfile[] {

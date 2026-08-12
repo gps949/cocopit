@@ -7,6 +7,7 @@ import {
   captureSnapshot,
   deleteSnapshot,
   listSnapshots,
+  materializeSnapshot,
   snapshotDiff,
 } from "../cc/snapshots";
 
@@ -15,17 +16,17 @@ let claudeDir: string;
 let prevHome: string | undefined;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "ccockpit-snap-home-"));
-  claudeDir = mkdtempSync(join(tmpdir(), "ccockpit-snap-claude-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  home = mkdtempSync(join(tmpdir(), "cocopit-snap-home-"));
+  claudeDir = mkdtempSync(join(tmpdir(), "cocopit-snap-claude-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 });
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
   rmSync(claudeDir, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 const settingsPath = () => join(claudeDir, "settings.json");
@@ -133,5 +134,29 @@ describe("deleteSnapshot", () => {
     writeFileSync(victim, "keep me");
     expect(() => deleteSnapshot("../important")).toThrow(/名称/);
     expect(existsSync(victim)).toBe(true);
+  });
+});
+
+describe("materializeSnapshot", () => {
+  test("writes a plain settings file the CLI can be pointed at", () => {
+    // `claude --settings <file>` wants settings, not our wrapper with its name
+    // and timestamps, so the payload is written out on its own
+    writeSettings({ model: "opus", effortLevel: "high" });
+    captureSnapshot("严格", settingsPath());
+
+    const path = materializeSnapshot("严格");
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ model: "opus", effortLevel: "high" });
+  });
+
+  test("re-materializing reflects the latest capture", () => {
+    writeSettings({ model: "opus" });
+    captureSnapshot("日常", settingsPath());
+    writeSettings({ model: "haiku" });
+    captureSnapshot("日常", settingsPath());
+    expect(JSON.parse(readFileSync(materializeSnapshot("日常"), "utf8"))).toEqual({ model: "haiku" });
+  });
+
+  test("an unknown snapshot has nothing to materialize", () => {
+    expect(() => materializeSnapshot("不存在")).toThrow(/找不到/);
   });
 });

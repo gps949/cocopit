@@ -7,7 +7,7 @@ import { listClaudeFiles } from "../cc/paths";
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-paths-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-paths-"));
 });
 
 afterEach(() => {

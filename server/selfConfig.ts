@@ -1,12 +1,12 @@
 import { writeFileSync } from "node:fs";
-import type { CcockpitConfig } from "../shared/types";
+import type { CocopitConfig } from "../shared/types";
 import { resolveBindHost } from "./bindHost";
 import { configPath, loadConfig } from "./config";
 
-/** The subset of ccockpit's own config the UI may change. */
-export type SelfConfigPatch = Partial<Pick<CcockpitConfig, "port" | "host" | "allowedOrigins">>;
+/** The subset of cocopit's own config the UI may change. */
+export type SelfConfigPatch = Partial<Pick<CocopitConfig, "port" | "host" | "allowedOrigins">>;
 
-const EDITABLE = new Set<keyof CcockpitConfig>(["port", "host", "allowedOrigins"]);
+const EDITABLE = new Set<keyof CocopitConfig>(["port", "host", "allowedOrigins"]);
 
 function validateOrigins(value: unknown): string[] {
   if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
@@ -28,20 +28,20 @@ function validateOrigins(value: unknown): string[] {
 }
 
 /**
- * Updates ~/.ccockpit/config.json. Unlike Claude Code's own files this one is
+ * Updates ~/.cocopit/config.json. Unlike Claude Code's own files this one is
  * ours, so it needs no backup or CAS — but it does carry the bind-address
  * interlock, which must hold here too: refusing a public bind only at startup
  * would let the UI write a config that then fails to boot.
  */
-export function updateSelfConfig(patch: SelfConfigPatch, tokenConfigured: boolean): CcockpitConfig {
+export function updateSelfConfig(patch: SelfConfigPatch, tokenConfigured: boolean): CocopitConfig {
   for (const key of Object.keys(patch)) {
-    if (!EDITABLE.has(key as keyof CcockpitConfig)) {
+    if (!EDITABLE.has(key as keyof CocopitConfig)) {
       throw new Error(`${key} 不可修改（仅支持 port、host、allowedOrigins）`);
     }
   }
 
   const current = loadConfig();
-  const next: CcockpitConfig = { ...current };
+  const next: CocopitConfig = { ...current };
 
   if (patch.port !== undefined) {
     if (!Number.isInteger(patch.port) || patch.port < 1 || patch.port > 65535) {

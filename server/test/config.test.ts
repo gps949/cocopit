@@ -8,16 +8,16 @@ let home: string;
 let prevHome: string | undefined;
 
 beforeEach(() => {
-  prevHome = process.env.CCOCKPIT_HOME;
-  home = mkdtempSync(join(tmpdir(), "ccockpit-config-"));
-  process.env.CCOCKPIT_HOME = home;
+  prevHome = process.env.COCOPIT_HOME;
+  home = mkdtempSync(join(tmpdir(), "cocopit-config-"));
+  process.env.COCOPIT_HOME = home;
 });
 
 afterEach(() => {
   if (prevHome === undefined) {
-    delete process.env.CCOCKPIT_HOME;
+    delete process.env.COCOPIT_HOME;
   } else {
-    process.env.CCOCKPIT_HOME = prevHome;
+    process.env.COCOPIT_HOME = prevHome;
   }
   rmSync(home, { recursive: true, force: true });
 });

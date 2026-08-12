@@ -28,7 +28,7 @@ const CORE_TABLES = [
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-db-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-db-"));
 });
 
 afterEach(() => {

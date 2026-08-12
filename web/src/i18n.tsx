@@ -9,7 +9,7 @@ export type Lang = "zh" | "en";
  */
 const EN: Record<string, string> = {
   // shell / nav
-  "ccockpit": "ccockpit",
+  "cocopit": "cocopit",
   "Claude Code 控制台": "Claude Code Console",
   "仪表盘": "Dashboard",
   "账户": "Accounts",
@@ -94,8 +94,8 @@ const EN: Record<string, string> = {
   "已写入 current-profile.sh": "Wrote current-profile.sh",
   "订阅": "Subscription",
   "API": "API",
-  "「设为 shell 默认」写入 ~/.ccockpit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。":
-    "“Set as shell default” writes ~/.ccockpit/current-profile.sh for you to source from .zshrc; it only affects new terminals. Resuming a session always uses its own profile's config dir regardless.",
+  "「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。":
+    "“Set as shell default” writes ~/.cocopit/current-profile.sh for you to source from .zshrc; it only affects new terminals. Resuming a session always uses its own profile's config dir regardless.",
   "删除 profile「{id}」?其登录数据目录会保留,仅移除注册条目。":
     "Delete profile “{id}”? Its login data directory is kept; only the registry entry is removed.",
 
@@ -148,13 +148,13 @@ const EN: Record<string, string> = {
   "收起终端(会话继续运行)": "Hide terminal (session keeps running)",
 
   // live
-  "本机正在运行的 Claude Code 进程,以及 ccockpit 管理的 tmux 终端(每 3 秒刷新)。":
-    "Claude Code processes running on this machine, plus ccockpit's tmux terminals (refreshed every 3s).",
+  "本机正在运行的 Claude Code 进程,以及 cocopit 管理的 tmux 终端(每 3 秒刷新)。":
+    "Claude Code processes running on this machine, plus cocopit's tmux terminals (refreshed every 3s).",
   "运行中的会话({n})": "Running sessions ({n})",
   "当前没有运行中的会话。": "No sessions are running.",
   "运行中": "running",
   "查看会话": "View session",
-  "ccockpit 终端({n})": "ccockpit terminals ({n})",
+  "cocopit 终端({n})": "cocopit terminals ({n})",
   "未检测到 tmux,Web 终端不可用。": "tmux not found — the web terminal is unavailable.",
   "还没有终端。可在会话详情页「在终端中恢复」,或在项目页新建会话。":
     "No terminals yet. Use “Resume in terminal” on a session, or start one from Projects.",
@@ -172,7 +172,7 @@ const EN: Record<string, string> = {
   "进入": "Enter",
   "令牌不正确": "Incorrect token",
   "连接失败": "Connection failed",
-  "令牌在服务器本机用「系统」页设置;忘记令牌可在服务器上删除 ~/.ccockpit/auth.json。": "Set the token from the System page on the server itself; if it is lost, delete ~/.ccockpit/auth.json there.",
+  "令牌在服务器本机用「系统」页设置;忘记令牌可在服务器上删除 ~/.cocopit/auth.json。": "Set the token from the System page on the server itself; if it is lost, delete ~/.cocopit/auth.json there.",
   "远程访问": "Remote access",
   "未设置访问令牌。本机使用无需登录;监听地址超出回环范围前必须先设置令牌——内置终端等同于本机 shell。": "No access token set. Local use needs no login; a token is required before binding past loopback — the built-in terminal is a shell on this machine.",
   "监听地址": "Bind address",
@@ -210,8 +210,8 @@ const EN: Record<string, string> = {
   "未开启": "Disabled",
   "免费版": "Free",
   "复制": "Copy",
-  "5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,ccockpit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。":
-    "Per-5h and weekly quota usage and reset times are in no local file — they come from the API, and the credential lives only in the system keychain, which ccockpit does not read. Check them with /usage inside Claude Code. The dashboard's cost figures are local records priced at published rates, which is a different thing from subscription quota.",
+  "5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,cocopit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。":
+    "Per-5h and weekly quota usage and reset times are in no local file — they come from the API, and the credential lives only in the system keychain, which cocopit does not read. Check them with /usage inside Claude Code. The dashboard's cost figures are local records priced at published rates, which is a different thing from subscription quota.",
   "我方 输入/输出": "Ours in/out",
   "LiteLLM 输入/输出": "LiteLLM in/out",
   "显示已回退({n})": "Show rewound ({n})",
@@ -230,8 +230,8 @@ const EN: Record<string, string> = {
   "MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。插件可在此启用/停用;MCP 与技能只读。":
     "MCP servers, plugins and skills all live under a config directory, so each profile has its own set. Plugins can be toggled here; MCP and skills are read-only.",
   "MCP 服务器": "MCP servers",
-  "按项目配置,存放在 ~/.claude.json——该文件 ccockpit 只读,故此处不可改。":
-    "Configured per project inside ~/.claude.json — a file ccockpit treats as read-only, so these cannot be changed here.",
+  "按项目配置,存放在 ~/.claude.json——该文件 cocopit 只读,故此处不可改。":
+    "Configured per project inside ~/.claude.json — a file cocopit treats as read-only, so these cannot be changed here.",
   "没有配置 MCP 服务器。": "No MCP servers configured.",
   "传输": "Transport",
   "地址 / 命令": "URL / command",
@@ -264,6 +264,13 @@ const EN: Record<string, string> = {
   "将改动": "changes",
   "将新增": "adds",
   "将移除": "removes",
+  "在新目录中开始": "Start in a new directory",
+  "Claude Code 没跑过的目录还不是项目——在这里开一个会话,它就会出现在下面的列表里。":
+    "A directory Claude Code has never run in is not a project yet — start a session here and it joins the list below.",
+  "目录不存在,创建它并在其中开始?": "That directory does not exist. Create it and start there?",
+  "新会话使用配置": "New session uses preset",
+  "当前设置": "Current settings",
+  "以 --settings 叠加,不改动 settings.json": "layered via --settings; settings.json is untouched",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",
@@ -376,7 +383,7 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-const STORAGE_KEY = "ccockpit-lang";
+const STORAGE_KEY = "cocopit-lang";
 
 function initialLang(): Lang {
   const stored = localStorage.getItem(STORAGE_KEY);

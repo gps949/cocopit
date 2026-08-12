@@ -18,10 +18,10 @@ let base: string;
 const spawned: string[] = [];
 
 beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-term-"));
-  home = mkdtempSync(join(tmpdir(), "ccockpit-term-home-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  dir = mkdtempSync(join(tmpdir(), "cocopit-term-"));
+  home = mkdtempSync(join(tmpdir(), "cocopit-term-home-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 
   const p1 = join(dir, "projects", "-term-proj");
   mkdirSync(p1, { recursive: true });
@@ -57,8 +57,8 @@ afterAll(() => {
   server.stop(true);
   rmSync(dir, { recursive: true, force: true });
   rmSync(home, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 describe("terminal routes", () => {

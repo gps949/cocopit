@@ -17,7 +17,7 @@ let server: ReturnType<typeof createServer>;
 let base: string;
 
 beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-sess-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-sess-"));
   const p1 = join(dir, "projects", "-proj-alpha");
   mkdirSync(p1, { recursive: true });
 

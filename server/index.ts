@@ -134,7 +134,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
   const peers = new WeakMap<Request, string>();
   const peerAddressOf = (req: Request) => peers.get(req);
   const bindHost = deps.hostname ?? resolveBindHost(loadConfig().host, loadAuthConfig().enabled);
-  const bindPort = port ?? (Number(process.env.CCOCKPIT_PORT) || loadConfig().port);
+  const bindPort = port ?? (Number(process.env.COCOPIT_PORT) || loadConfig().port);
   const router = new Router();
   router.register("GET", "/api/health", healthHandler);
 
@@ -160,7 +160,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     return new Response(JSON.stringify({ ok: true }), {
       headers: {
         "content-type": "application/json",
-        "set-cookie": "ccockpit_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+        "set-cookie": "cocopit_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
       },
     });
   });

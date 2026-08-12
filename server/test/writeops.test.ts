@@ -16,17 +16,17 @@ let claudeDir: string;
 let prevHome: string | undefined;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "ccockpit-wo-home-"));
-  claudeDir = mkdtempSync(join(tmpdir(), "ccockpit-wo-claude-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  home = mkdtempSync(join(tmpdir(), "cocopit-wo-home-"));
+  claudeDir = mkdtempSync(join(tmpdir(), "cocopit-wo-claude-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 });
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
   rmSync(claudeDir, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 function settingsPath(): string {
@@ -154,7 +154,7 @@ describe("backups", () => {
     expect(JSON.parse(readFileSync(kept[0]!.storedPath, "utf8")).i).toBe(4);
   });
 
-  test("backups live under the ccockpit home", () => {
+  test("backups live under the cocopit home", () => {
     expect(backupsRoot().startsWith(home)).toBe(true);
   });
 });

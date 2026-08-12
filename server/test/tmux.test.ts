@@ -156,3 +156,21 @@ describe("which config a terminal runs under", () => {
     );
   });
 });
+
+describe("per-session settings", () => {
+  test("a preset is passed as --settings, leaving settings.json alone", () => {
+    expect(buildNewSessionCommand({ cwd: "/w", configDir: null, settingsFile: "/h/.cocopit/s/strict.json" })).toBe(
+      "cd '/w' && claude --settings '/h/.cocopit/s/strict.json'",
+    );
+  });
+
+  test("it combines with a profile's config directory", () => {
+    expect(
+      buildNewSessionCommand({ cwd: "/w", configDir: "/h/cc-work", settingsFile: "/h/s.json" }),
+    ).toBe("cd '/w' && CLAUDE_CONFIG_DIR='/h/cc-work' claude --settings '/h/s.json'");
+  });
+
+  test("no preset means no flag", () => {
+    expect(buildNewSessionCommand({ cwd: "/w", configDir: null })).toBe("cd '/w' && claude");
+  });
+});

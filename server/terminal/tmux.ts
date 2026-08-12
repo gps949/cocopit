@@ -46,8 +46,14 @@ export function buildResumeCommand(opts: { cwd: string; sessionId: string; confi
   return `cd ${shellQuote(opts.cwd)} && ${configEnv(opts.configDir)}claude --resume ${shellQuote(opts.sessionId)}`;
 }
 
-export function buildNewSessionCommand(opts: { cwd: string; configDir: string | null }): string {
-  return `cd ${shellQuote(opts.cwd)} && ${configEnv(opts.configDir)}claude`;
+export function buildNewSessionCommand(opts: {
+  cwd: string;
+  configDir: string | null;
+  /** A settings preset for this session only — --settings layers on top. */
+  settingsFile?: string | null;
+}): string {
+  const settings = opts.settingsFile ? ` --settings ${shellQuote(opts.settingsFile)}` : "";
+  return `cd ${shellQuote(opts.cwd)} && ${configEnv(opts.configDir)}claude${settings}`;
 }
 
 export function hasSession(name: string): boolean {

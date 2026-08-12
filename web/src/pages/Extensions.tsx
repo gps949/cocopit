@@ -106,7 +106,7 @@ export function Extensions() {
             <Section
               title={t("MCP 服务器")}
               count={profile.mcpServers.length}
-              hint={t("按项目配置,存放在 ~/.claude.json——该文件 ccockpit 只读,故此处不可改。")}
+              hint={t("按项目配置,存放在 ~/.claude.json——该文件 cocopit 只读,故此处不可改。")}
             >
               {profile.mcpServers.length === 0 ? (
                 <p className="text-sm text-muted">{t("没有配置 MCP 服务器。")}</p>

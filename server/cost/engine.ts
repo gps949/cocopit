@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCcockpitHome } from "../config";
+import { resolveCocopitHome } from "../config";
 import defaultTable from "./pricing.default.json";
 
 export interface PricingTier {
@@ -75,7 +75,7 @@ export function mergePricing(base: PricingTable, overrides: PricingEntry[]): Pri
 }
 
 export function userPricingPath(): string {
-  return join(resolveCcockpitHome(), "pricing.user.json");
+  return join(resolveCocopitHome(), "pricing.user.json");
 }
 
 /** Reads pricing.user.json (an array of entries, or {entries: [...]}) if present. */

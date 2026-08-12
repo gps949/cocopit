@@ -18,13 +18,13 @@ let server: ReturnType<typeof createServer>;
 let base: string;
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-proutes-"));
-  home = mkdtempSync(join(tmpdir(), "ccockpit-proutes-home-"));
-  profilesBase = mkdtempSync(join(tmpdir(), "ccockpit-proutes-base-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  prevBase = process.env.CCOCKPIT_PROFILES_BASE;
-  process.env.CCOCKPIT_HOME = home;
-  process.env.CCOCKPIT_PROFILES_BASE = profilesBase;
+  dir = mkdtempSync(join(tmpdir(), "cocopit-proutes-"));
+  home = mkdtempSync(join(tmpdir(), "cocopit-proutes-home-"));
+  profilesBase = mkdtempSync(join(tmpdir(), "cocopit-proutes-base-"));
+  prevHome = process.env.COCOPIT_HOME;
+  prevBase = process.env.COCOPIT_PROFILES_BASE;
+  process.env.COCOPIT_HOME = home;
+  process.env.COCOPIT_PROFILES_BASE = profilesBase;
 
   db = openDb(":memory:");
   applyMigrations(db);
@@ -43,10 +43,10 @@ afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
   rmSync(home, { recursive: true, force: true });
   rmSync(profilesBase, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
-  if (prevBase === undefined) delete process.env.CCOCKPIT_PROFILES_BASE;
-  else process.env.CCOCKPIT_PROFILES_BASE = prevBase;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
+  if (prevBase === undefined) delete process.env.COCOPIT_PROFILES_BASE;
+  else process.env.COCOPIT_PROFILES_BASE = prevBase;
 });
 
 describe("profiles routes", () => {

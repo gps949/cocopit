@@ -1,10 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCcockpitHome } from "./config";
+import { resolveCocopitHome } from "./config";
 
 /**
- * Optional access token for remote deployments. ccockpit binds to loopback and
+ * Optional access token for remote deployments. cocopit binds to loopback and
  * checks Origin, which is enough on your own machine; putting it behind a
  * reverse proxy exposes it to anyone who can reach that proxy, so a token can
  * be required. With no token configured nothing changes — a local-only console
@@ -19,11 +19,11 @@ export interface AuthConfig {
   updatedAt?: number;
 }
 
-export const SESSION_COOKIE = "ccockpit_session";
+export const SESSION_COOKIE = "cocopit_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function authPath(): string {
-  return join(resolveCcockpitHome(), "auth.json");
+  return join(resolveCocopitHome(), "auth.json");
 }
 
 export function hashToken(token: string): string {

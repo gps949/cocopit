@@ -21,10 +21,10 @@ const T2 = Date.parse("2026-08-01T11:00:00Z");
 const T3 = Date.parse("2026-08-02T09:00:00Z");
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-usage-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  home = mkdtempSync(join(tmpdir(), "ccockpit-usage-home-"));
-  process.env.CCOCKPIT_HOME = home;
+  dir = mkdtempSync(join(tmpdir(), "cocopit-usage-"));
+  prevHome = process.env.COCOPIT_HOME;
+  home = mkdtempSync(join(tmpdir(), "cocopit-usage-home-"));
+  process.env.COCOPIT_HOME = home;
 
   db = openDb(":memory:");
   applyMigrations(db);
@@ -83,8 +83,8 @@ afterAll(() => {
   server.stop(true);
   rmSync(dir, { recursive: true, force: true });
   rmSync(home, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 async function get(path: string): Promise<any> {

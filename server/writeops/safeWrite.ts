@@ -59,7 +59,7 @@ export function assertWritable(path: string, claudeDir: string): void {
 export function atomicWrite(path: string, data: string | Buffer): void {
   mkdirSync(dirname(path), { recursive: true });
   const mode = existsSync(path) ? statSync(path).mode & 0o777 : 0o600;
-  const tmp = `${path}.ccockpit-${process.pid}.tmp`;
+  const tmp = `${path}.cocopit-${process.pid}.tmp`;
   try {
     writeFileSync(tmp, data, { mode });
     chmodSync(tmp, mode);

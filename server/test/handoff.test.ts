@@ -7,7 +7,7 @@ import { encodeProjectDir, handOffSession } from "../cc/handoff";
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-handoff-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-handoff-"));
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
@@ -16,8 +16,8 @@ afterEach(() => {
 describe("encodeProjectDir", () => {
   test("matches the names Claude Code actually uses", () => {
     // taken from this machine's ~/.claude/projects
-    expect(encodeProjectDir("/Users/chenyanggao/WorkSpace/ccockpit")).toBe(
-      "-Users-chenyanggao-WorkSpace-ccockpit",
+    expect(encodeProjectDir("/Users/chenyanggao/WorkSpace/cocopit")).toBe(
+      "-Users-chenyanggao-WorkSpace-cocopit",
     );
     expect(encodeProjectDir("/Users/chenyanggao/WorkSpace/net-check")).toBe(
       "-Users-chenyanggao-WorkSpace-net-check",

@@ -75,7 +75,7 @@ export function Layout() {
         }`}
       >
         <div className="px-6 pt-6 pb-5">
-          <div className="font-brand text-[22px] font-medium tracking-tight">ccockpit</div>
+          <div className="font-brand text-[22px] font-medium tracking-tight">cocopit</div>
           <div className="mt-0.5 text-xs text-muted">{t("Claude Code 控制台")}</div>
         </div>
 
@@ -139,7 +139,7 @@ export function Layout() {
           >
             <MenuIcon className="size-[18px]" />
           </button>
-          <span className="font-brand text-lg">ccockpit</span>
+          <span className="font-brand text-lg">cocopit</span>
         </header>
         <div className="rise-in mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
           <Outlet />

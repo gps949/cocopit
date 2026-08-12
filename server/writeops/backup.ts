@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { resolveCcockpitHome } from "../config";
+import { resolveCocopitHome } from "../config";
 
 export interface BackupEntry {
   id: string;
@@ -18,7 +18,7 @@ let backupSeq = 0;
 export const DEFAULT_BACKUP_KEEP = 100;
 
 export function backupsRoot(): string {
-  const root = join(resolveCcockpitHome(), "backups");
+  const root = join(resolveCocopitHome(), "backups");
   mkdirSync(root, { recursive: true, mode: 0o700 });
   return root;
 }
@@ -28,7 +28,7 @@ function manifestPath(dir: string): string {
 }
 
 /**
- * Copies a file into ~/.ccockpit/backups/<ISO>__<slug>/ before it is modified.
+ * Copies a file into ~/.cocopit/backups/<ISO>__<slug>/ before it is modified.
  * Returns null when there is nothing to back up (first write of a new file).
  */
 export function createBackup(originPath: string, slug: string): BackupEntry | null {

@@ -16,7 +16,7 @@ export interface IndexStatus {
   finishedAt?: number;
 }
 
-export interface CcockpitConfig {
+export interface CocopitConfig {
   port: number;
   /** Listener bind address. Anything but loopback requires an access token. */
   host: string;

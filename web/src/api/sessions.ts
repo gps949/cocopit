@@ -132,13 +132,28 @@ export interface ProfileOption {
   configDir: string | null;
 }
 
+export const listSnapshotNames = () =>
+  getJson<{ snapshots: Array<{ name: string }> }>("/api/snapshots").then((r) => r.snapshots.map((s) => s.name));
+
 export const listProfileOptions = () =>
   getJson<{ profiles: ProfileOption[] }>("/api/profiles").then((r) => r.profiles);
 export const listLive = () => getJson<{ sessions: LiveSessionRow[] }>("/api/live");
 
-export async function openTerminal(body: { sessionId?: string; projectId?: number; profileId?: string }) {
+export async function openTerminal(body: {
+  sessionId?: string;
+  projectId?: number;
+  cwd?: string;
+  createDir?: boolean;
+  profileId?: string;
+  settingsPreset?: string;
+}) {
   const res = await fetch("/api/terminal", { method: "POST", body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json()) as { error?: string; canCreate?: boolean };
+    const err = new Error(body.error ?? `HTTP ${res.status}`) as Error & { canCreate?: boolean };
+    err.canCreate = body.canCreate;
+    throw err;
+  }
   return (await res.json()) as { name: string; title: string; cwd: string; kind: "resume" | "new" };
 }
 

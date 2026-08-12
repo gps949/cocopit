@@ -1,4 +1,4 @@
 [test]
-# every test file starts with ccockpit's state pointed at a temp directory, so a
-# run can never depend on (or disturb) the developer's own ~/.ccockpit
+# every test file starts with cocopit's state pointed at a temp directory, so a
+# run can never depend on (or disturb) the developer's own ~/.cocopit
 preload = ["./server/test/setup.ts"]

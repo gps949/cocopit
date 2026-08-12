@@ -9,17 +9,17 @@ let prevHome: string | undefined;
 let server: ReturnType<typeof createServer> | null = null;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "ccockpit-rebind-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  home = mkdtempSync(join(tmpdir(), "cocopit-rebind-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 });
 
 afterEach(() => {
   server?.stop(true);
   server = null;
   rmSync(home, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 /**

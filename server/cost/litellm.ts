@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCcockpitHome } from "../config";
+import { resolveCocopitHome } from "../config";
 import { resolveEntry, type PricingTable, type PricingTier } from "./engine";
 
 /**
@@ -87,7 +87,7 @@ export function diffAgainstLiteLLM(
 }
 
 function cachePath(): string {
-  return join(resolveCcockpitHome(), "litellm-prices.json");
+  return join(resolveCocopitHome(), "litellm-prices.json");
 }
 
 export interface LiteLLMSnapshot {

@@ -7,7 +7,7 @@ import { readExtensions } from "../cc/extensions";
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-ext-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-ext-"));
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });

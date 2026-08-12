@@ -18,21 +18,21 @@ let prevHome: string | undefined;
 let prevBase: string | undefined;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "ccockpit-prof-home-"));
-  profilesBase = mkdtempSync(join(tmpdir(), "ccockpit-prof-base-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  prevBase = process.env.CCOCKPIT_PROFILES_BASE;
-  process.env.CCOCKPIT_HOME = home;
-  process.env.CCOCKPIT_PROFILES_BASE = profilesBase;
+  home = mkdtempSync(join(tmpdir(), "cocopit-prof-home-"));
+  profilesBase = mkdtempSync(join(tmpdir(), "cocopit-prof-base-"));
+  prevHome = process.env.COCOPIT_HOME;
+  prevBase = process.env.COCOPIT_PROFILES_BASE;
+  process.env.COCOPIT_HOME = home;
+  process.env.COCOPIT_PROFILES_BASE = profilesBase;
 });
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
   rmSync(profilesBase, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
-  if (prevBase === undefined) delete process.env.CCOCKPIT_PROFILES_BASE;
-  else process.env.CCOCKPIT_PROFILES_BASE = prevBase;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
+  if (prevBase === undefined) delete process.env.COCOPIT_PROFILES_BASE;
+  else process.env.COCOPIT_PROFILES_BASE = prevBase;
 });
 
 describe("profiles registry", () => {

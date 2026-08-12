@@ -7,7 +7,7 @@ import { setPluginEnabled } from "../cc/pluginToggle";
 let claudeDir: string;
 
 beforeEach(() => {
-  claudeDir = mkdtempSync(join(tmpdir(), "ccockpit-plugin-"));
+  claudeDir = mkdtempSync(join(tmpdir(), "cocopit-plugin-"));
   mkdirSync(claudeDir, { recursive: true });
 });
 afterEach(() => rmSync(claudeDir, { recursive: true, force: true }));

@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
+import { materializeSnapshot } from "../cc/snapshots";
 import { handOffSession } from "../cc/handoff";
 import type { Database } from "bun:sqlite";
 import { loadConfig } from "../config";
@@ -14,6 +17,12 @@ import {
   startSession,
   tmuxAvailable,
 } from "../terminal/tmux";
+
+/** A preset name becomes a file the CLI can be pointed at, or nothing. */
+function settingsFileFor(preset: string | undefined): string | null {
+  if (!preset) return null;
+  return materializeSnapshot(preset);
+}
 
 export interface TerminalTarget {
   name: string;
@@ -38,7 +47,17 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       return Response.json({ error: "tmux 未安装,Web 终端不可用" }, { status: 503 });
     }
 
-    let body: { sessionId?: string; projectId?: number; profileId?: string; cols?: number; rows?: number };
+    let body: {
+      sessionId?: string;
+      projectId?: number;
+      /** an absolute directory, for starting somewhere with no sessions yet */
+      cwd?: string;
+      createDir?: boolean;
+      profileId?: string;
+      settingsPreset?: string;
+      cols?: number;
+      rows?: number;
+    };
     try {
       body = (await req.json()) as typeof body;
     } catch {
@@ -124,11 +143,46 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       const wanted = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
       if (body.profileId && !wanted) return Response.json({ error: "profile not found" }, { status: 404 });
       const profile = wanted ?? profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
-      command = buildNewSessionCommand({ cwd: project.cwd, configDir: profile.configDir ?? null });
+      command = buildNewSessionCommand({
+        cwd: project.cwd,
+        configDir: profile.configDir ?? null,
+        settingsFile: settingsFileFor(body.settingsPreset),
+      });
       target = {
         name: sessionNameFor(`proj-${project.id}-${Date.now()}`),
         title: `新会话 · ${project.cwd.split("/").at(-1)}`,
         cwd: project.cwd,
+        kind: "new",
+      };
+    } else if (body.cwd) {
+      // Starting somewhere Claude Code has never run: there is no project row
+      // yet — one appears on its own once the session writes its first record.
+      const cwd = body.cwd.trim();
+      if (!isAbsolute(cwd)) return Response.json({ error: "目录必须是绝对路径" }, { status: 400 });
+      if (!existsSync(cwd)) {
+        if (!body.createDir) {
+          return Response.json({ error: "目录不存在", canCreate: true }, { status: 404 });
+        }
+        try {
+          mkdirSync(cwd, { recursive: true });
+        } catch (err) {
+          return Response.json({ error: `无法创建目录: ${(err as Error).message}` }, { status: 409 });
+        }
+      } else if (!statSync(cwd).isDirectory()) {
+        return Response.json({ error: "该路径不是目录" }, { status: 400 });
+      }
+
+      const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
+      if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
+      command = buildNewSessionCommand({
+        cwd,
+        configDir: profile.configDir ?? null,
+        settingsFile: settingsFileFor(body.settingsPreset),
+      });
+      target = {
+        name: sessionNameFor(`dir-${Date.now()}`),
+        title: `新会话 · ${cwd.split("/").at(-1)}`,
+        cwd,
         kind: "new",
       };
     } else {
@@ -145,7 +199,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
   router.register("DELETE", "/api/terminal/:name", (_req, params) => {
     const name = params.name!;
     if (!name.startsWith("cc-")) {
-      return Response.json({ error: "only ccockpit terminals can be closed here" }, { status: 400 });
+      return Response.json({ error: "only cocopit terminals can be closed here" }, { status: 400 });
     }
     killSession(name);
     return Response.json({ closed: name });

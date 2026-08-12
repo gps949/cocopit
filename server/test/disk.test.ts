@@ -19,7 +19,7 @@ function write(path: string, bytes: number, ageDays?: number): void {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-disk-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-disk-"));
 
   write(join(dir, "debug", "old.log"), 1000, 200);
   write(join(dir, "debug", "recent.log"), 500, 2);

@@ -1,5 +1,5 @@
 {
-  "name": "@ccockpit/web",
+  "name": "@cocopit/web",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -17,15 +17,15 @@ let home: string;
 let prevHome: string | undefined;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "ccockpit-auth-"));
-  prevHome = process.env.CCOCKPIT_HOME;
-  process.env.CCOCKPIT_HOME = home;
+  home = mkdtempSync(join(tmpdir(), "cocopit-auth-"));
+  prevHome = process.env.COCOPIT_HOME;
+  process.env.COCOPIT_HOME = home;
 });
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
-  if (prevHome === undefined) delete process.env.CCOCKPIT_HOME;
-  else process.env.CCOCKPIT_HOME = prevHome;
+  if (prevHome === undefined) delete process.env.COCOPIT_HOME;
+  else process.env.COCOPIT_HOME = prevHome;
 });
 
 function req(path = "/api/sessions", headers: Record<string, string> = {}): Request {
@@ -64,8 +64,8 @@ describe("token configured", () => {
     const cookie = issueSessionCookie("s3cret-token");
     expect(cookie).toBeTruthy();
     const value = cookie!.split(";")[0]!.split("=")[1]!;
-    expect(authorizeRequest(req("/api/sessions", { cookie: `ccockpit_session=${value}` })).ok).toBe(true);
-    expect(authorizeRequest(req("/api/sessions", { cookie: "ccockpit_session=forged" })).ok).toBe(false);
+    expect(authorizeRequest(req("/api/sessions", { cookie: `cocopit_session=${value}` })).ok).toBe(true);
+    expect(authorizeRequest(req("/api/sessions", { cookie: "cocopit_session=forged" })).ok).toBe(false);
   });
 
   test("a wrong token cannot mint a cookie", () => {

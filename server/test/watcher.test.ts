@@ -13,7 +13,7 @@ let scheduler: IndexScheduler;
 let watcher: FsWatcher | null = null;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-watch-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-watch-"));
   mkdirSync(join(dir, "projects", "-p1"), { recursive: true });
   db = openDb(":memory:");
   applyMigrations(db);

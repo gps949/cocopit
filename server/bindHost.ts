@@ -13,8 +13,8 @@ export function resolveBindHost(configured: string | undefined, tokenConfigured:
 
   throw new Error(
     `拒绝监听 ${host}：未设置访问令牌。\n` +
-      `ccockpit 内置终端等同于本机 shell，开放到回环地址之外而不加认证，` +
+      `cocopit 内置终端等同于本机 shell，开放到回环地址之外而不加认证，` +
       `等于把这台机器的 shell 交给所有能连上该地址的人。\n` +
-      `请先在「系统」页设置访问令牌，或把 ~/.ccockpit/config.json 的 host 改回 127.0.0.1。`,
+      `请先在「系统」页设置访问令牌，或把 ~/.cocopit/config.json 的 host 改回 127.0.0.1。`,
   );
 }

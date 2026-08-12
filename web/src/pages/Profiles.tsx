@@ -166,7 +166,7 @@ export function Profiles() {
       </p>
       {/* asked for repeatedly, so say why it is absent instead of leaving a gap */}
       <p className="mt-1.5 text-xs text-muted">
-        {t("5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,ccockpit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。")}
+        {t("5 小时 / 每周额度用量与重置时间不在任何本地文件里——它们由 API 实时返回,凭据只存在于系统钥匙串,cocopit 不读取。请在 Claude Code 中用 /usage 查看。仪表盘的费用统计是按官方价目对本地记录的换算,与订阅额度是两回事。")}
       </p>
 
       {creating && (
@@ -338,7 +338,7 @@ export function Profiles() {
       </div>
 
       <p className="mt-4 text-xs text-muted">
-        {t("「设为 shell 默认」写入 ~/.ccockpit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。")}
+        {t("「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。")}
       </p>
     </div>
   );

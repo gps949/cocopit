@@ -17,7 +17,7 @@ let server: ReturnType<typeof createServer>;
 let base: string;
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-live-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-live-"));
   mkdirSync(join(dir, "sessions"), { recursive: true });
   writeFileSync(
     join(dir, "sessions", "1.json"),
@@ -100,7 +100,7 @@ describe("live sessions", () => {
       }).stdout.trim();
       expect(utcStart.length).toBeGreaterThan(0);
 
-      const liveDir = mkdtempSync(join(tmpdir(), "ccockpit-live-real-"));
+      const liveDir = mkdtempSync(join(tmpdir(), "cocopit-live-real-"));
       mkdirSync(join(liveDir, "sessions"), { recursive: true });
       writeFileSync(
         join(liveDir, "sessions", "x.json"),

@@ -46,7 +46,7 @@ export function Live() {
     <div>
       <h1 className="text-[26px] font-semibold tracking-tight">{t("实时")}</h1>
       <p className="mt-2 text-sm text-muted">
-        {t("本机正在运行的 Claude Code 进程,以及 ccockpit 管理的 tmux 终端(每 3 秒刷新)。")}
+        {t("本机正在运行的 Claude Code 进程,以及 cocopit 管理的 tmux 终端(每 3 秒刷新)。")}
       </p>
 
       <section className="mt-5">
@@ -77,7 +77,7 @@ export function Live() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-[15px] font-medium">{t("ccockpit 终端({n})", { n: terminals.length })}</h2>
+        <h2 className="text-[15px] font-medium">{t("cocopit 终端({n})", { n: terminals.length })}</h2>
         {!available && <p className="mt-2 text-sm text-danger">{t("未检测到 tmux,Web 终端不可用。")}</p>}
         {available && terminals.length === 0 && (
           <p className="mt-2 text-sm text-muted">{t("还没有终端。可在会话详情页「在终端中恢复」,或在项目页新建会话。")}</p>

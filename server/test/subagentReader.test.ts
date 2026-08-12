@@ -7,7 +7,7 @@ import { readSubagentTranscript } from "../cc/subagentReader";
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "ccockpit-sub-"));
+  dir = mkdtempSync(join(tmpdir(), "cocopit-sub-"));
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });

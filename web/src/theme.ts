@@ -1,6 +1,6 @@
 export type Theme = "light" | "dark" | "system";
 
-const STORAGE_KEY = "ccockpit-theme";
+const STORAGE_KEY = "cocopit-theme";
 
 export function loadTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY);

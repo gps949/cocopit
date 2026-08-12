@@ -35,7 +35,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <form onSubmit={submit} className="w-full max-w-sm rounded-2xl border border-line bg-panel p-6">
-        <div className="font-brand text-[22px] font-medium tracking-tight">ccockpit</div>
+        <div className="font-brand text-[22px] font-medium tracking-tight">cocopit</div>
         <p className="mt-1 text-sm text-muted">{t("此控制台需要访问令牌")}</p>
 
         <input
@@ -57,7 +57,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
         </button>
 
         <p className="mt-4 text-xs text-muted">
-          {t("令牌在服务器本机用「系统」页设置;忘记令牌可在服务器上删除 ~/.ccockpit/auth.json。")}
+          {t("令牌在服务器本机用「系统」页设置;忘记令牌可在服务器上删除 ~/.cocopit/auth.json。")}
         </p>
       </form>
     </div>

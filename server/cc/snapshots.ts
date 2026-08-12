@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCcockpitHome } from "../config";
+import { resolveCocopitHome } from "../config";
 import { fileStamp, safeWriteJson } from "../writeops/safeWrite";
 
 export interface Snapshot {
@@ -12,7 +12,7 @@ export interface Snapshot {
 }
 
 function snapshotDir(): string {
-  const dir = join(resolveCcockpitHome(), "snapshots");
+  const dir = join(resolveCocopitHome(), "snapshots");
   mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -113,4 +113,22 @@ export function snapshotDiff(
   }
   const removed = Object.keys(current).filter((key) => !(key in snapshot));
   return { changed, added, removed };
+}
+
+/**
+ * Writes a snapshot's settings out as a plain file for `claude --settings`.
+ *
+ * That flag wants a settings object, not the wrapper with its name and
+ * timestamps, and it *adds* to the existing settings rather than replacing them
+ * — which is what makes it right for a per-session posture: the session gets
+ * the preset layered on top, and settings.json is never touched.
+ */
+export function materializeSnapshot(name: string): string {
+  const snapshot = readSnapshot(name);
+  if (!snapshot) throw new Error(`找不到快照:${name}`);
+  const dir = join(snapshotDir(), "materialized");
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, `${name}.json`);
+  writeFileSync(path, JSON.stringify(snapshot.settings, null, 2) + "\n");
+  return path;
 }
