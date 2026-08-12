@@ -83,7 +83,8 @@ The sidebar switcher flips the whole console to OpenAI Codex CLI, under its own 
 - **Quota, with zero credentials** — Codex writes its rate-limit windows into every transcript; cocopit shows the snapshot from each account's most recently indexed session, with an "as of" stamp. Windows are classified by their length, so the display tracks whatever OpenAI currently enforces (at the moment, weekly only).
 - **Accounts** — multiple logins via isolated `CODEX_HOME` directories, the exact counterpart of `CLAUDE_CONFIG_DIR`. Login state (email, plan, subscription start) is decoded locally from `auth.json`; nothing leaves the server.
 - **Multi-agent runs** — a subagent's rollout names its parent thread; children are folded out of the session list by default and reachable through the parent's related-sessions links, badged with the agent's nickname.
-- **Extensions / Config** — read-only views of `config.toml` (MCP servers, plugin enablement; secret-looking values masked, env tables never surfaced) and `CODEX_HOME/skills`. Codex's native config profiles (`<name>.config.toml`, `codex --profile`) are listed — they are Codex's own counterpart of the Claude-side settings presets.
+- **Extensions** — MCP servers and skills read-only; **plugins can be toggled**: the edit is line-surgical inside `config.toml` (comments survive), validated before landing, backed up first. Secret-looking values are masked and env tables never surfaced.
+- **Config** — `config.toml` itself stays read-only (breaking it breaks every session), but Codex's native config profiles (`<name>.config.toml`, overlaid via `codex --profile`) get the **full lifecycle**: create, edit, delete — TOML-validated, backed up, and pickable when starting a new session from the Projects page.
 - **Terminal** — resume with `codex resume` under the owning account. Cross-account resume is not possible: Codex only finds sessions inside its own `CODEX_HOME`.
 
 ## Remote deployment
