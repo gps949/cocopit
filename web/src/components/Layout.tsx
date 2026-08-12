@@ -46,6 +46,14 @@ export function Layout() {
   const { t, lang, setLang } = useI18n();
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/health")
+      .then((res) => res.json() as Promise<{ version?: string }>)
+      .then((data) => setVersion(data.version ?? null))
+      .catch(() => setVersion(null));
+  }, []);
   const location = useLocation();
   const status = useIndexStatus();
   const product = useProduct();
@@ -162,6 +170,17 @@ export function Layout() {
             <ThemeIcon className="size-[18px]" />
             {t(themeLabel(theme))}
           </button>
+          <div className="px-3 pt-1.5 text-xs text-muted">
+            <a
+              href="https://github.com/gps949/cocopit"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-ink hover:underline"
+            >
+              GitHub
+            </a>
+            {version && <span> · v{version}</span>}
+          </div>
         </div>
       </aside>
 
