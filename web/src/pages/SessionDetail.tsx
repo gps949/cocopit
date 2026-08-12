@@ -540,7 +540,7 @@ export function SessionDetail() {
            same start time, so neither can be called the original. */
         <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
           <h2 className="text-[15px] font-medium">{t("相关会话")}</h2>
-          <p className="mt-1 text-sm text-muted">{t("这些会话与本会话包含相同的对话记录,应是同一段对话的不同分支。")}</p>
+          <p className="mt-1 text-sm text-muted">{t("这些会话与本会话包含相同的对话记录——同一段对话在不同文件里的延续。")}</p>
           <div className="mt-3 space-y-1.5">
             {related.map((r) => (
               <Link
@@ -548,6 +548,13 @@ export function SessionDetail() {
                 to={`/sessions/${r.id}`}
                 className="flex min-w-0 items-baseline gap-3 rounded-lg border border-line px-3 py-2 text-sm transition-colors hover:border-accent hover:bg-hover"
               >
+                <span
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${
+                    r.role === "related" ? "bg-hover text-muted" : "bg-accent-soft text-accent"
+                  }`}
+                >
+                  {r.role === "parent" ? t("本会话继续自它") : r.role === "child" ? t("它继续自本会话") : t("相关")}
+                </span>
                 <span className="min-w-0 flex-1 truncate">{r.title ?? r.id.slice(0, 8)}</span>
                 <span className="shrink-0 text-xs text-muted">
                   {t("共享 {n} 条", { n: r.sharedRecords })} · {t("{n} 行", { n: r.lineCount })}

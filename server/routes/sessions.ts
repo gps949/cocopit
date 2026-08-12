@@ -151,7 +151,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       .all({ $id: routeParams.id! });
     const related = db
       .prepare(
-        `SELECT l.related_session_id AS id, l.shared_records AS sharedRecords,
+        `SELECT l.related_session_id AS id, l.shared_records AS sharedRecords, l.role,
                 s.title, s.line_count AS lineCount, s.last_ts AS lastTs
          FROM session_links l JOIN sessions s ON s.id = l.related_session_id
          WHERE l.session_id = $id ORDER BY l.shared_records DESC`,

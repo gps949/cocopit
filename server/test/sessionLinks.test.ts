@@ -100,3 +100,59 @@ describe("rebuildSessionLinks", () => {
     db.close();
   });
 });
+
+describe("direction", () => {
+  const build = () => {
+    const db = seed();
+    addSession(db, "parent");
+    addSession(db, "child");
+    // the parent's whole conversation is copied into the child, which then
+    // continues on its own — the shape both real pairs have
+    for (let i = 0; i < 5; i++) {
+      addMsg(db, "parent", `u${i}`, i);
+      addMsg(db, "child", `u${i}`, i);
+    }
+    for (let i = 5; i < 12; i++) addMsg(db, "child", `u${i}`, i);
+    return db;
+  };
+
+  test("the session wholly contained in the other is the parent", () => {
+    const db = build();
+    rebuildSessionLinks(db);
+    const fromChild = db.prepare("SELECT role FROM session_links WHERE session_id='child'").get();
+    const fromParent = db.prepare("SELECT role FROM session_links WHERE session_id='parent'").get();
+    expect(fromChild).toEqual({ role: "parent" }); // what the other session is to me
+    expect(fromParent).toEqual({ role: "child" });
+    db.close();
+  });
+
+  test("when neither contains the other, no direction is claimed", () => {
+    const db = seed();
+    addSession(db, "a");
+    addSession(db, "b");
+    for (let i = 0; i < 5; i++) {
+      addMsg(db, "a", `u${i}`, i);
+      addMsg(db, "b", `u${i}`, i);
+    }
+    addMsg(db, "a", "a-only", 9);
+    addMsg(db, "b", "b-only", 9);
+    rebuildSessionLinks(db);
+    const roles = db.prepare("SELECT DISTINCT role FROM session_links").all();
+    expect(roles).toEqual([{ role: "related" }]);
+    db.close();
+  });
+
+  test("two identical sessions claim no direction either", () => {
+    const db = seed();
+    addSession(db, "a");
+    addSession(db, "b");
+    for (let i = 0; i < 5; i++) {
+      addMsg(db, "a", `u${i}`, i);
+      addMsg(db, "b", `u${i}`, i);
+    }
+    rebuildSessionLinks(db);
+    const roles = db.prepare("SELECT DISTINCT role FROM session_links").all();
+    expect(roles).toEqual([{ role: "related" }]);
+    db.close();
+  });
+});

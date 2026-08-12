@@ -70,6 +70,8 @@ export interface LiveSessionRow {
 export const listSessions = (query: string) => getJson<SessionListResponse>(`/api/sessions${query}`);
 export interface RelatedSession {
   id: string;
+  /** what the other session is to this one */
+  role: "parent" | "child" | "related";
   sharedRecords: number;
   title: string | null;
   lineCount: number;
