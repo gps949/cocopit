@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { listLiveSessions } from "../cc/liveSessions";
 import type { Router } from "../http/router";
 import { readExtensions } from "../cc/extensions";
+import { setPluginEnabled } from "../cc/pluginToggle";
 import { loadProfiles, resolveConfigDir } from "../profiles/registry";
 import { listBackups, restoreBackup } from "../writeops/backup";
 import { fileStamp, safeWriteJson, WriteConflictError, type FileStamp } from "../writeops/safeWrite";
@@ -101,6 +102,31 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
       return { profileId: profile.id, name: profile.name, configDir: dir, ...readExtensions(dir, jsonPath) };
     });
     return Response.json({ profiles });
+  });
+
+  /**
+   * Enabling a plugin writes settings.json — the same allowlisted path, backup
+   * and CAS as every other config edit here. MCP servers are not writable the
+   * same way: theirs live in ~/.claude.json, which stays read-only.
+   */
+  router.register("POST", "/api/extensions/plugin", async (req) => {
+    let body: { profileId?: string; plugin?: string; enabled?: boolean };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return Response.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    }
+    if (!body.plugin || typeof body.enabled !== "boolean") {
+      return Response.json({ error: "缺少 plugin 或 enabled" }, { status: 400 });
+    }
+    const profile = loadProfiles().find((p) => p.id === (body.profileId ?? "default"));
+    if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
+    try {
+      const result = setPluginEnabled(resolveConfigDir(profile), body.plugin, body.enabled);
+      return Response.json({ ok: true, backupId: result.backupId });
+    } catch (err) {
+      return Response.json({ error: (err as Error).message }, { status: 409 });
+    }
   });
 
   for (const kind of ["settings", "mcp"] as const) {

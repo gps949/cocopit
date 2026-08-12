@@ -227,18 +227,20 @@ const EN: Record<string, string> = {
   "新会话使用账号": "New session runs as",
   "项目默认": "Project default",
   "扩展": "Extensions",
-  "MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。此页只读——增删请在 Claude Code 中操作。":
-    "MCP servers, plugins and skills all live under a config directory, so each profile has its own set. Read-only here — add and remove them from Claude Code.",
+  "MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。插件可在此启用/停用;MCP 与技能只读。":
+    "MCP servers, plugins and skills all live under a config directory, so each profile has its own set. Plugins can be toggled here; MCP and skills are read-only.",
   "MCP 服务器": "MCP servers",
-  "按项目配置——只在对应工作目录下的会话中可用。":
-    "Configured per project — available only to sessions in that working directory.",
+  "按项目配置,存放在 ~/.claude.json——该文件 ccockpit 只读,故此处不可改。":
+    "Configured per project inside ~/.claude.json — a file ccockpit treats as read-only, so these cannot be changed here.",
   "没有配置 MCP 服务器。": "No MCP servers configured.",
   "传输": "Transport",
   "地址 / 命令": "URL / command",
   "生效范围": "Applies to",
   "插件": "Plugins",
-  "安装在配置目录下,启用状态记在 settings.json。":
-    "Installed under the config directory; enabled state lives in settings.json.",
+  "安装在配置目录下,启用状态记在 settings.json——点击卡片即可启用/停用,写入前自动备份。":
+    "Installed under the config directory; enabled state lives in settings.json — click one to toggle it, with a backup taken first.",
+  "点击停用": "click to disable",
+  "点击启用": "click to enable",
   "{on} 个已启用 / 共 {all} 个": "{on} enabled of {all}",
   "只看已启用": "Enabled only",
   "显示未启用的": "Show disabled",

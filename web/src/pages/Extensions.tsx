@@ -48,19 +48,42 @@ function Section({
 }
 
 /**
- * Read-only. Adding an MCP server or installing a plugin means writing
- * ~/.claude.json, which this project treats as untouchable — those belong in the
- * CLI. What is missing here is visibility: which of these exist at all, where
- * they take effect, and whether they are on.
+ * Mostly a viewer, with one thing you can act on.
+ *
+ * Plugins can be toggled: their enabled state is a map in settings.json, which
+ * is already an allowlisted write with backup and compare-and-swap. MCP servers
+ * are configured inside ~/.claude.json, which stays read-only, and skills are
+ * directories — adding or removing those belongs in the CLI.
  */
 export function Extensions() {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<ProfileExtensions[] | null>(null);
   const [showAllPlugins, setShowAllPlugins] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () =>
+    getJson<{ profiles: ProfileExtensions[] }>("/api/extensions").then((r) => setProfiles(r.profiles));
 
   useEffect(() => {
-    void getJson<{ profiles: ProfileExtensions[] }>("/api/extensions").then((r) => setProfiles(r.profiles));
+    void load();
   }, []);
+
+  async function toggle(profileId: string, plugin: string, enabled: boolean) {
+    setBusy(plugin);
+    setError(null);
+    try {
+      const res = await fetch("/api/extensions/plugin", {
+        method: "POST",
+        body: JSON.stringify({ profileId, plugin, enabled }),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
+      else await load();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   if (!profiles) return <div className="text-sm text-muted">{t("加载中…")}</div>;
 
@@ -68,7 +91,7 @@ export function Extensions() {
     <div className="max-w-4xl">
       <h1 className="text-[26px] font-semibold tracking-tight">{t("扩展")}</h1>
       <p className="mt-2 text-sm text-muted">
-        {t("MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。此页只读——增删请在 Claude Code 中操作。")}
+        {t("MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。插件可在此启用/停用;MCP 与技能只读。")}
       </p>
 
       {profiles.map((profile) => {
@@ -83,7 +106,7 @@ export function Extensions() {
             <Section
               title={t("MCP 服务器")}
               count={profile.mcpServers.length}
-              hint={t("按项目配置——只在对应工作目录下的会话中可用。")}
+              hint={t("按项目配置,存放在 ~/.claude.json——该文件 ccockpit 只读,故此处不可改。")}
             >
               {profile.mcpServers.length === 0 ? (
                 <p className="text-sm text-muted">{t("没有配置 MCP 服务器。")}</p>
@@ -120,8 +143,9 @@ export function Extensions() {
             <Section
               title={t("插件")}
               count={profile.plugins.length}
-              hint={t("安装在配置目录下,启用状态记在 settings.json。")}
+              hint={t("安装在配置目录下,启用状态记在 settings.json——点击卡片即可启用/停用,写入前自动备份。")}
             >
+              {error && <p className="mb-2 text-sm text-danger">{error}</p>}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted">
                   {t("{on} 个已启用 / 共 {all} 个", { on: enabled.length, all: profile.plugins.length })}
@@ -138,15 +162,22 @@ export function Extensions() {
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {shown.map((plugin) => (
-                  <span
+                  <button
                     key={plugin.name}
-                    title={plugin.version ? `v${plugin.version}` : undefined}
-                    className={`max-w-full truncate rounded-lg border px-2 py-1 text-xs ${
-                      plugin.enabled ? "border-line" : "border-dashed border-line/70 text-muted"
+                    type="button"
+                    disabled={busy === plugin.name}
+                    onClick={() => void toggle(profile.profileId, plugin.name, !plugin.enabled)}
+                    title={`${plugin.name}${plugin.version ? ` v${plugin.version}` : ""} — ${
+                      plugin.enabled ? t("点击停用") : t("点击启用")
+                    }`}
+                    className={`max-w-full truncate rounded-lg border px-2 py-1 text-xs transition-colors disabled:opacity-40 ${
+                      plugin.enabled
+                        ? "border-line hover:border-danger/60"
+                        : "border-dashed border-line/70 text-muted hover:border-accent hover:text-ink"
                     }`}
                   >
                     {plugin.name.replace(/@.*$/, "")}
-                  </span>
+                  </button>
                 ))}
               </div>
             </Section>
