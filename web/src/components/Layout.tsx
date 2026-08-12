@@ -23,7 +23,7 @@ type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 const NAV: Array<{ to: string; label: string; icon: IconType }> = [
   { to: "/dashboard", label: "仪表盘", icon: GaugeIcon },
-  { to: "/profiles", label: "账户", icon: UserIcon },
+  { to: "/profiles", label: "账号", icon: UserIcon },
   { to: "/projects", label: "项目", icon: FolderIcon },
   { to: "/sessions", label: "会话", icon: ChatIcon },
   { to: "/live", label: "实时", icon: PulseIcon },

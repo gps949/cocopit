@@ -91,7 +91,7 @@ export function Extensions() {
     <div className="max-w-4xl">
       <h1 className="text-[26px] font-semibold tracking-tight">{t("扩展")}</h1>
       <p className="mt-2 text-sm text-muted">
-        {t("MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。插件可在此启用/停用;MCP 与技能只读。")}
+        {t("MCP、插件与技能都存放在配置目录下,因此每个账号各有一套。插件可在此启用/停用;MCP 与技能只读。")}
       </p>
 
       {profiles.map((profile) => {

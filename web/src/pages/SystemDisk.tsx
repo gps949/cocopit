@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/usage";
-import { useI18n } from "../i18n";
+import { localeOf, useI18n } from "../i18n";
 
 interface DiskCategory {
   id: string;
@@ -25,6 +25,12 @@ interface CleanupResult {
   freedBytes: number;
   plan: { items: Array<{ category: string; path: string; sizeBytes: number }>; totalBytes: number };
   errors: Array<{ path: string; error: string }>;
+}
+
+interface BackupDetail extends BackupEntry {
+  settings: Record<string, unknown>;
+  unreadable: string | null;
+  diff: { changed: string[]; added: string[]; removed: string[] };
 }
 
 interface BackupEntry {
@@ -219,13 +225,15 @@ function AccessTokenPanel() {
 }
 
 export function SystemDisk() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [report, setReport] = useState<DiskReport | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [retention, setRetention] = useState<number | null>(null);
   const [preview, setPreview] = useState<CleanupResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<BackupDetail | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = () => {
@@ -256,6 +264,15 @@ export function SystemDisk() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function toggleBackup(id: string) {
+    if (expanded === id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(id);
+    setDetail(await getJson<BackupDetail>(`/api/backups/${encodeURIComponent(id)}`));
   }
 
   async function restore(id: string) {
@@ -363,21 +380,73 @@ export function SystemDisk() {
       <section className="mt-4 rounded-2xl border border-line bg-panel p-5">
         <h2 className="text-[15px] font-medium">{t("配置备份({n})", { n: backups.length })}</h2>
         {backups.length === 0 && <p className="mt-2 text-sm text-muted">{t("还没有备份。修改配置时会自动创建。")}</p>}
+        <p className="mt-1 text-xs text-muted">
+          {t("备份是文件的完整副本,恢复即原子写回,并先备份当前内容。展开可看它与当前的差异——机制不会过期,但内容会:比如里面的模型名或插件可能已经不存在了。")}
+        </p>
         <div className="mt-3 space-y-1">
-          {backups.slice(0, 20).map((b) => (
-            <div key={b.id} className="flex items-center gap-3 border-b border-line/60 py-1.5 text-sm last:border-0">
-              <span className="w-40 text-xs text-muted">{new Date(b.createdAt).toLocaleString("zh-CN")}</span>
-              <span className="w-32 text-xs">{b.slug}</span>
-              <span className="flex-1 truncate font-mono text-xs text-muted">{b.originPath}</span>
-              <button
-                type="button"
-                onClick={() => void restore(b.id)}
-                className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
-              >
-                {t("恢复")}
-              </button>
-            </div>
-          ))}
+          {backups.slice(0, 20).map((b) => {
+            const open = expanded === b.id;
+            return (
+              <div key={b.id} className="border-b border-line/60 py-1.5 text-sm last:border-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => void toggleBackup(b.id)}
+                    className="min-w-0 flex-1 text-left text-xs text-muted hover:text-ink"
+                  >
+                    <span className="tabular-nums">{new Date(b.createdAt).toLocaleString(localeOf(lang))}</span>{" "}
+                    <span className="text-ink">{b.slug}</span>{" "}
+                    <span className="font-mono">{b.originPath.split("/").slice(-2).join("/")}</span>{" "}
+                    {open ? "−" : "+"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void restore(b.id)}
+                    className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+                  >
+                    {t("恢复")}
+                  </button>
+                </div>
+                {open && detail && detail.id === b.id && (
+                  <div className="mt-2 rounded-lg border border-line bg-bg p-3">
+                    {detail.unreadable ? (
+                      <p className="text-xs text-danger">{detail.unreadable}</p>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-x-4 text-xs">
+                          {detail.diff.changed.length + detail.diff.added.length + detail.diff.removed.length ===
+                          0 ? (
+                            <span className="text-muted">{t("与当前一致")}</span>
+                          ) : (
+                            <>
+                              {detail.diff.changed.length > 0 && (
+                                <span className="text-muted">
+                                  {t("将改动")}: <span className="font-mono">{detail.diff.changed.join(", ")}</span>
+                                </span>
+                              )}
+                              {detail.diff.added.length > 0 && (
+                                <span className="text-muted">
+                                  {t("将新增")}: <span className="font-mono">{detail.diff.added.join(", ")}</span>
+                                </span>
+                              )}
+                              {detail.diff.removed.length > 0 && (
+                                <span className="text-danger">
+                                  {t("将移除")}: <span className="font-mono">{detail.diff.removed.join(", ")}</span>
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <pre className="mt-2 max-h-64 overflow-auto font-mono text-[11px] leading-relaxed">
+                          {JSON.stringify(detail.settings, null, 2)}
+                        </pre>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
     </>

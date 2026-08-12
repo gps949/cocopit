@@ -277,6 +277,41 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
     return Response.json({ backups: listBackups() });
   });
 
+  /**
+   * A backup's contents, and what restoring it would change.
+   *
+   * A list of timestamps says nothing about which one you want. The restore
+   * itself is a byte copy of a whole file, so nothing in the mechanism goes
+   * stale — but the contents can: a `model` that no longer exists, plugin names
+   * since uninstalled. Showing the diff is what makes that visible beforehand.
+   */
+  router.register("GET", "/api/backups/:id", (_req, params) => {
+    const entry = listBackups().find((candidate) => candidate.id === params.id);
+    if (!entry) return Response.json({ error: "not found" }, { status: 404 });
+
+    let stored: Record<string, unknown> = {};
+    let current: Record<string, unknown> = {};
+    let unreadable: string | null = null;
+    try {
+      stored = JSON.parse(readFileSync(entry.storedPath, "utf8")) as Record<string, unknown>;
+    } catch (err) {
+      unreadable = (err as Error).message;
+    }
+    try {
+      current = JSON.parse(readFileSync(entry.originPath, "utf8")) as Record<string, unknown>;
+    } catch {
+      // the original may not exist any more; every key then reads as added
+    }
+
+    return Response.json({
+      ...entry,
+      settings: stored,
+      unreadable,
+      // what restoring would do to the file as it stands now
+      diff: snapshotDiff(stored, current),
+    });
+  });
+
   router.register("POST", "/api/backups/:id/restore", (_req, params) => {
     try {
       const result = restoreBackup(params.id!, claudeDir);

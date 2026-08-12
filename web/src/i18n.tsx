@@ -12,7 +12,8 @@ const EN: Record<string, string> = {
   "cocopit": "cocopit",
   "Claude Code 控制台": "Claude Code Console",
   "仪表盘": "Dashboard",
-  "账户": "Accounts",
+  "账号": "Accounts",
+  "所属账号": "Account",
   "项目": "Projects",
   "会话": "Sessions",
   "实时": "Live",
@@ -69,8 +70,8 @@ const EN: Record<string, string> = {
     "{n} unpriced models ({list}); their usage is excluded from cost. Add prices on the Config page.",
 
   // profiles
-  "新建 profile": "New profile",
-  "每个 profile 使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按 profile 对比。":
+  "新建账号": "New profile",
+  "每个账号使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按账号对比。":
     "Each profile uses its own CLAUDE_CONFIG_DIR, so subscription logins stay separate; their sessions and cost are indexed and comparable on the dashboard.",
   "名称": "Name",
   "类型": "Kind",
@@ -83,7 +84,7 @@ const EN: Record<string, string> = {
     "You'll get a login command to run in your own terminal (/login); the card shows the account email within seconds of finishing.",
   "已登录": "Signed in",
   "待登录": "Not signed in",
-  "账号": "Account",
+  "登录邮箱": "Email",
   "组织": "Organization",
   "Key": "Key",
   "配置目录": "Config dir",
@@ -94,9 +95,9 @@ const EN: Record<string, string> = {
   "已写入 current-profile.sh": "Wrote current-profile.sh",
   "订阅": "Subscription",
   "API": "API",
-  "「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。":
+  "「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属账号的配置目录,与此设置无关。":
     "“Set as shell default” writes ~/.cocopit/current-profile.sh for you to source from .zshrc; it only affects new terminals. Resuming a session always uses its own profile's config dir regardless.",
-  "删除 profile「{id}」?其登录数据目录会保留,仅移除注册条目。":
+  "删除账号「{id}」?其登录数据目录会保留,仅移除注册条目。":
     "Delete profile “{id}”? Its login data directory is kept; only the registry entry is removed.",
 
   // sessions
@@ -227,7 +228,7 @@ const EN: Record<string, string> = {
   "新会话使用账号": "New session runs as",
   "项目默认": "Project default",
   "扩展": "Extensions",
-  "MCP、插件与技能都存放在配置目录下,因此每个 profile 各有一套。插件可在此启用/停用;MCP 与技能只读。":
+  "MCP、插件与技能都存放在配置目录下,因此每个账号各有一套。插件可在此启用/停用;MCP 与技能只读。":
     "MCP servers, plugins and skills all live under a config directory, so each profile has its own set. Plugins can be toggled here; MCP and skills are read-only.",
   "MCP 服务器": "MCP servers",
   "按项目配置,存放在 ~/.claude.json——该文件 cocopit 只读,故此处不可改。":
@@ -271,6 +272,8 @@ const EN: Record<string, string> = {
   "新会话使用配置": "New session uses preset",
   "当前设置": "Current settings",
   "以 --settings 叠加,不改动 settings.json": "layered via --settings; settings.json is untouched",
+  "备份是文件的完整副本,恢复即原子写回,并先备份当前内容。展开可看它与当前的差异——机制不会过期,但内容会:比如里面的模型名或插件可能已经不存在了。":
+    "A backup is a full copy of the file; restoring writes it back atomically after backing up what is there now. Expand one to see how it differs from the current file — the mechanism does not expire, but the contents can: a model name or plugin inside may no longer exist.",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",

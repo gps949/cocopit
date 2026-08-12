@@ -144,7 +144,7 @@ export function Profiles() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t("删除 profile「{id}」?其登录数据目录会保留,仅移除注册条目。", { id }))) return;
+    if (!window.confirm(t("删除账号「{id}」?其登录数据目录会保留,仅移除注册条目。", { id }))) return;
     await fetch(`/api/profiles/${id}`, { method: "DELETE" });
     void load();
   }
@@ -152,17 +152,17 @@ export function Profiles() {
   return (
     <div className="max-w-4xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-[26px] font-semibold tracking-tight">{t("账户")}</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight">{t("账号")}</h1>
         <button
           type="button"
           onClick={() => setCreating((v) => !v)}
           className="rounded-lg bg-accent px-3.5 py-1.5 text-sm text-white transition-colors hover:bg-accent-strong dark:text-ink"
         >
-          {t("新建 profile")}
+          {t("新建账号")}
         </button>
       </div>
       <p className="mt-2 text-sm text-muted">
-        {t("每个 profile 使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按 profile 对比。")}
+        {t("每个账号使用独立的 CLAUDE_CONFIG_DIR,订阅登录互不干扰;其会话与费用自动纳入索引并可在仪表盘按账号对比。")}
       </p>
       {/* asked for repeatedly, so say why it is absent instead of leaving a gap */}
       <p className="mt-1.5 text-xs text-muted">
@@ -258,7 +258,7 @@ export function Profiles() {
             <dl className="mt-4 space-y-1.5 text-sm">
               {p.detection.email && (
                 <div className="flex justify-between">
-                  <dt className="text-muted">{t("账号")}</dt>
+                  <dt className="text-muted">{t("登录邮箱")}</dt>
                   <dd>{p.detection.email}</dd>
                 </div>
               )}
@@ -338,7 +338,7 @@ export function Profiles() {
       </div>
 
       <p className="mt-4 text-xs text-muted">
-        {t("「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属 profile 的配置目录,与此设置无关。")}
+        {t("「设为 shell 默认」写入 ~/.cocopit/current-profile.sh,自愿在 .zshrc 中 source;仅新终端生效。会话恢复始终使用其所属账号的配置目录,与此设置无关。")}
       </p>
     </div>
   );

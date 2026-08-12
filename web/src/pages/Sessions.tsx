@@ -110,7 +110,33 @@ export function Sessions() {
         </p>
       )}
 
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-panel">
+      {/* A table needs its columns; a 390px screen cannot give them, and the
+          previous compromise hid the project and still scrolled sideways. Below
+          sm each session is a card instead, which fits and shows everything. */}
+      <div className="mt-5 space-y-2 sm:hidden">
+        {sessions.length === 0 && !loading && (
+          <p className="rounded-2xl border border-line bg-panel px-4 py-8 text-center text-sm text-muted">
+            {t("没有匹配的会话")}
+          </p>
+        )}
+        {sessions.map((s) => (
+          <Link
+            key={s.id}
+            to={`/sessions/${s.id}`}
+            className="block min-w-0 rounded-2xl border border-line bg-panel px-4 py-3 transition-colors hover:border-accent"
+          >
+            <div className="truncate text-sm">{s.title || s.id}</div>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted">
+              <span className="min-w-0 truncate font-mono">{s.cwd?.split("/").at(-1) ?? s.dirName}</span>
+              <span className="tabular-nums">{s.costUsd ? fmtUsd(s.costUsd) : "—"}</span>
+              <span className="tabular-nums">{s.userMsgCount + s.assistantMsgCount} {t("消息")}</span>
+              <span className="ml-auto shrink-0">{fmtWhen(s.lastTs, t, lang)}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-line bg-panel sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">

@@ -153,7 +153,7 @@ export function Projects() {
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="px-4 py-2.5 font-normal">{t("目录")}</th>
-              <th className="hidden px-4 py-2.5 font-normal sm:table-cell">{t("账号")}</th>
+              <th className="hidden px-4 py-2.5 font-normal sm:table-cell">{t("所属账号")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("会话")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("费用")}</th>
               <th className="px-4 py-2.5 text-right font-normal">{t("最近")}</th>
