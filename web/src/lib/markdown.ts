@@ -169,6 +169,9 @@ export function parseInline(text: string): InlineSpan[] {
       // nothing, which is worse than no hyperlink
       if (/^(https?:\/\/|mailto:)/i.test(href)) {
         spans.push({ type: "link", text: label, href });
+      } else if (/^plugin:\/\//i.test(href)) {
+        // a plugin @-mention — the label IS the content, the URI is plumbing
+        spans.push({ type: "code", text: label });
       } else if (href.replace(/^file:\/\//, "").endsWith(label)) {
         // [x.php:230](/full/path/x.php:230) — the path already contains the
         // label, so print it once

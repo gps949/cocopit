@@ -77,4 +77,10 @@ describe("codexUserSpeech", () => {
   test("prose starting with ## but not the injection marker survives", () => {
     expect(codexUserSpeech("## 目标\n重构解析器")).toBe("## 目标\n重构解析器");
   });
+
+  test("plugin @-mentions flatten to what the person typed", () => {
+    expect(
+      codexUserSpeech("[@agent-sdk-dev](plugin://agent-sdk-dev@claude-plugins-official/) 检查一下这个项目"),
+    ).toBe("@agent-sdk-dev 检查一下这个项目");
+  });
 });

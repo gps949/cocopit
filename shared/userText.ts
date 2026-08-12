@@ -43,6 +43,16 @@ export const CODEX_INJECTED_USER_TEXT =
   /^(<(environment_context|recommended_plugins|user_action|turn_aborted|permissions|user_instructions|instructions|ide_context|image|system)[\s>/]|# AGENTS\.md|## Referenced ChatGPT conversation)/i;
 
 /**
+ * @-mentioning a plugin in Codex stores the mention as a markdown link:
+ * "[@agent-sdk-dev](plugin://agent-sdk-dev@claude-plugins-official/)".
+ * Codex's UI renders it back as a pill; in titles, snippets and plain text
+ * the raw form is noise — what the person typed was "@agent-sdk-dev".
+ */
+export function flattenPluginMentions(text: string): string {
+  return text.replace(/\[(@[^\]]+)\]\(plugin:\/\/[^)]*\)/g, "$1");
+}
+
+/**
  * The human-authored remainder of a Codex user message, or null when it is
  * injected context. Two layers: Codex's own harness tags mean the whole
  * message is machinery; Claude's wrapper tags appear when a person pastes
@@ -53,7 +63,7 @@ export function codexUserSpeech(text: string): string | null {
   // injections sometimes lead with blank lines (the Desktop's referenced-
   // conversation block starts "\n## Referenced ChatGPT conversation:")
   if (CODEX_INJECTED_USER_TEXT.test(text.trimStart())) return null;
-  const stripped = stripSystemWrappers(text);
+  const stripped = stripSystemWrappers(flattenPluginMentions(text));
   return stripped || null;
 }
 
