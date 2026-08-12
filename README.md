@@ -22,6 +22,19 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard — cost analytics, cache efficiency, daily chart" width="720" />
+</p>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/session-detail.png" alt="Session detail — outline, markdown rendering, in-session search" /></td>
+    <td><img src="docs/screenshots/accounts.png" alt="Accounts — plan, quota, isolated logins" /></td>
+  </tr>
+</table>
+
+<sub>All screenshots show generated demo data (`bun scripts/demo.ts` — writes to /tmp, never touches real data).</sub>
+
 ## What it does
 
 - **Dashboard** — API-equivalent cost, tokens, cache efficiency (with an honest hit-rate definition), daily cost chart, weekday×hour heatmap, per-model / per-project / per-account breakdowns. Day and hour buckets follow *your* browser's timezone, not the server's.
@@ -40,36 +53,26 @@ Everything is derived from Claude Code's own files (`~/.claude/`). cocopit never
 Requires [Bun](https://bun.sh) (and `tmux` for the web terminal). No other runtime dependencies — the server uses Bun built-ins only.
 
 ```bash
-# no install — run straight from the registry
-bunx cocopit
-
-# or install globally
-bun install -g cocopit
-cocopit
+git clone https://github.com/gps949/cocopit.git && cd cocopit
+bun install && bun run build
+bun run start
 ```
 
 Then open http://127.0.0.1:7433.
 
+Once the package is published to npm, this collapses to `bunx cocopit` (or `bun install -g cocopit`).
+
 ```bash
-cocopit --port 8080            # pick a port (also: COCOPIT_PORT, or config.json)
-cocopit --host 0.0.0.0         # bind beyond loopback (requires an access token — see below)
-cocopit --help
+bun bin/cocopit.ts --port 8080         # pick a port (also: COCOPIT_PORT, or config.json)
+bun bin/cocopit.ts --host 0.0.0.0      # bind beyond loopback (requires an access token — see below)
+bun bin/cocopit.ts --help
 ```
 
 cocopit runs in the foreground, like any server. To keep it running in the background:
 
 ```bash
-nohup cocopit > ~/.cocopit/cocopit.log 2>&1 &     # plain background job
-tmux new -d -s cocopit cocopit                     # or under tmux
-```
-
-### From source
-
-```bash
-git clone https://github.com/gps949/cocopit.git && cd cocopit
-bun install
-bun run build        # build the web UI
-bun run start        # or: bun bin/cocopit.ts --port 8080
+nohup bun bin/cocopit.ts > ~/.cocopit/cocopit.log 2>&1 &     # plain background job
+tmux new -d -s cocopit 'bun bin/cocopit.ts'                   # or under tmux
 ```
 
 The first launch scans `~/.claude/projects` into a local SQLite index (about 40 s for a 5 GB history; progress shows live in the UI and you can start using it immediately). Subsequent launches only scan what changed — typically under a second.

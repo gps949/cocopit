@@ -16,6 +16,19 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="仪表盘——费用统计、缓存效率、每日图表" width="720" />
+</p>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/session-detail.png" alt="会话详情——大纲、markdown 渲染、会话内搜索" /></td>
+    <td><img src="docs/screenshots/accounts.png" alt="账号——套餐、额度、隔离登录" /></td>
+  </tr>
+</table>
+
+<sub>截图全部为生成的演示数据(`bun scripts/demo.ts`——写入 /tmp,不触碰真实数据)。</sub>
+
 ## 能做什么
 
 - **仪表盘**——API 等价费用、tokens、缓存效率(命中率用的是诚实口径:缓存写入算未命中)、每日费用柱图、周×小时热力图、按模型/项目/账号拆分。按日按小时的分桶跟随**你浏览器的时区**,而不是服务器的。
@@ -34,36 +47,26 @@
 只需要 [Bun](https://bun.sh)(Web 终端功能还需要 `tmux`),没有其他运行时依赖——服务端只用 Bun 内置能力。
 
 ```bash
-# 免安装,直接从 registry 运行
-bunx cocopit
-
-# 或全局安装
-bun install -g cocopit
-cocopit
+git clone https://github.com/gps949/cocopit.git && cd cocopit
+bun install && bun run build
+bun run start
 ```
 
 然后打开 http://127.0.0.1:7433。
 
+包发布到 npm 后,以上会简化为一条 `bunx cocopit`(或 `bun install -g cocopit`)。
+
 ```bash
-cocopit --port 8080            # 指定端口(也可用 COCOPIT_PORT 环境变量或 config.json)
-cocopit --host 0.0.0.0         # 监听回环之外(需要先设访问令牌,见下)
-cocopit --help
+bun bin/cocopit.ts --port 8080         # 指定端口(也可用 COCOPIT_PORT 环境变量或 config.json)
+bun bin/cocopit.ts --host 0.0.0.0      # 监听回环之外(需要先设访问令牌,见下)
+bun bin/cocopit.ts --help
 ```
 
 cocopit 像普通服务器一样前台运行。想放到后台:
 
 ```bash
-nohup cocopit > ~/.cocopit/cocopit.log 2>&1 &     # 普通后台任务
-tmux new -d -s cocopit cocopit                     # 或者跑在 tmux 里
-```
-
-### 从源码运行
-
-```bash
-git clone https://github.com/gps949/cocopit.git && cd cocopit
-bun install
-bun run build        # 构建前端
-bun run start        # 或者:bun bin/cocopit.ts --port 8080
+nohup bun bin/cocopit.ts > ~/.cocopit/cocopit.log 2>&1 &     # 普通后台任务
+tmux new -d -s cocopit 'bun bin/cocopit.ts'                   # 或者跑在 tmux 里
 ```
 
 首次启动会全量扫描 `~/.claude/projects` 建 SQLite 索引(5GB 历史约 40 秒;进度在页面实时显示,不用等扫完就能用)。之后每次启动只增量扫描,通常 1 秒内完成。
