@@ -122,6 +122,8 @@ const EN: Record<string, string> = {
   "没有匹配的记录": "No matching entries",
   "打开会话": "Open session",
   "会话内搜索": "Search in session",
+  "重新连接": "Reconnect",
+  "粘贴": "Paste",
   "命中 {n} 条": "{n} hits",
   "命中 {n} 条(仅显示前 50)": "{n} hits (first 50 shown)",
   "{n} 天前": "{n}d ago",

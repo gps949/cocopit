@@ -1,53 +1,81 @@
-# cocopit
+<p align="center">
+  <img src="docs/logo.png" alt="cocopit" width="128" />
+</p>
 
-Claude Code 的本地图形化控制台：用量费用统计、会话历史阅读、多账户切换、配置与权限管理、内置 Web 终端。
+<h1 align="center">cocopit</h1>
 
-只依赖 [Bun](https://bun.sh)，没有其他运行时依赖。
+<p align="center">
+  A local-first web console for <a href="https://www.anthropic.com/claude-code">Claude Code</a> — usage & cost analytics, session browsing, multi-account management, config & permission editing, and a built-in web terminal.
+</p>
 
-## 启动
+<p align="center">
+  <a href="README.zh-CN.md">中文(可可坑)</a> ·
+  <a href="docs/manual.md">User manual</a> ·
+  <a href="docs/manual.zh-CN.md">用户手册</a>
+</p>
+
+---
+
+## What it does
+
+- **Dashboard** — API-equivalent cost, tokens, cache efficiency (with an honest hit-rate definition), daily cost chart, weekday×hour heatmap, per-model / per-project / per-account breakdowns. Day and hour buckets follow *your* browser's timezone, not the server's.
+- **Subscription quota** — the same 5-hour / weekly window numbers `/usage` shows inside Claude Code, on the dashboard and per account. Credentials never leave the server process and are never sent to the browser.
+- **Sessions** — full-text search (CJK included) across every transcript, filters by project / account / time, windowed reading of arbitrarily large transcripts, conversation outline, in-session search, subagent transcripts, rewound-branch visibility, and cross-file fork/continuation links.
+- **Prompt history** — every prompt you ever typed, searchable, linked back to its session.
+- **Accounts** — multiple subscription logins (isolated `CLAUDE_CONFIG_DIR`s) and API-key profiles side by side; per-account cost attribution; resume any session under any account.
+- **Web terminal** — resume sessions or start new ones in the browser. Sessions run inside tmux on the server: closing the tab doesn't kill them, reconnecting reattaches. Touch devices get an Esc / Tab / ^C / arrows key bar and clipboard paste.
+- **Config** — edit `settings.json` (user & project scope) with validation, diff preview, automatic pre-write backups and conflict detection; named settings presets; a pricing table editor with LiteLLM comparison.
+- **System** — index status, disk usage triage & safe cleanup (dry-run first, active sessions always excluded), config backup browser with diff & restore, remote-access settings.
+
+Everything is derived from Claude Code's own files (`~/.claude/`). cocopit never writes to them except the settings files you explicitly save from the Config page — and every such write is preceded by a backup.
+
+## Quick start
+
+Requires [Bun](https://bun.sh). No other runtime dependencies.
 
 ```bash
-bun install          # 首次
-bun run build        # 构建前端（改了前端代码才需要重跑）
-bun run start        # 启动，打开 http://127.0.0.1:7433
+bun install          # first time
+bun run build        # build the web UI (only needed after frontend changes)
+bun run start        # open http://127.0.0.1:7433
 ```
 
-首次启动会全量扫描 `~/.claude/projects` 建索引（本机 5.2GB / 6603 个文件约 40 秒），
-之后每次启动只增量扫描变化的文件，通常 1 秒内完成。扫描进度在页面右上角实时显示，
-不用等它扫完也能开始用。
+The first launch scans `~/.claude/projects` into a local SQLite index (about 40 s for a 5 GB history; progress shows live in the UI and you can start using it immediately). Subsequent launches only scan what changed — typically under a second.
 
-开发时用 `bun run dev`：后端 watch 模式 + Vite 热更新，前端访问 http://127.0.0.1:5173 。
-两者都是前台进程，`Ctrl-C` 一次同时停掉。
+For development: `bun run dev` runs the backend in watch mode plus Vite HMR at http://127.0.0.1:5173.
 
 ```bash
-bun test             # 运行测试（229 个）
+bun test             # run the test suite
 ```
 
-## 数据在哪
+## Where your data lives
 
-| 路径 | 内容 | 读写 |
+| Path | What | Access |
 | --- | --- | --- |
-| `~/.claude/` | Claude Code 自己的数据：会话记录、配置、插件 | cocopit **只读**，仅「设置」页显式保存时写 `settings.json` |
-| `~/.claude.json` | Claude Code 主配置 | **永不写入**，只读取展示 |
-| `~/.cocopit/index.db` | cocopit 的索引（SQLite） | 可随时删除，重启后会重建 |
-| `~/.cocopit/config.json` | cocopit 自身设置（端口、扫描目录等） | 由「系统」页写入 |
-| `~/.cocopit/auth.json` | 访问令牌的哈希 | 由「系统」页写入 |
+| `~/.claude/` | Claude Code's own data: transcripts, config, plugins | **read-only**, except `settings.json` when you explicitly save from the Config page |
+| `~/.claude.json` | Claude Code's main config | **never written**, read for display only |
+| `~/.cocopit/index.db` | cocopit's SQLite index | derived data — delete it anytime, it rebuilds on restart |
+| `~/.cocopit/config.json` | cocopit's own settings (port, listen address, …) | written by the System page |
+| `~/.cocopit/auth.json` | sha256 of the access token | written by the System page |
+| `~/.cocopit/backups/` | pre-write backups of every config file cocopit ever touched | restore from the System page |
 
-索引是纯派生数据。任何时候觉得统计不对，删掉 `index.db` 重启即可重建，不会碰你的原始记录。
+## Remote access
 
-## 远程访问
+By default cocopit listens on `127.0.0.1` only. To reach it from another machine, **set an access token on the System page first, then change the listen address** — the server refuses to bind a non-loopback address without a token, because the built-in terminal is a shell on the host machine.
 
-默认只监听 `127.0.0.1`，别的机器连不上。要从别的机器访问（比如 cocopit 跑在服务器上），
-**先在「系统」页设置访问令牌，再把监听地址改成 `0.0.0.0`**。没有令牌时服务器会拒绝
-监听非回环地址并告诉你原因——因为内置终端等于一个远程 shell，不设令牌就等于把这台机器
-的 shell 开放给整个局域网。
+- The token is stored as a sha256 hash; after login the browser holds a signed, expiring HttpOnly cookie, never the token itself.
+- Lost the token? Delete `~/.cocopit/auth.json` on the server.
+- Behind a reverse proxy, add your public origin to `allowedOrigins` on the System page, or cross-origin protection will reject writes. Cookies get `Secure` automatically over HTTPS.
 
-令牌只存 sha256 哈希；登录后换成签名过期的 HttpOnly cookie，浏览器不持有原始令牌。
-忘记令牌时，在服务器上删掉 `~/.cocopit/auth.json` 即可恢复无认证状态。
+## Security model in one paragraph
 
-放在反向代理后面时，把你的对外域名加进「系统」页的 `allowedOrigins`，否则写操作会被
-跨站保护拦掉。走 HTTPS 时 cookie 会自动带上 `Secure`。
+The browser never sees credentials: OAuth tokens are read from the macOS Keychain (or `<config-dir>/.credentials.json` on Linux/Windows) inside the server process, used for a single upstream quota query, and never logged, persisted, or returned. Terminal commands are constructed server-side — the browser only ever sends a session or project id, never a command string. All state-changing requests pass an Origin gate; WebSocket upgrades have their own. Config writes go through a whitelist, a pre-write backup, and a compare-and-swap stamp so concurrent edits fail loudly instead of silently overwriting.
 
-## 端口被占用
+## Troubleshooting
 
-`~/.cocopit/config.json` 里改 `port`，或者删掉这个文件恢复默认 7433。
+- **Port taken** — change `port` in `~/.cocopit/config.json`, or delete the file to restore the default 7433.
+- **Numbers look wrong** — delete `~/.cocopit/index.db` and restart; the index is fully derived and rebuilds from your transcripts.
+- **Quota shows "token expired"** — run any `claude` command once in a terminal; Claude Code refreshes its own token.
+
+## License
+
+MIT
