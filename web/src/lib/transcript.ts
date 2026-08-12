@@ -45,6 +45,8 @@ export interface TranscriptEntry {
   metaLabel?: string;
   byteLen?: number;
   truncated?: boolean;
+  /** taken back by a rewind — real, but not part of how the session ended */
+  superseded?: boolean;
 }
 
 export interface RawMessage {
@@ -53,6 +55,7 @@ export interface RawMessage {
   record: any | null;
   byteLen: number;
   truncated?: boolean;
+  superseded?: boolean;
 }
 
 /** Record types that carry no conversation, only bookkeeping. */
@@ -155,8 +158,8 @@ export function buildTranscript(messages: RawMessage[]): TranscriptEntry[] {
   const callsById = new Map<string, ToolCall>();
 
   for (const message of messages) {
-    const { record, seq, uuid, byteLen, truncated } = message;
-    const base = { seq, uuid, byteLen, truncated, ts: record?.timestamp ? Date.parse(record.timestamp) : undefined };
+    const { record, seq, uuid, byteLen, truncated, superseded } = message;
+    const base = { seq, uuid, byteLen, truncated, superseded, ts: record?.timestamp ? Date.parse(record.timestamp) : undefined };
 
     if (truncated || !record) {
       entries.push({ ...base, key: `${seq}-oversized`, kind: "meta", metaLabel: "oversized" });
@@ -300,6 +303,8 @@ export interface TranscriptFilters {
   showThinking: boolean;
   showMeta: boolean;
   conversationOnly: boolean;
+  /** rewound-away records are hidden unless asked for */
+  showSuperseded?: boolean;
 }
 
 export function filterTranscript(
@@ -307,6 +312,7 @@ export function filterTranscript(
   filters: TranscriptFilters,
 ): TranscriptEntry[] {
   return entries.filter((entry) => {
+    if (entry.superseded && !filters.showSuperseded) return false;
     if (entry.kind === "meta") return filters.showMeta;
     if (entry.kind === "thinking") return filters.showThinking && !filters.conversationOnly;
     if (entry.kind === "tool") return !filters.conversationOnly;

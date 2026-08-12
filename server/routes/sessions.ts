@@ -162,6 +162,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       .prepare(
         `SELECT seq, uuid, ts, snippet FROM messages
          WHERE session_id = $id AND type = 'user' AND snippet IS NOT NULL
+           AND superseded = 0
          ORDER BY seq`,
       )
       .all({ $id: routeParams.id! });
@@ -226,7 +227,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       const size = tail !== null ? Math.min(Number(tail) || limit, 500) : limit;
       const rows = db
         .prepare(
-          `SELECT seq, uuid, byte_offset, byte_len FROM messages
+          `SELECT seq, uuid, byte_offset, byte_len, superseded FROM messages
            WHERE session_id = $id AND ($before IS NULL OR seq < $before)
            ORDER BY seq DESC LIMIT $limit`,
         )
@@ -244,7 +245,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       const fromSeq = Number(url.searchParams.get("fromSeq") ?? 0);
       const pointers = db
         .prepare(
-          `SELECT seq, uuid, byte_offset, byte_len FROM messages
+          `SELECT seq, uuid, byte_offset, byte_len, superseded FROM messages
            WHERE session_id = $id AND seq >= $fromSeq ORDER BY seq LIMIT $limit`,
         )
         .all({ $id: routeParams.id!, $fromSeq: fromSeq, $limit: limit + 1 }) as unknown as MessagePointer[];
@@ -253,7 +254,10 @@ export function registerSessionRoutes(router: Router, db: Database): void {
       prevBeforeSeq = page.length > 0 && page[0]!.seq > 0 ? page[0]!.seq : null;
     }
     const maxBodyBytes = Number(url.searchParams.get("maxBodyBytes") ?? DEFAULT_MAX_BODY_BYTES);
-    const messages = await readMessageRecords(session.file_path, page, maxBodyBytes);
+    const records = await readMessageRecords(session.file_path, page, maxBodyBytes);
+    // carry the rewind flag alongside the body so the reader can set it apart
+    const bySeq = new Map(page.map((p) => [p.seq, (p as { superseded?: number }).superseded === 1]));
+    const messages = records.map((m) => ({ ...m, superseded: bySeq.get(m.seq) === true }));
     return Response.json({ messages, nextFromSeq, prevBeforeSeq });
   });
 
@@ -264,7 +268,7 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     if (!session) return Response.json({ error: "not found" }, { status: 404 });
     const pointer = db
       .prepare(
-        `SELECT seq, uuid, byte_offset, byte_len FROM messages
+        `SELECT seq, uuid, byte_offset, byte_len, superseded FROM messages
          WHERE session_id = $id AND uuid = $uuid`,
       )
       .get({ $id: routeParams.id!, $uuid: routeParams.uuid! }) as MessagePointer | null;

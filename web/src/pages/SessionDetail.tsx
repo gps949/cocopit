@@ -360,7 +360,7 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
           : isThinking
             ? "border border-dashed border-line/70 bg-transparent"
             : "bg-hover/25"
-      }`}
+      } ${entry.superseded ? "border-l-2 border-l-danger/60 opacity-60" : ""}`}
     >
       <div className="mb-1 flex items-baseline gap-2 text-xs">
         <span className={isUser ? "font-medium" : isThinking ? "text-muted" : "font-medium text-accent"}>
@@ -372,6 +372,9 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
           </span>
         )}
         {entry.model && <span className="text-muted">{entry.model.replace(/^claude-/, "")}</span>}
+        {entry.superseded && (
+          <span className="rounded bg-danger/10 px-1.5 py-0.5 text-[11px] text-danger">{t("已回退")}</span>
+        )}
         <span className="ml-auto font-mono text-muted">#{entry.seq}</span>
       </div>
       <div className={`overflow-hidden text-sm leading-relaxed break-words ${isThinking ? "text-muted" : ""}`}>
@@ -401,6 +404,7 @@ export function SessionDetail() {
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [showThinking, setShowThinking] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
+  const [showSuperseded, setShowSuperseded] = useState(false);
   const [conversationOnly, setConversationOnly] = useState(false);
 
   useEffect(() => {
@@ -418,10 +422,12 @@ export function SessionDetail() {
     void getOutline(id).then((res) => setOutline(res.turns));
   }, [id]);
 
+  const supersededCount = useMemo(() => messages.filter((m) => m.superseded).length, [messages]);
+
   const rendered = useMemo(() => {
     const entries = buildTranscript(messages);
-    return collapseMeta(filterTranscript(entries, { showThinking, showMeta, conversationOnly }));
-  }, [messages, showThinking, showMeta, conversationOnly]);
+    return collapseMeta(filterTranscript(entries, { showThinking, showMeta, conversationOnly, showSuperseded }));
+  }, [messages, showThinking, showMeta, conversationOnly, showSuperseded]);
 
   async function loadOlder() {
     if (prevSeq === null || loadingOlder) return;
@@ -537,6 +543,12 @@ export function SessionDetail() {
         <Toggle active={showMeta} onClick={() => setShowMeta((v) => !v)}>
           {t("显示元数据")}
         </Toggle>
+        {/* only offered when there is something to show — most sessions were never rewound */}
+        {supersededCount > 0 && (
+          <Toggle active={showSuperseded} onClick={() => setShowSuperseded((v) => !v)}>
+            {t("显示已回退({n})", { n: supersededCount })}
+          </Toggle>
+        )}
         <button
           type="button"
           onClick={() => void jumpToLatest()}

@@ -214,6 +214,8 @@ const EN: Record<string, string> = {
     "Per-5h and weekly quota usage and reset times are in no local file — they come from the API, and the credential lives only in the system keychain, which ccockpit does not read. Check them with /usage inside Claude Code. The dashboard's cost figures are local records priced at published rates, which is a different thing from subscription quota.",
   "我方 输入/输出": "Ours in/out",
   "LiteLLM 输入/输出": "LiteLLM in/out",
+  "显示已回退({n})": "Show rewound ({n})",
+  "已回退": "rewound",
   "已断开": "Disconnected",
   "会话已结束": "Session ended",
   "周日": "Sun",

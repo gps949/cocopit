@@ -227,3 +227,31 @@ describe("attribution", () => {
     expect(entries[0]!.text).toBe("接着做第三步");
   });
 });
+
+describe("rewound content", () => {
+  const raw = (seq: number, text: string, superseded?: boolean) => ({
+    seq,
+    uuid: `u${seq}`,
+    byteLen: 10,
+    superseded,
+    record: { type: "assistant", message: { role: "assistant", content: [{ type: "text", text }] } },
+  });
+
+  test("is hidden by default — it is not how the session went", () => {
+    const entries = buildTranscript([raw(0, "第一次尝试", true), raw(1, "重来一次")]);
+    const shown = filterTranscript(entries, { showThinking: true, showMeta: true, conversationOnly: false });
+    expect(shown.map((e) => e.text)).toEqual(["重来一次"]);
+  });
+
+  test("is shown when asked for, and stays marked", () => {
+    const entries = buildTranscript([raw(0, "第一次尝试", true), raw(1, "重来一次")]);
+    const shown = filterTranscript(entries, {
+      showThinking: true,
+      showMeta: true,
+      conversationOnly: false,
+      showSuperseded: true,
+    });
+    expect(shown).toHaveLength(2);
+    expect(shown[0]!.superseded).toBe(true);
+  });
+});

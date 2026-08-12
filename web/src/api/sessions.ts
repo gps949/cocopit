@@ -36,6 +36,8 @@ export interface SubagentInfo {
 }
 
 export interface MessageRow {
+  /** true when a rewind took this record back; kept, but not the conversation. */
+  superseded?: boolean;
   seq: number;
   uuid: string;
   record: any | null;

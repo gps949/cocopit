@@ -1,6 +1,7 @@
 import type { Database, Statement } from "bun:sqlite";
 import { readFileSync } from "node:fs";
 import { priceEvent, type PricingTable } from "../cost/engine";
+import { recomputeSuperseded } from "./liveChain";
 import type { ParsedLine } from "./parser";
 import type { WorkItem } from "./scanner";
 
@@ -317,6 +318,10 @@ export class Ingestor {
             $cr: agg.cacheRead,
             $cwd: agg.cwd,
           });
+
+        // depends on the whole file, so it can only be settled once every line
+        // of this session has been written
+        recomputeSuperseded(this.#db, task.sessionId);
       } else {
         let meta: Record<string, unknown> = {};
         try {
