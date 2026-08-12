@@ -6,6 +6,7 @@ import { handOffSession } from "../cc/handoff";
 import type { Database } from "bun:sqlite";
 import { loadConfig } from "../config";
 import type { Router } from "../http/router";
+import { shellQuote } from "../profiles/detect";
 import { loadProfiles, resolveConfigDir } from "../profiles/registry";
 import {
   buildNewSessionCommand,
@@ -55,6 +56,8 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       createDir?: boolean;
       profileId?: string;
       settingsPreset?: string;
+      /** "codex" starts a Codex session; only meaningful for the cwd branch. */
+      product?: string;
       cols?: number;
       rows?: number;
     };
@@ -74,14 +77,28 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
     if (body.sessionId) {
       const row = db
         .prepare(
-          `SELECT s.id, s.title, p.cwd, p.profile_id AS profileId
+          `SELECT s.id, s.title, p.cwd, p.profile_id AS profileId, p.product
            FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.id = $id`,
         )
         .get({ $id: body.sessionId }) as
-        | { id: string; title: string | null; cwd: string | null; profileId: string }
+        | { id: string; title: string | null; cwd: string | null; profileId: string; product: string }
         | null;
       if (!row) return Response.json({ error: "session not found" }, { status: 404 });
       if (!row.cwd) return Response.json({ error: "session has no recorded cwd" }, { status: 409 });
+
+      if (row.product === "codex") {
+        // Codex has no per-profile config dirs here; resume is one command
+        command = `cd ${shellQuote(row.cwd)} && codex resume ${shellQuote(row.id)}`;
+        target = {
+          name: sessionNameFor(row.id),
+          title: row.title ?? row.id,
+          cwd: row.cwd,
+          kind: "resume",
+        };
+        const started = startSession({ name: target.name, command, cwd: target.cwd, cols, rows });
+        if (!started) return Response.json({ error: "tmux 会话创建失败" }, { status: 500 });
+        return Response.json({ ...target, attached: hasSession(target.name) }, { status: 201 });
+      }
 
       const owner = profiles.find((p) => p.id === row.profileId) ?? profiles[0]!;
       let profile = owner;
@@ -131,23 +148,29 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       };
     } else if (body.projectId !== undefined) {
       const project = db
-        .prepare("SELECT id, cwd, dir_name AS dirName, profile_id AS profileId FROM projects WHERE id = $id")
+        .prepare(
+          "SELECT id, cwd, dir_name AS dirName, profile_id AS profileId, product FROM projects WHERE id = $id",
+        )
         .get({ $id: body.projectId }) as
-        | { id: number; cwd: string | null; dirName: string; profileId: string }
+        | { id: number; cwd: string | null; dirName: string; profileId: string; product: string }
         | null;
       if (!project) return Response.json({ error: "project not found" }, { status: 404 });
       if (!project.cwd) return Response.json({ error: "project has no recorded cwd" }, { status: 409 });
 
-      // a new session may be started under any profile — nothing ties it to the
-      // one that happens to own the project's past sessions
-      const wanted = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
-      if (body.profileId && !wanted) return Response.json({ error: "profile not found" }, { status: 404 });
-      const profile = wanted ?? profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
-      command = buildNewSessionCommand({
-        cwd: project.cwd,
-        configDir: profile.configDir ?? null,
-        settingsFile: settingsFileFor(body.settingsPreset),
-      });
+      if (project.product === "codex") {
+        command = `cd ${shellQuote(project.cwd)} && codex`;
+      } else {
+        // a new session may be started under any profile — nothing ties it to
+        // the one that happens to own the project's past sessions
+        const wanted = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
+        if (body.profileId && !wanted) return Response.json({ error: "profile not found" }, { status: 404 });
+        const profile = wanted ?? profiles.find((p) => p.id === project.profileId) ?? profiles[0]!;
+        command = buildNewSessionCommand({
+          cwd: project.cwd,
+          configDir: profile.configDir ?? null,
+          settingsFile: settingsFileFor(body.settingsPreset),
+        });
+      }
       target = {
         name: sessionNameFor(`proj-${project.id}-${Date.now()}`),
         title: `新会话 · ${project.cwd.split("/").at(-1)}`,
@@ -172,13 +195,17 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
         return Response.json({ error: "该路径不是目录" }, { status: 400 });
       }
 
-      const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
-      if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
-      command = buildNewSessionCommand({
-        cwd,
-        configDir: profile.configDir ?? null,
-        settingsFile: settingsFileFor(body.settingsPreset),
-      });
+      if (body.product === "codex") {
+        command = `cd ${shellQuote(cwd)} && codex`;
+      } else {
+        const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
+        if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
+        command = buildNewSessionCommand({
+          cwd,
+          configDir: profile.configDir ?? null,
+          settingsFile: settingsFileFor(body.settingsPreset),
+        });
+      }
       target = {
         name: sessionNameFor(`dir-${Date.now()}`),
         title: `新会话 · ${cwd.split("/").at(-1)}`,

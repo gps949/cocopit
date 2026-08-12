@@ -115,6 +115,7 @@ const EN: Record<string, string> = {
 
   // history
   "历史": "History",
+  "Codex 控制台": "Codex console",
   "提示词历史": "Prompt history",
   "搜索你输入过的提示词": "Search your past prompts",
   "你在 Claude Code 中输入过的每一条提示词,跨项目与会话。":

@@ -38,6 +38,8 @@ export interface ParsedLine {
   assistantText?: string;
   snippet?: string;
   toolNames?: string[];
+  /** Codex: rate-limit snapshot riding on a token_count event. */
+  codexRateLimits?: CodexRateLimits;
 }
 
 const SNIPPET_MAX = 300;
@@ -106,6 +108,168 @@ function extractUsage(record: Record<string, unknown>): NormalizedUsage | undefi
   const serviceTier = str(u.service_tier);
   if (serviceTier) usage.serviceTier = serviceTier;
   return usage;
+}
+
+/** Codex rate-limit snapshot embedded in token_count events. */
+export interface CodexRateLimits {
+  primary?: { used_percent?: number; window_minutes?: number; resets_at?: number };
+  secondary?: { used_percent?: number; window_minutes?: number; resets_at?: number };
+}
+
+/**
+ * Per-file parse state for Codex rollouts: token_count events carry no model,
+ * so the model comes from the turn_context that preceded them.
+ */
+export interface CodexContext {
+  sessionId: string;
+  model?: string;
+}
+
+/** True for user text that is injected context rather than typed speech. */
+function codexUserNoise(text: string): boolean {
+  return text.startsWith("<") || text.startsWith("# AGENTS.md");
+}
+
+function codexTextOf(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (b) =>
+        b &&
+        typeof b === "object" &&
+        (b.type === "input_text" || b.type === "output_text" || b.type === "text") &&
+        typeof b.text === "string",
+    )
+    .map((b) => b.text as string)
+    .join("\n");
+}
+
+/**
+ * Normalizes one Codex rollout record into the same ParsedLine the ingester
+ * already understands. Message uuids are synthesized as cx-<session>-<seq>:
+ * stable across reparses (seq is deterministic) and globally unique, so the
+ * cross-session link rebuild cannot mistake two rollouts for a shared history.
+ */
+export function parseCodexLine(raw: RawLine, seq: number, ctx: CodexContext): ParsedLine {
+  const out: ParsedLine = { seq, byteOffset: raw.byteOffset, byteLen: raw.byteLen, ok: true };
+
+  let record: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(raw.text);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { ...out, ok: false, error: "line is not a JSON object" };
+    }
+    record = parsed as Record<string, unknown>;
+  } catch (err) {
+    return { ...out, ok: false, error: (err as Error).message };
+  }
+
+  const ts = str(record.timestamp);
+  if (ts) {
+    const parsed = Date.parse(ts);
+    if (!Number.isNaN(parsed)) out.ts = parsed;
+  }
+  const kind = str(record.type);
+  const payload = record.payload as Record<string, unknown> | undefined;
+  if (!payload || typeof payload !== "object") return out;
+
+  const uuid = () => `cx-${ctx.sessionId}-${seq}`;
+
+  switch (kind) {
+    case "session_meta": {
+      out.type = "session_meta";
+      out.cwd = str(payload.cwd);
+      out.version = str(payload.cli_version);
+      break;
+    }
+    case "turn_context": {
+      const model = str(payload.model);
+      if (model) {
+        ctx.model = model;
+        // surfaced so the ingester can backfill: newer rollouts put the only
+        // turn_context at the END of the file, after every token_count
+        out.model = model;
+      }
+      out.type = "turn_context";
+      // cwd can change mid-session (codex --cd); the mode over sessions decides
+      out.cwd = str(payload.cwd);
+      break;
+    }
+    case "event_msg": {
+      if (payload.type !== "token_count") break;
+      const info = payload.info as Record<string, unknown> | null | undefined;
+      const last = info?.last_token_usage as Record<string, unknown> | undefined;
+      if (last && typeof last === "object") {
+        const input = num(last.input_tokens);
+        const cached = num(last.cached_input_tokens);
+        out.usage = {
+          // cached tokens are a subset of input_tokens in OpenAI's accounting;
+          // our schema prices them separately, so split them out
+          model: ctx.model ?? "codex-unknown",
+          contextTier: "default",
+          input: Math.max(0, input - cached),
+          output: num(last.output_tokens),
+          cacheRead: cached,
+          cacheW5m: 0,
+          cacheW1h: 0,
+          webSearch: 0,
+          webFetch: 0,
+        };
+      }
+      const limits = payload.rate_limits as CodexRateLimits | undefined;
+      if (limits && typeof limits === "object") out.codexRateLimits = limits;
+      break;
+    }
+    case "response_item": {
+      const ptype = str(payload.type);
+      if (ptype === "message") {
+        const role = str(payload.role);
+        const text = codexTextOf(payload.content);
+        if (role === "assistant") {
+          out.type = "assistant";
+          out.uuid = uuid();
+          out.model = ctx.model;
+          if (text) {
+            out.assistantText = text;
+            out.snippet = makeSnippet(text);
+          }
+        } else if (role === "user") {
+          out.type = "user";
+          out.uuid = uuid();
+          if (text && !codexUserNoise(text)) {
+            out.firstUserText = text;
+            out.snippet = makeSnippet(text);
+          }
+        } else {
+          // developer/system instructions: bookkeeping, not conversation
+          out.type = "meta";
+          out.uuid = uuid();
+        }
+      } else if (ptype === "function_call" || ptype === "custom_tool_call" || ptype === "web_search_call") {
+        out.type = "tool";
+        out.subtype = ptype;
+        out.uuid = uuid();
+        const name = str(payload.name) ?? (ptype === "web_search_call" ? "web_search" : undefined);
+        if (name) out.toolNames = [name];
+      } else if (ptype === "function_call_output" || ptype === "custom_tool_call_output") {
+        out.type = "tool_result";
+        out.subtype = ptype;
+        out.uuid = uuid();
+      } else if (ptype === "reasoning") {
+        out.type = "thinking";
+        out.subtype = "reasoning";
+        out.uuid = uuid();
+      }
+      break;
+    }
+    case "compacted": {
+      out.type = "compacted";
+      out.uuid = uuid();
+      break;
+    }
+  }
+
+  return out;
 }
 
 export function parseLine(raw: RawLine, seq: number): ParsedLine {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { localeOf, useI18n } from "../i18n";
+import { productPath, useProduct, withProduct } from "../product";
 
 interface HistoryEntry {
   timestamp: number;
@@ -15,18 +16,20 @@ interface HistoryEntry {
  */
 export function History() {
   const { t, lang } = useI18n();
+  const product = useProduct();
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState("");
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
 
   useEffect(() => {
-    const qs = new URLSearchParams({ limit: "200" });
+    setEntries(null);
+    const qs = withProduct(product, new URLSearchParams({ limit: "200" }));
     if (applied) qs.set("q", applied);
     void fetch(`/api/history?${qs}`)
       .then((res) => res.json() as Promise<{ entries: HistoryEntry[] }>)
       .then((data) => setEntries(data.entries))
       .catch(() => setEntries([]));
-  }, [applied]);
+  }, [applied, product]);
 
   const fmtTs = (ts: number) =>
     new Date(ts).toLocaleString(localeOf(lang), {
@@ -86,7 +89,7 @@ export function History() {
           return entry.sessionId ? (
             <Link
               key={`${entry.timestamp}-${i}`}
-              to={`/sessions/${entry.sessionId}`}
+              to={productPath(product, `/sessions/${entry.sessionId}`)}
               className="block min-w-0 rounded-xl border border-line bg-panel px-4 py-2.5 transition-colors hover:border-accent"
             >
               {body}

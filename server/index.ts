@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
 import { join, normalize, sep } from "node:path";
 import {
   authorizeRequest,
@@ -122,10 +123,16 @@ export function isLoopbackRequest(req: Request, peerAddress: string | undefined)
 
 /** All registered profiles as scan sources (default profile → claudeDir). */
 export function profileScanSources(claudeDir: string): ScanSource[] {
-  return loadProfiles().map((profile) => ({
+  const sources: ScanSource[] = loadProfiles().map((profile) => ({
     profileId: profile.id,
     dir: profile.configDir ?? claudeDir,
   }));
+  // Codex has no profile concept here yet — one machine-wide directory
+  const codexDir = loadConfig().codexDir;
+  if (codexDir && existsSync(join(codexDir, "sessions"))) {
+    sources.push({ profileId: "default", dir: codexDir, product: "codex" });
+  }
+  return sources;
 }
 
 export function createServer(port?: number, deps: ServerDeps = {}) {
@@ -194,7 +201,7 @@ export function createServer(port?: number, deps: ServerDeps = {}) {
     registerPricingRoutes(router, db, hub, scheduler);
     registerProfileRoutes(router, scheduler, () => deps.sources ?? profileScanSources(claudeDir));
     registerSessionRoutes(router, db);
-    registerLiveRoutes(router, db, claudeDir);
+    registerLiveRoutes(router, db, claudeDir, loadConfig().codexDir);
     registerTerminalRoutes(router, db);
     registerConfigRoutes(router, db, claudeDir);
     registerSystemRoutes(

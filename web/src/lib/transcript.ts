@@ -153,6 +153,122 @@ function metaLabel(record: any): string {
  * Flattens records into entries, pairing each tool call with the result that
  * arrives in a later user-role record.
  */
+/**
+ * Codex rollouts speak a different schema: records wrap a `payload`, tool
+ * calls pair with their outputs via call_id, and reasoning arrives as summary
+ * blocks. Normalized here into the same entries the renderer already knows.
+ */
+export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] {
+  const entries: TranscriptEntry[] = [];
+  const callsById = new Map<string, ToolCall>();
+
+  const textOf = (content: unknown): string =>
+    Array.isArray(content)
+      ? content
+          .filter((b: any) => b && typeof b.text === "string")
+          .map((b: any) => String(b.text))
+          .join("\n")
+      : "";
+
+  for (const message of messages) {
+    const { record, seq, uuid, byteLen, truncated, superseded } = message;
+    const base = {
+      seq,
+      uuid,
+      byteLen,
+      truncated,
+      superseded,
+      ts: record?.timestamp ? Date.parse(record.timestamp) : undefined,
+    };
+
+    if (truncated || !record) {
+      entries.push({ ...base, key: `${seq}-oversized`, kind: "meta", metaLabel: "oversized" });
+      continue;
+    }
+    if (record.type === "compacted") {
+      entries.push({ ...base, key: `${seq}-compacted`, kind: "meta", metaLabel: "compacted" });
+      continue;
+    }
+    const payload = record.payload;
+    if (record.type !== "response_item" || !payload || typeof payload !== "object") {
+      entries.push({ ...base, key: `${seq}-meta`, kind: "meta", metaLabel: String(record.type ?? "record") });
+      continue;
+    }
+
+    switch (payload.type) {
+      case "message": {
+        const text = textOf(payload.content);
+        if (payload.role === "assistant") {
+          entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text });
+        } else if (payload.role === "user") {
+          // injected context (environment, instructions) arrives as user text
+          if (text.startsWith("<") || text.startsWith("# AGENTS.md")) {
+            const tag = /^<([a-z_-]+)/i.exec(text)?.[1];
+            entries.push({ ...base, key: `${seq}-inj`, kind: "meta", metaLabel: tag ?? "context" });
+          } else {
+            entries.push({ ...base, key: `${seq}-u`, kind: "user", text });
+          }
+        } else {
+          entries.push({ ...base, key: `${seq}-dev`, kind: "meta", metaLabel: payload.role ?? "instructions" });
+        }
+        break;
+      }
+      case "function_call":
+      case "custom_tool_call": {
+        let input: Record<string, unknown> = {};
+        try {
+          if (typeof payload.arguments === "string") input = JSON.parse(payload.arguments);
+          else if (typeof payload.input === "string") input = { input: payload.input };
+        } catch {
+          input = { arguments: String(payload.arguments ?? "") };
+        }
+        const name = String(payload.name ?? "tool");
+        const call: ToolCall = { id: String(payload.call_id ?? seq), name, input, summary: summarizeTool(name, input) };
+        if (payload.call_id) callsById.set(String(payload.call_id), call);
+        entries.push({ ...base, key: `${seq}-t`, kind: "tool", tool: call });
+        break;
+      }
+      case "function_call_output":
+      case "custom_tool_call_output": {
+        const owner = payload.call_id ? callsById.get(String(payload.call_id)) : undefined;
+        const output =
+          typeof payload.output === "string" ? payload.output : JSON.stringify(payload.output ?? "");
+        if (owner) {
+          owner.result = { text: output, isError: false };
+        } else {
+          entries.push({ ...base, key: `${seq}-to`, kind: "meta", metaLabel: "tool output" });
+        }
+        break;
+      }
+      case "web_search_call": {
+        const query = String(payload.action?.query ?? "");
+        const call: ToolCall = {
+          id: String(payload.id ?? seq),
+          name: "web_search",
+          input: { query },
+          summary: query,
+        };
+        entries.push({ ...base, key: `${seq}-ws`, kind: "tool", tool: call });
+        break;
+      }
+      case "reasoning": {
+        const text = Array.isArray(payload.summary)
+          ? payload.summary
+              .filter((b: any) => b && typeof b.text === "string")
+              .map((b: any) => String(b.text))
+              .join("\n")
+          : "";
+        if (text) entries.push({ ...base, key: `${seq}-r`, kind: "thinking", text });
+        break;
+      }
+      default:
+        entries.push({ ...base, key: `${seq}-x`, kind: "meta", metaLabel: String(payload.type ?? "record") });
+    }
+  }
+
+  return entries;
+}
+
 export function buildTranscript(messages: RawMessage[]): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
   const callsById = new Map<string, ToolCall>();

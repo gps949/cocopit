@@ -33,6 +33,7 @@ interface SessionRow {
   cwd: string | null;
   dir_name: string;
   profile_id: string;
+  product: string;
 }
 
 function toSummary(row: SessionRow) {
@@ -42,6 +43,7 @@ function toSummary(row: SessionRow) {
     cwd: row.cwd,
     dirName: row.dir_name,
     profileId: row.profile_id,
+    product: row.product,
     title: row.title,
     slug: row.slug,
     gitBranch: row.git_branch,
@@ -64,11 +66,12 @@ function toSummary(row: SessionRow) {
 }
 
 const SESSION_SELECT = `
-  SELECT s.*, p.cwd, p.dir_name, p.profile_id
+  SELECT s.*, p.cwd, p.dir_name, p.profile_id, p.product
   FROM sessions s JOIN projects p ON p.id = s.project_id`;
 
 export function registerSessionRoutes(router: Router, db: Database): void {
-  router.register("GET", "/api/projects", () => {
+  router.register("GET", "/api/projects", (req) => {
+    const product = new URL(req.url).searchParams.get("product") ?? "claude";
     const projects = db
       .prepare(
         `SELECT p.id, p.profile_id AS profileId, p.dir_name AS dirName, p.cwd,
@@ -77,9 +80,10 @@ export function registerSessionRoutes(router: Router, db: Database): void {
                 COALESCE(SUM(s.cost_usd), 0) AS costUsd,
                 MAX(s.last_ts) AS lastSessionTs
          FROM projects p LEFT JOIN sessions s ON s.project_id = p.id
+         WHERE p.product = $product
          GROUP BY p.id ORDER BY lastSessionTs DESC`,
       )
-      .all();
+      .all({ $product: product });
     return Response.json({ projects });
   });
 
@@ -87,6 +91,11 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     const url = new URL(req.url);
     const clauses: string[] = [];
     const params: Record<string, string | number> = {};
+
+    // sessions inherit their product through the project; default keeps every
+    // pre-codex client and bookmark meaning what it always meant
+    clauses.push("p.product = $product");
+    params.$product = url.searchParams.get("product") ?? "claude";
 
     const q = url.searchParams.get("q");
     if (q !== null) {

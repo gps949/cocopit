@@ -5,7 +5,7 @@
 <h1 align="center">cocopit</h1>
 
 <p align="center">
-  A local-first web console for <a href="https://www.anthropic.com/claude-code">Claude Code</a> — usage & cost analytics, session browsing, multi-account management, config & permission editing, and a built-in web terminal.
+  A local-first web console for <a href="https://www.anthropic.com/claude-code">Claude Code</a> and <a href="https://openai.com/codex/">OpenAI Codex CLI</a> — usage & cost analytics, session browsing, multi-account management, config & permission editing, and a built-in web terminal.
 </p>
 
 <p align="center">
@@ -47,6 +47,7 @@
 - **Web terminal** — resume sessions or start new ones in the browser. Sessions run inside tmux on the server: closing the tab doesn't kill them, reconnecting reattaches. Touch devices get an Esc / Tab / ^C / arrows key bar and clipboard paste.
 - **Config** — edit `settings.json` (user & project scope) with validation, diff preview, automatic pre-write backups and conflict detection; named settings presets; a pricing table editor with LiteLLM comparison.
 - **System** — index status, disk usage triage & safe cleanup (dry-run first, active sessions always excluded), config backup browser with diff & restore, remote-access settings.
+- **Codex too** — the sidebar switches the whole console to OpenAI Codex CLI (`~/.codex`): its own dashboard, projects, sessions (with full-text search and transcript reading), prompt history, quota (read straight from the transcripts — no credentials involved), and terminal resume via `codex resume`. Each view keeps its own URL space (`/codex/*`).
 
 Everything is derived from Claude Code's own files (`~/.claude/`). cocopit never writes to them except the settings files you explicitly save from the Config page — and every such write is preceded by a backup.
 

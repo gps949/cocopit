@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { listSessions, type SessionSummary } from "../api/sessions";
 import { fmtUsd } from "../lib/format";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
+import { productPath, useProduct, withProduct } from "../product";
 
 // module scope has no hook access — the caller passes its translator in
 function fmtWhen(ts: number | null, t: Translate, lang: Lang): string {
@@ -17,6 +18,7 @@ function fmtWhen(ts: number | null, t: Translate, lang: Lang): string {
 
 export function Sessions() {
   const { t, lang } = useI18n();
+  const product = useProduct();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -38,7 +40,7 @@ export function Sessions() {
 
   useEffect(() => {
     setLoading(true);
-    const qs = new URLSearchParams({ limit: "40" });
+    const qs = withProduct(product, new URLSearchParams({ limit: "40" }));
     if (search) qs.set("q", search);
     if (project) qs.set("project", project);
     if (profileId) qs.set("profileId", profileId);
@@ -48,11 +50,11 @@ export function Sessions() {
       setNote(res.note);
       setLoading(false);
     });
-  }, [search, project, profileId]);
+  }, [search, project, profileId, product]);
 
   async function loadMore() {
     if (!cursor) return;
-    const qs = new URLSearchParams({ limit: "40", cursor });
+    const qs = withProduct(product, new URLSearchParams({ limit: "40", cursor }));
     if (search) qs.set("q", search);
     if (project) qs.set("project", project);
     if (profileId) qs.set("profileId", profileId);
@@ -73,7 +75,7 @@ export function Sessions() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("会话")}</h1>
-        {profiles.length > 1 && (
+        {profiles.length > 1 && product === "claude" && (
           <select
             value={profileId}
             onChange={(e) => {
@@ -152,7 +154,7 @@ export function Sessions() {
         {sessions.map((s) => (
           <Link
             key={s.id}
-            to={`/sessions/${s.id}`}
+            to={productPath(product, `/sessions/${s.id}`)}
             className="block min-w-0 rounded-2xl border border-line bg-panel px-4 py-3 transition-colors hover:border-accent"
           >
             <div className="truncate text-sm">{s.title || s.id}</div>
@@ -195,7 +197,7 @@ export function Sessions() {
             {sessions.map((s) => (
               <tr key={s.id} className="border-b border-line/60 last:border-0 hover:bg-hover/40">
                 <td className="max-w-md px-4 py-2.5">
-                  <Link to={`/sessions/${s.id}`} className="block truncate hover:text-accent">
+                  <Link to={productPath(product, `/sessions/${s.id}`)} className="block truncate hover:text-accent">
                     {s.title || s.id}
                   </Link>
                   <div className="mt-0.5 flex gap-2 text-xs text-muted">

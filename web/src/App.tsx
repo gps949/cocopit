@@ -60,6 +60,13 @@ export function App() {
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/sessions/:id" element={<SessionDetail />} />
           <Route path="/history" element={<History />} />
+          {/* the Codex view of the same console: same components, product from the URL */}
+          <Route path="/codex" element={<Navigate to="/codex/dashboard" replace />} />
+          <Route path="/codex/dashboard" element={<Dashboard />} />
+          <Route path="/codex/projects" element={<Projects />} />
+          <Route path="/codex/sessions" element={<Sessions />} />
+          <Route path="/codex/sessions/:id" element={<SessionDetail />} />
+          <Route path="/codex/history" element={<History />} />
           <Route path="/live" element={<Live />} />
           <Route path="/config" element={<Config />} />
           <Route path="/extensions" element={<Extensions />} />

@@ -6,6 +6,7 @@ export interface SessionSummary {
   cwd: string | null;
   dirName: string;
   profileId: string;
+  product: "claude" | "codex";
   title: string | null;
   slug: string | null;
   gitBranch: string | null;
@@ -124,7 +125,8 @@ export const getSubagentTranscript = (id: string, agentId: string, offset = 0, l
   );
 export const getMessage = (id: string, uuid: string) =>
   getJson<MessageRow>(`/api/sessions/${id}/messages/${uuid}`);
-export const listProjects = () => getJson<{ projects: ProjectRow[] }>("/api/projects");
+export const listProjects = (product: "claude" | "codex" = "claude") =>
+  getJson<{ projects: ProjectRow[] }>(`/api/projects${product === "codex" ? "?product=codex" : ""}`);
 
 export interface ProfileOption {
   id: string;
@@ -146,6 +148,7 @@ export async function openTerminal(body: {
   createDir?: boolean;
   profileId?: string;
   settingsPreset?: string;
+  product?: "claude" | "codex";
 }) {
   const res = await fetch("/api/terminal", { method: "POST", body: JSON.stringify(body) });
   if (!res.ok) {

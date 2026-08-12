@@ -42,11 +42,12 @@ export class FsWatcher {
     if (!this.#disableWatch) {
       for (const source of this.#sources) {
         try {
+          const sub = source.product === "codex" ? "sessions" : "projects";
           this.#watchers.push(
-            watch(join(source.dir, "projects"), { recursive: true }, () => this.#onEvent()),
+            watch(join(source.dir, sub), { recursive: true }, () => this.#onEvent()),
           );
         } catch {
-          // projects dir missing or watch unsupported — the poll fallback covers us
+          // watched dir missing or watch unsupported — the poll fallback covers us
         }
       }
     }

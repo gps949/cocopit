@@ -8,6 +8,7 @@ const DEFAULTS: CocopitConfig = {
   port: 7433,
   host: "127.0.0.1",
   claudeDir: join(homedir(), ".claude"),
+  codexDir: join(homedir(), ".codex"),
   allowedOrigins: [],
 };
 

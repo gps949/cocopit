@@ -60,7 +60,7 @@ export function QuotaBar({ label, window: w }: { label: string; window: QuotaWin
  * before starting work. Renders nothing when no logged-in subscription
  * profile answers — the accounts page explains failures, this strip does not.
  */
-export function QuotaStrip() {
+export function QuotaStrip({ product = "claude" }: { product?: "claude" | "codex" }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<Array<{ id: string; name: string; result: QuotaResult }>>([]);
 
@@ -68,6 +68,13 @@ export function QuotaStrip() {
     let cancelled = false;
     const load = async () => {
       try {
+        if (product === "codex") {
+          // Codex embeds its rate-limit state in every transcript; the server
+          // hands back the freshest snapshot the index has seen
+          const result = (await (await fetch("/api/codex/quota")).json()) as QuotaResult;
+          if (!cancelled) setRows(result.status === "ok" ? [{ id: "codex", name: "Codex", result }] : []);
+          return;
+        }
         const res = await fetch("/api/profiles");
         const { profiles } = (await res.json()) as {
           profiles: Array<{ id: string; name: string; kind: string; detection: { loggedIn: boolean } }>;
@@ -91,7 +98,7 @@ export function QuotaStrip() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [product]);
 
   if (rows.length === 0) return null;
 

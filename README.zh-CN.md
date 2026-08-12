@@ -5,7 +5,7 @@
 <h1 align="center">cocopit · 可可坑</h1>
 
 <p align="center">
-  <a href="https://www.anthropic.com/claude-code">Claude Code</a> 的本地优先 Web 控制台——用量费用统计、会话浏览检索、多账号管理、配置与权限编辑、内置 Web 终端。
+  <a href="https://www.anthropic.com/claude-code">Claude Code</a> 与 <a href="https://openai.com/codex/">OpenAI Codex CLI</a> 的本地优先 Web 控制台——用量费用统计、会话浏览检索、多账号管理、配置与权限编辑、内置 Web 终端。
 </p>
 
 <p align="center">
@@ -41,6 +41,7 @@
 - **Web 终端**——在浏览器里恢复会话或新开会话。会话跑在服务器的 tmux 里:关掉标签页不会中断,重连即重新附着。触屏设备有 Esc / Tab / ^C / 方向键按键条和剪贴板粘贴。
 - **配置**——编辑 `settings.json`(用户级与项目级),带校验、改动 diff 预览、写前自动备份与并发冲突检测;具名配置方案;价目表编辑器与 LiteLLM 价格对照。
 - **系统**——索引状态、磁盘占用分类与安全清理(先 dry-run,活跃会话永远排除)、配置备份浏览与差异对比恢复、远程访问设置。
+- **还有 Codex**——侧栏一键把整个控制台切到 OpenAI Codex CLI(`~/.codex`):独立的仪表盘、项目、会话(全文检索与记录阅读)、提示词历史、配额(直接从会话记录读出——不碰任何凭据)、以及 `codex resume` 终端恢复。两边各占一个 URL 空间(`/codex/*`),互不干扰。
 
 一切都派生自 Claude Code 自己的文件(`~/.claude/`)。除了你在配置页显式保存的 settings 文件,cocopit 从不写入它们——而每次这样的写入之前都有备份。
 

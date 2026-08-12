@@ -12,9 +12,11 @@ import { fmtUsd } from "../lib/format";
 import { InfoHint } from "../components/InfoHint";
 import { TerminalPane } from "../components/Terminal";
 import { localeOf, useI18n } from "../i18n";
+import { productPath, useProduct } from "../product";
 
 export function Projects() {
   const { t, lang } = useI18n();
+  const product = useProduct();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
   const [terminal, setTerminal] = useState<{ name: string; title: string } | null>(null);
@@ -27,10 +29,14 @@ export function Projects() {
   const [newDir, setNewDir] = useState("");
 
   useEffect(() => {
-    void listProjects().then((res) => setProjects(res.projects));
-    void listProfileOptions().then(setProfiles);
-    void listSnapshotNames().then(setPresets);
-  }, []);
+    setProjects(null);
+    void listProjects(product).then((res) => setProjects(res.projects));
+    // accounts and settings presets are Claude concepts; Codex has neither
+    if (product === "claude") {
+      void listProfileOptions().then(setProfiles);
+      void listSnapshotNames().then(setPresets);
+    }
+  }, [product]);
 
   async function startInDir(createDir: boolean) {
     setError(null);
@@ -38,8 +44,9 @@ export function Projects() {
       const term = await openTerminal({
         cwd: newDir.trim(),
         createDir,
-        profileId: runAs || undefined,
-        settingsPreset: preset || undefined,
+        product,
+        profileId: (product === "claude" && runAs) || undefined,
+        settingsPreset: (product === "claude" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });
       setNewDir("");
@@ -58,8 +65,8 @@ export function Projects() {
     try {
       const term = await openTerminal({
         projectId: project.id,
-        profileId: runAs || undefined,
-        settingsPreset: preset || undefined,
+        profileId: (product === "claude" && runAs) || undefined,
+        settingsPreset: (product === "claude" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });
     } catch (err) {
@@ -159,7 +166,7 @@ export function Projects() {
             <div className="flex items-start justify-between gap-3">
               <button
                 type="button"
-                onClick={() => navigate(`/sessions?project=${p.id}`)}
+                onClick={() => navigate(productPath(product, `/sessions?project=${p.id}`))}
                 className="min-w-0 truncate text-left text-sm hover:text-accent"
               >
                 {p.cwd?.split("/").at(-1) ?? p.dirName}
@@ -211,7 +218,7 @@ export function Projects() {
                 <td className="max-w-md px-4 py-2.5">
                   <button
                     type="button"
-                    onClick={() => navigate(`/sessions?project=${p.id}`)}
+                    onClick={() => navigate(productPath(product, `/sessions?project=${p.id}`))}
                     className="block max-w-full truncate text-left hover:text-accent"
                   >
                     {p.cwd?.split("/").at(-1) ?? p.dirName}

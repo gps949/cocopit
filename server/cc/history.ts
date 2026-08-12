@@ -24,13 +24,15 @@ function setCursor(db: Database, key: string, value: number): void {
   ).run({ $key: key, $value: String(value) });
 }
 
-/**
- * Incrementally imports ~/.claude/history.jsonl (prompt history) using the same
- * byte-cursor discipline as the session indexer: a truncated file restarts from
- * zero, a partial trailing line stays unconsumed.
- */
-export function importPromptHistory(db: Database, claudeDir: string): HistoryImportResult {
-  const path = join(claudeDir, "history.jsonl");
+type HistoryRow = [number | null, string | null, string | null, string, string];
+
+function importJsonl(
+  db: Database,
+  path: string,
+  cursorKey: string,
+  product: string,
+  toRow: (entry: Record<string, unknown>) => HistoryRow | null,
+): HistoryImportResult {
   let size: number;
   try {
     size = statSync(path).size;
@@ -38,17 +40,17 @@ export function importPromptHistory(db: Database, claudeDir: string): HistoryImp
     return { imported: 0, parsedBytes: 0 };
   }
 
-  let start = cursor(db, CURSOR_KEY);
+  let start = cursor(db, cursorKey);
   if (start > size) {
-    // file shrank (rotated) — reimport from scratch
-    db.run("DELETE FROM prompt_history");
+    // file shrank (rotated) — reimport this product from scratch
+    db.prepare("DELETE FROM prompt_history WHERE product = $p").run({ $p: product });
     start = 0;
   }
   if (start === size) return { imported: 0, parsedBytes: start };
 
   const fd = openSync(path, "r");
   const splitter = new LineSplitter(start);
-  const rows: Array<[number | null, string | null, string | null, string]> = [];
+  const rows: HistoryRow[] = [];
   try {
     const buffer = Buffer.alloc(1 << 20);
     let position = start;
@@ -59,14 +61,8 @@ export function importPromptHistory(db: Database, claudeDir: string): HistoryImp
       for (const line of splitter.push(buffer.subarray(0, bytesRead))) {
         if (!line.text.trim()) continue;
         try {
-          const entry = JSON.parse(line.text) as {
-            display?: string;
-            timestamp?: number;
-            project?: string;
-            sessionId?: string;
-          };
-          if (typeof entry.display !== "string") continue;
-          rows.push([entry.timestamp ?? null, entry.project ?? null, entry.sessionId ?? null, entry.display]);
+          const row = toRow(JSON.parse(line.text) as Record<string, unknown>);
+          if (row) rows.push(row);
         } catch {
           // skip malformed history line
         }
@@ -79,10 +75,39 @@ export function importPromptHistory(db: Database, claudeDir: string): HistoryImp
   if (rows.length > 0) {
     insertMany(
       db,
-      db.prepare("INSERT INTO prompt_history (ts, project, session_id, display) VALUES (?, ?, ?, ?)"),
+      db.prepare(
+        "INSERT INTO prompt_history (ts, project, session_id, display, product) VALUES (?, ?, ?, ?, ?)",
+      ),
       rows,
     );
   }
-  setCursor(db, CURSOR_KEY, splitter.consumedBytes);
+  setCursor(db, cursorKey, splitter.consumedBytes);
   return { imported: rows.length, parsedBytes: splitter.consumedBytes };
+}
+
+/**
+ * Incrementally imports ~/.claude/history.jsonl (prompt history) using the same
+ * byte-cursor discipline as the session indexer: a truncated file restarts from
+ * zero, a partial trailing line stays unconsumed.
+ */
+export function importPromptHistory(db: Database, claudeDir: string): HistoryImportResult {
+  return importJsonl(db, join(claudeDir, "history.jsonl"), CURSOR_KEY, "claude", (entry) => {
+    if (typeof entry.display !== "string") return null;
+    return [
+      (entry.timestamp as number | undefined) ?? null,
+      (entry.project as string | undefined) ?? null,
+      (entry.sessionId as string | undefined) ?? null,
+      entry.display,
+      "claude",
+    ];
+  });
+}
+
+/** Codex history: {session_id, ts (epoch seconds), text} — no project field. */
+export function importCodexPromptHistory(db: Database, codexDir: string): HistoryImportResult {
+  return importJsonl(db, join(codexDir, "history.jsonl"), "codex_history_parsed_bytes", "codex", (entry) => {
+    if (typeof entry.text !== "string") return null;
+    const ts = typeof entry.ts === "number" ? entry.ts * 1000 : null;
+    return [ts, null, (entry.session_id as string | undefined) ?? null, entry.text, "codex"];
+  });
 }

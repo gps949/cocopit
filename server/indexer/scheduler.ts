@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { cpus } from "node:os";
 import type { IndexStatus } from "../../shared/types";
-import { listClaudeFiles } from "../cc/paths";
+import { listClaudeFiles, listCodexFiles } from "../cc/paths";
 import { loadPricingTable } from "../cost/engine";
 import { getPricingVersion } from "../cost/recalc";
 import { Ingestor, type IngestPricing } from "./ingest";
@@ -25,6 +25,8 @@ export interface SchedulerOptions {
 export interface ScanSource {
   profileId: string;
   dir: string;
+  /** Absent means Claude Code. */
+  product?: "claude" | "codex";
 }
 
 function normalizeSources(input: string | ScanSource[]): ScanSource[] {
@@ -98,7 +100,13 @@ export class IndexScheduler extends EventTarget {
   async #doScan(sources: ScanSource[]): Promise<ScanSummary> {
     const t0 = performance.now();
     const tasks = (
-      await Promise.all(sources.map((source) => listClaudeFiles(source.dir, source.profileId)))
+      await Promise.all(
+        sources.map((source) =>
+          source.product === "codex"
+            ? listCodexFiles(source.dir, source.profileId)
+            : listClaudeFiles(source.dir, source.profileId),
+        ),
+      )
     ).flat();
     const work = computeWork(this.#db, tasks);
     const bytesTotal = work.reduce((n, w) => n + Math.max(0, w.task.size - w.startOffset), 0);
@@ -173,6 +181,8 @@ export class IndexScheduler extends EventTarget {
           path: current.task.path,
           startOffset: current.startOffset,
           seqStart: current.seqStart,
+          product: current.task.product,
+          sessionId: current.task.sessionId,
         };
         worker.postMessage(job);
       };

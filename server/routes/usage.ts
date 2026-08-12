@@ -17,6 +17,11 @@ function parseFilter(url: URL): UsageFilter {
   let joinSessions = false;
   let joinProjects = false;
 
+  // denormalized onto usage_events so the covering index keeps working;
+  // defaulting to claude keeps every pre-codex client's numbers unchanged
+  clauses.push("u.product = $uproduct");
+  params.$uproduct = url.searchParams.get("product") ?? "claude";
+
   const from = url.searchParams.get("from");
   if (from) {
     clauses.push("u.ts >= $from");

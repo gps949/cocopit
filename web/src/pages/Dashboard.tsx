@@ -15,6 +15,7 @@ import {
 import { chartTokens, EChart, type EChartsOption } from "../components/EChart";
 import { fmtTokens, fmtUsd } from "../lib/format";
 import { QuotaStrip } from "../components/Quota";
+import { useProduct } from "../product";
 import { useI18n } from "../i18n";
 
 const RANGES: Array<{ key: RangeKey; label: string }> = [
@@ -47,6 +48,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 export function Dashboard() {
   const { t } = useI18n();
+  const product = useProduct();
   const [range, setRange] = useState<RangeKey>("30d");
   const [themeTick, setThemeTick] = useState(0);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
@@ -67,7 +69,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = rangeToQuery(range);
+    const q = rangeToQuery(range, product);
     let cancelled = false;
     setLoading(true);
     const guard =
@@ -91,12 +93,18 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, [range, product]);
 
   useEffect(() => {
-    void getJson<{ rows: CalibrationRow[] }>("/api/usage/calibration").then((c) => setCalibration(c.rows));
+    // calibration compares against Claude Code's own costUSD records — there
+    // is no Codex counterpart to calibrate against
+    if (product === "claude") {
+      void getJson<{ rows: CalibrationRow[] }>("/api/usage/calibration").then((c) => setCalibration(c.rows));
+    } else {
+      setCalibration(null);
+    }
     void getJson<UnpricedModels>("/api/usage/unpriced").then(setUnpriced);
-  }, []);
+  }, [product]);
 
   // re-render charts when the theme class flips
   useEffect(() => {
@@ -256,7 +264,7 @@ export function Dashboard() {
       </div>
 
       {/* the numbers people check before starting work — same source as /usage */}
-      <QuotaStrip />
+      <QuotaStrip product={product} />
 
       {unpriced && unpriced.models.length > 0 && (
         <div className="mt-4 rounded-xl border border-line bg-accent-soft px-4 py-2.5 text-sm">

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useIndexStatus } from "../hooks/useIndexStatus";
+import { productPath, useProduct } from "../product";
 import { ScrollNav } from "./ScrollNav";
 import { applyTheme, loadTheme, nextTheme, themeLabel, watchSystemTheme, type Theme } from "../theme";
 import { useI18n } from "../i18n";
@@ -23,12 +24,12 @@ import {
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
-const NAV: Array<{ to: string; label: string; icon: IconType }> = [
-  { to: "/dashboard", label: "仪表盘", icon: GaugeIcon },
+const NAV: Array<{ to: string; label: string; icon: IconType; products?: Array<"claude" | "codex"> }> = [
+  { to: "/dashboard", label: "仪表盘", icon: GaugeIcon, products: ["claude", "codex"] },
   { to: "/profiles", label: "账号", icon: UserIcon },
-  { to: "/projects", label: "项目", icon: FolderIcon },
-  { to: "/sessions", label: "会话", icon: ChatIcon },
-  { to: "/history", label: "历史", icon: HistoryIcon },
+  { to: "/projects", label: "项目", icon: FolderIcon, products: ["claude", "codex"] },
+  { to: "/sessions", label: "会话", icon: ChatIcon, products: ["claude", "codex"] },
+  { to: "/history", label: "历史", icon: HistoryIcon, products: ["claude", "codex"] },
   { to: "/live", label: "实时", icon: PulseIcon },
   { to: "/config", label: "配置", icon: SlidersIcon },
   { to: "/extensions", label: "扩展", icon: PuzzleIcon },
@@ -47,6 +48,7 @@ export function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const status = useIndexStatus();
+  const product = useProduct();
 
   useEffect(() => {
     applyTheme(theme);
@@ -77,16 +79,38 @@ export function Layout() {
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-6 pt-6 pb-5">
+        <div className="px-6 pt-6 pb-4">
           <div className="font-brand text-[22px] font-medium tracking-tight">cocopit</div>
-          <div className="mt-0.5 text-xs text-muted">{t("Claude Code 控制台")}</div>
+          <div className="mt-0.5 text-xs text-muted">
+            {product === "codex" ? t("Codex 控制台") : t("Claude Code 控制台")}
+          </div>
+          {/* which CLI's world this console shows; each keeps its own URL space */}
+          <div className="mt-3 flex rounded-lg border border-line p-0.5 text-xs">
+            <NavLink
+              to="/dashboard"
+              className={`flex-1 rounded-md px-2 py-1 text-center transition-colors ${
+                product === "claude" ? "bg-hover font-medium text-ink" : "text-muted hover:text-ink"
+              }`}
+            >
+              Claude
+            </NavLink>
+            <NavLink
+              to="/codex/dashboard"
+              className={`flex-1 rounded-md px-2 py-1 text-center transition-colors ${
+                product === "codex" ? "bg-hover font-medium text-ink" : "text-muted hover:text-ink"
+              }`}
+            >
+              Codex
+            </NavLink>
+          </div>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV.filter((item) => (item.products ?? ["claude"]).includes(product)).map(
+            ({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
-              to={to}
+              to={productPath(product, to)}
               className={({ isActive }) =>
                 `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
                   isActive ? "bg-hover font-medium text-ink" : "text-muted hover:bg-hover/60 hover:text-ink"
@@ -100,7 +124,8 @@ export function Layout() {
                 </>
               )}
             </NavLink>
-          ))}
+            ),
+          )}
         </nav>
 
         <div className="space-y-1 border-t border-line px-3 py-3">

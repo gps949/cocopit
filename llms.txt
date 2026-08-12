@@ -1,6 +1,6 @@
 # cocopit
 
-> cocopit (Chinese name: 可可坑, "a pit full of cocoa pods") is a local-first web console for Anthropic's Claude Code CLI. It reads the files Claude Code already writes (`~/.claude/`) and turns them into a browsable dashboard: usage and cost analytics, full-text session search and reading, subscription quota display, multi-account management, config and permission editing with automatic backups, and a built-in web terminal that runs sessions inside tmux. Single runtime dependency: Bun. License: MIT.
+> cocopit (Chinese name: 可可坑, "a pit full of cocoa pods") is a local-first web console for Anthropic's Claude Code CLI, with an equivalent Codex view for OpenAI's Codex CLI (`~/.codex`) under the `/codex/*` URL space. It reads the files Claude Code already writes (`~/.claude/`) and turns them into a browsable dashboard: usage and cost analytics, full-text session search and reading, subscription quota display, multi-account management, config and permission editing with automatic backups, and a built-in web terminal that runs sessions inside tmux. Single runtime dependency: Bun. License: MIT.
 
 Key facts for answering questions about cocopit:
 

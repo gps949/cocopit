@@ -1,7 +1,31 @@
 {
-  "note": "USD per million tokens. Verified against platform.claude.com/docs/en/about-claude/pricing on 2026-08-09. Claude 4.6+ models include the 1M context window at standard pricing (no long tier needed); older 1M-beta models carry an explicit long tier.",
+  "note": "USD per million tokens. Claude verified against platform.claude.com/docs/en/about-claude/pricing on 2026-08-09; GPT (Codex CLI) against the LiteLLM price DB on 2026-08-12 — OpenAI cached input is 10% of input, no cache-write charge. Claude 4.6+ models include the 1M context window at standard pricing (no long tier needed); older 1M-beta models carry an explicit long tier.",
   "serverTools": { "webSearchPer1k": 10 },
   "entries": [
+    {
+      "match": "gpt-5.6",
+      "tiers": { "default": { "input": 5, "output": 30, "cacheRead": 0.5, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
+    {
+      "match": "gpt-5.5",
+      "tiers": { "default": { "input": 5, "output": 30, "cacheRead": 0.5, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
+    {
+      "match": "gpt-5.4",
+      "tiers": { "default": { "input": 2.5, "output": 15, "cacheRead": 0.25, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
+    {
+      "match": "gpt-5.3",
+      "tiers": { "default": { "input": 1.75, "output": 14, "cacheRead": 0.175, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
+    {
+      "match": "gpt-5.2",
+      "tiers": { "default": { "input": 1.75, "output": 14, "cacheRead": 0.175, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
+    {
+      "match": "gpt-5",
+      "tiers": { "default": { "input": 1.25, "output": 10, "cacheRead": 0.125, "cacheWrite5m": 0, "cacheWrite1h": 0 } }
+    },
     {
       "match": "claude-fable-5",
       "tiers": { "default": { "input": 10, "output": 50, "cacheRead": 1, "cacheWrite5m": 12.5, "cacheWrite1h": 20 } }

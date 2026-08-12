@@ -34,7 +34,14 @@ beforeAll(() => {
   db = openDb(":memory:");
   applyMigrations(db);
   scheduler = new IndexScheduler(db, { workers: 1 });
-  server = createServer(0, { db, scheduler, hub: new SseHub(), claudeDir: dir });
+  // explicit sources: the default set would append the machine's real ~/.codex
+  server = createServer(0, {
+    db,
+    scheduler,
+    hub: new SseHub(),
+    claudeDir: dir,
+    sources: [{ profileId: "default", dir }],
+  });
   base = `http://127.0.0.1:${server.port}`;
 });
 

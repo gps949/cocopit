@@ -25,6 +25,7 @@ import { Markdown } from "../components/Markdown";
 import { TerminalPane } from "../components/Terminal";
 import { localeOf, useI18n } from "../i18n";
 import {
+  buildCodexTranscript,
   buildTranscript,
   collapseMeta,
   filterTranscript,
@@ -304,7 +305,15 @@ function MetaGroup({ entries }: { entries: TranscriptEntry[] }) {
   );
 }
 
-function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string }) {
+function Entry({
+  entry,
+  sessionId,
+  assistantName,
+}: {
+  entry: TranscriptEntry;
+  sessionId: string;
+  assistantName?: string;
+}) {
   const { t, lang } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState<MessageRow | null>(null);
@@ -368,7 +377,7 @@ function Entry({ entry, sessionId }: { entry: TranscriptEntry; sessionId: string
     >
       <div className="mb-1 flex items-baseline gap-2 text-xs">
         <span className={isUser ? "font-medium" : isThinking ? "text-muted" : "font-medium text-accent"}>
-          {isUser ? t("你") : isThinking ? t("思考") : t("Claude")}
+          {isUser ? t("你") : isThinking ? t("思考") : (assistantName ?? t("Claude"))}
         </span>
         {entry.ts && (
           <span className="text-muted">
@@ -440,10 +449,12 @@ export function SessionDetail() {
 
   const supersededCount = useMemo(() => messages.filter((m) => m.superseded).length, [messages]);
 
+  const isCodex = session?.product === "codex";
+
   const rendered = useMemo(() => {
-    const entries = buildTranscript(messages);
+    const entries = isCodex ? buildCodexTranscript(messages) : buildTranscript(messages);
     return collapseMeta(filterTranscript(entries, { showThinking, showMeta, conversationOnly, showSuperseded }));
-  }, [messages, showThinking, showMeta, conversationOnly, showSuperseded]);
+  }, [messages, showThinking, showMeta, conversationOnly, showSuperseded, isCodex]);
 
   async function loadOlder() {
     if (prevSeq === null || loadingOlder) return;
@@ -513,7 +524,7 @@ export function SessionDetail() {
 
   return (
     <div>
-      <Link to="/sessions" className="text-sm text-muted hover:text-ink">
+      <Link to={isCodex ? "/codex/sessions" : "/sessions"} className="text-sm text-muted hover:text-ink">
         {t("← 会话列表")}
       </Link>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
@@ -522,13 +533,14 @@ export function SessionDetail() {
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
             <span className="font-mono">{session.cwd}</span>
             {session.gitBranch && <span className="font-mono">{session.gitBranch}</span>}
-            {session.ccVersion && <span>CC {session.ccVersion}</span>}
+            {session.ccVersion && <span>{isCodex ? "Codex" : "CC"} {session.ccVersion}</span>}
             <span>{session.profileId}</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {/* only worth offering when there is somewhere else to run it */}
-          {profiles.filter((p) => p.configDir).length > 0 && (
+          {/* only worth offering when there is somewhere else to run it;
+              account switching is a Claude concept */}
+          {!isCodex && profiles.filter((p) => p.configDir).length > 0 && (
             <select
               value={runAs}
               onChange={(e) => setRunAs(e.target.value)}
@@ -715,7 +727,7 @@ export function SessionDetail() {
             Array.isArray(item) ? (
               <MetaGroup key={`group-${index}`} entries={item} />
             ) : (
-              <Entry key={item.key} entry={item} sessionId={id} />
+              <Entry key={item.key} entry={item} sessionId={id} assistantName={isCodex ? "Codex" : undefined} />
             ),
           )}
 

@@ -28,6 +28,8 @@ interface SessionAgg {
   gitBranch: string | null;
   version: string | null;
   cwd: string | null;
+  /** Codex: model learned from any turn_context, wherever it appears. */
+  codexModel: string | null;
 }
 
 function emptyAgg(): SessionAgg {
@@ -49,6 +51,7 @@ function emptyAgg(): SessionAgg {
     gitBranch: null,
     version: null,
     cwd: null,
+    codexModel: null,
   };
 }
 
@@ -66,6 +69,9 @@ export class Ingestor {
   #db: Database;
   #pricing: IngestPricing | null;
   #agg = new Map<string, SessionAgg>();
+  /** Freshest Codex rate-limit snapshot seen this scan; flushed per file. */
+  #rateLimits: unknown = null;
+  #rateLimitsTs = 0;
   #insMsg: Statement;
   #insUsage: Statement;
   #insTool: Statement;
@@ -84,8 +90,8 @@ export class Ingestor {
       `INSERT OR REPLACE INTO usage_events
          (session_id, uuid, source, agent_id, ts, model, context_tier, service_tier,
           input_tokens, output_tokens, cache_read_tokens, cache_w5m_tokens, cache_w1h_tokens,
-          web_search_requests, web_fetch_requests, cost_usd, pricing_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          web_search_requests, web_fetch_requests, cost_usd, pricing_version, product)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.#insTool = db.prepare(
       `INSERT INTO tool_calls (session_id, uuid, ts, tool_name, is_error, duration_ms)
@@ -139,6 +145,12 @@ export class Ingestor {
         agg.slug = row.slug as string | null;
         agg.gitBranch = row.git_branch as string | null;
         agg.version = row.cc_version as string | null;
+        // Codex records cwd only on line 1 (session_meta), so an append batch
+        // never sees it again — losing it here would null the session's cwd
+        agg.cwd = (row.cwd as string | null) ?? null;
+        if (task.product === "codex") {
+          agg.codexModel = [...agg.models].find((m) => m !== "codex-unknown") ?? null;
+        }
       }
     }
     this.#agg.set(task.path, agg);
@@ -187,6 +199,7 @@ export class Ingestor {
             line.usage.webFetch,
             cost,
             cost === null && !this.#pricing ? null : (this.#pricing?.version ?? null),
+            task.product ?? "claude",
           );
         }
 
@@ -239,6 +252,22 @@ export class Ingestor {
           if (!agg.version && line.version) agg.version = line.version;
           if (!agg.cwd && line.cwd) agg.cwd = line.cwd;
         }
+
+        if (agg && task.product === "codex" && line.type === "turn_context" && line.model) {
+          agg.codexModel = line.model;
+        }
+
+        // only snapshots that actually carry a window: a depleted/blocked state
+        // reports null windows, and keeping it would blank the quota display
+        if (
+          line.codexRateLimits &&
+          (line.codexRateLimits.primary || line.codexRateLimits.secondary) &&
+          line.ts != null &&
+          line.ts > this.#rateLimitsTs
+        ) {
+          this.#rateLimitsTs = line.ts;
+          this.#rateLimits = line.codexRateLimits;
+        }
       }
     })();
   }
@@ -248,23 +277,88 @@ export class Ingestor {
     this.#db.transaction(() => {
       if (task.kind === "session") {
         const agg = this.#agg.get(task.path) ?? emptyAgg();
+
+        // Newer Codex rollouts write their only turn_context at the END of the
+        // file — after every token_count — so usage landed as codex-unknown.
+        // Once the whole file is in, the model is known: backfill and price.
+        if (task.product === "codex" && agg.codexModel && agg.models.has("codex-unknown")) {
+          const rows = this.#db
+            .prepare(
+              `SELECT uuid, source, agent_id, input_tokens AS input, output_tokens AS output,
+                      cache_read_tokens AS cacheRead
+               FROM usage_events WHERE session_id = $id AND model = 'codex-unknown'`,
+            )
+            .all({ $id: task.sessionId }) as Array<{
+            uuid: string;
+            source: string;
+            agent_id: string;
+            input: number;
+            output: number;
+            cacheRead: number;
+          }>;
+          const fix = this.#db.prepare(
+            `UPDATE usage_events SET model = $model, cost_usd = $cost, pricing_version = $ver
+             WHERE session_id = $id AND uuid = $uuid AND source = $source AND agent_id = $agent`,
+          );
+          for (const row of rows) {
+            const cost = this.#pricing
+              ? priceEvent(this.#pricing.table, {
+                  model: agg.codexModel,
+                  contextTier: "default",
+                  input: row.input,
+                  output: row.output,
+                  cacheRead: row.cacheRead,
+                  cacheW5m: 0,
+                  cacheW1h: 0,
+                  webSearch: 0,
+                })
+              : null;
+            fix.run({
+              $model: agg.codexModel,
+              $cost: cost,
+              $ver: this.#pricing?.version ?? null,
+              $id: task.sessionId,
+              $uuid: row.uuid,
+              $source: row.source,
+              $agent: row.agent_id,
+            });
+          }
+          agg.models.delete("codex-unknown");
+          agg.models.add(agg.codexModel);
+        }
+
+        // Claude names project dirs after the launch directory; Codex has no
+        // such notion, so its project IS the session's cwd (known only after
+        // parsing session_meta). The "codex:" prefix keeps a Codex project
+        // from colliding with a Claude project over the same directory.
+        const dirName =
+          task.product === "codex"
+            ? `codex:${(agg.cwd ?? "unknown").replaceAll("/", "-")}`
+            : task.projectDirName;
         this.#db
           .prepare(
             // cwd here is only a seed for a brand-new project row; the
             // authoritative value is recomputed from the sessions below, since
             // any single session may have cd'd somewhere unrepresentative
-            `INSERT INTO projects (profile_id, dir_name, cwd, first_ts, last_ts)
-             VALUES ($profileId, $dir, $cwd, $first, $last)
+            `INSERT INTO projects (profile_id, dir_name, cwd, first_ts, last_ts, product)
+             VALUES ($profileId, $dir, $cwd, $first, $last, $product)
              ON CONFLICT(profile_id, dir_name) DO UPDATE SET
                cwd = COALESCE(projects.cwd, excluded.cwd),
                first_ts = COALESCE(MIN(projects.first_ts, excluded.first_ts), projects.first_ts, excluded.first_ts),
                last_ts = COALESCE(MAX(projects.last_ts, excluded.last_ts), projects.last_ts, excluded.last_ts)`,
           )
-          .run({ $profileId: task.profileId, $dir: task.projectDirName, $cwd: agg.cwd, $first: agg.firstTs, $last: agg.lastTs });
+          .run({
+            $profileId: task.profileId,
+            $dir: dirName,
+            $cwd: agg.cwd,
+            $first: agg.firstTs,
+            $last: agg.lastTs,
+            $product: task.product ?? "claude",
+          });
         const projectId = (
           this.#db
             .prepare("SELECT id FROM projects WHERE profile_id = $profileId AND dir_name = $dir")
-            .get({ $profileId: task.profileId, $dir: task.projectDirName }) as { id: number }
+            .get({ $profileId: task.profileId, $dir: dirName }) as { id: number }
         ).id;
 
         const title =
@@ -322,6 +416,19 @@ export class Ingestor {
         // depends on the whole file, so it can only be settled once every line
         // of this session has been written
         recomputeSuperseded(this.#db, task.sessionId);
+
+        if (this.#rateLimits) {
+          // quota straight from the transcript — Codex writes its rate-limit
+          // state into every token_count event, no API call required
+          this.#db
+            .prepare(
+              `INSERT INTO meta (key, value) VALUES ('codex_rate_limits', $v)
+               ON CONFLICT(key) DO UPDATE SET value = excluded.value
+               WHERE json_extract(excluded.value, '$.ts') > json_extract(meta.value, '$.ts')`,
+            )
+            .run({ $v: JSON.stringify({ ts: this.#rateLimitsTs, limits: this.#rateLimits }) });
+          this.#rateLimits = null;
+        }
       } else {
         let meta: Record<string, unknown> = {};
         try {
