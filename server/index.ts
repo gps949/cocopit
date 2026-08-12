@@ -42,6 +42,12 @@ const INDEXED_TABLES = [
   "projects",
 ];
 
+// The HTML names hashed chunk files, so it must never be cached — a stale
+// copy points at chunks a redeploy has deleted. The hashed assets themselves
+// are immutable by construction and can be cached hard.
+const HTML_HEADERS = { "cache-control": "no-cache" };
+const ASSET_HEADERS = { "cache-control": "public, max-age=31536000, immutable" };
+
 async function serveStatic(pathname: string): Promise<Response> {
   const indexFile = Bun.file(join(DIST_DIR, "index.html"));
   if (!(await indexFile.exists())) {
@@ -56,12 +62,13 @@ async function serveStatic(pathname: string): Promise<Response> {
 
   const file = Bun.file(requestedPath);
   if (await file.exists()) {
-    return new Response(file);
+    const hashed = pathname.startsWith("/assets/");
+    return new Response(file, { headers: hashed ? ASSET_HEADERS : HTML_HEADERS });
   }
 
   const hasExtension = /\.[^/.]+$/.test(pathname);
   if (!hasExtension) {
-    return new Response(indexFile);
+    return new Response(indexFile, { headers: HTML_HEADERS });
   }
 
   return new Response("Not Found", { status: 404 });
