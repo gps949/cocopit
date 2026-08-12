@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJson } from "../api/usage";
 import { ConfigSettings } from "./ConfigSettings";
+import { ConfigSnapshots } from "./ConfigSnapshots";
 import { LiteLLMCompare } from "./LiteLLMCompare";
 import { useI18n } from "../i18n";
 
@@ -132,6 +133,8 @@ export function Config() {
       <div className="mt-6">
         <ConfigSettings />
       </div>
+
+      <ConfigSnapshots />
 
       <section className="mt-6 rounded-2xl border border-line bg-panel p-5">
         <div className="flex items-center justify-between">

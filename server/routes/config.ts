@@ -5,6 +5,13 @@ import { listLiveSessions } from "../cc/liveSessions";
 import type { Router } from "../http/router";
 import { readExtensions } from "../cc/extensions";
 import { setPluginEnabled } from "../cc/pluginToggle";
+import {
+  applySnapshot,
+  captureSnapshot,
+  deleteSnapshot,
+  listSnapshots,
+  snapshotDiff,
+} from "../cc/snapshots";
 import { loadProfiles, resolveConfigDir } from "../profiles/registry";
 import { listBackups, restoreBackup } from "../writeops/backup";
 import { fileStamp, safeWriteJson, WriteConflictError, type FileStamp } from "../writeops/safeWrite";
@@ -102,6 +109,56 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
       return { profileId: profile.id, name: profile.name, configDir: dir, ...readExtensions(dir, jsonPath) };
     });
     return Response.json({ profiles });
+  });
+
+  /**
+   * Named copies of a settings file. Settings and the account both live under a
+   * config directory but are not tied together, so switching posture should not
+   * mean keeping a second login.
+   */
+  router.register("GET", "/api/snapshots", (req) => {
+    const url = new URL(req.url);
+    const target = url.searchParams.get("target") ?? join(claudeDir, "settings.json");
+    let current: Record<string, unknown> = {};
+    try {
+      current = JSON.parse(readFileSync(target, "utf8")) as Record<string, unknown>;
+    } catch {
+      // no settings yet, or unreadable — every snapshot then reads as all-added
+    }
+    const snapshots = listSnapshots().map((snapshot) => ({
+      name: snapshot.name,
+      createdAt: snapshot.createdAt,
+      sourcePath: snapshot.sourcePath,
+      keys: Object.keys(snapshot.settings).length,
+      diff: snapshotDiff(snapshot.settings, current),
+    }));
+    return Response.json({ snapshots, target });
+  });
+
+  router.register("POST", "/api/snapshots", async (req) => {
+    let body: { name?: string; target?: string; action?: "apply" | "delete" };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return Response.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    }
+    if (!body.name) return Response.json({ error: "缺少 name" }, { status: 400 });
+    const target = body.target ?? join(claudeDir, "settings.json");
+
+    try {
+      if (body.action === "delete") {
+        deleteSnapshot(body.name);
+        return Response.json({ ok: true });
+      }
+      if (body.action === "apply") {
+        const result = applySnapshot(body.name, target, claudeDir);
+        return Response.json({ ok: true, backupId: result.backupId, activeSessions: activeSessionsFor(claudeDir) });
+      }
+      const snapshot = captureSnapshot(body.name, target);
+      return Response.json({ ok: true, name: snapshot.name, keys: Object.keys(snapshot.settings).length });
+    } catch (err) {
+      return Response.json({ error: (err as Error).message }, { status: 409 });
+    }
   });
 
   /**
