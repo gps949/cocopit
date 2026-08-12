@@ -33,16 +33,51 @@ export function rebuildSessionLinks(db: Database): void {
   // parent_thread_id) — no inference needed, just both directions. The child
   // row carries the agent's nickname for display.
   db.run(`
-    INSERT INTO session_links (session_id, related_session_id, shared_records, role)
+    INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role)
     SELECT c.id, c.parent_session_id, 0, 'parent'
     FROM sessions c JOIN sessions p ON p.id = c.parent_session_id
     WHERE c.parent_session_id IS NOT NULL
   `);
   db.run(`
-    INSERT INTO session_links (session_id, related_session_id, shared_records, role)
+    INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role)
     SELECT c.parent_session_id, c.id, 0, 'child'
     FROM sessions c JOIN sessions p ON p.id = c.parent_session_id
     WHERE c.parent_session_id IS NOT NULL
+  `);
+
+  // Codex resume lineage: a resumed thread opens a NEW file whose thread_id
+  // names the original. Chaining each continuation to its chronological
+  // predecessor (the thread origin included, via COALESCE on its own id)
+  // keeps a 5-resume thread readable as a chain instead of a 5×5 mesh.
+  db.run(`
+    WITH members AS (
+      SELECT id, COALESCE(thread_id, id) AS thread, first_ts
+      FROM sessions
+      WHERE thread_id IS NOT NULL
+         OR id IN (SELECT thread_id FROM sessions WHERE thread_id IS NOT NULL)
+    ),
+    chain AS (
+      SELECT id, LAG(id) OVER (PARTITION BY thread ORDER BY first_ts, id) AS prev
+      FROM members
+    )
+    INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role)
+    SELECT id, prev, 0, 'parent' FROM chain WHERE prev IS NOT NULL
+    UNION ALL
+    SELECT prev, id, 0, 'child' FROM chain WHERE prev IS NOT NULL
+  `);
+
+  // forks name their source file directly
+  db.run(`
+    INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role)
+    SELECT f.id, f.forked_from, 0, 'parent'
+    FROM sessions f JOIN sessions s ON s.id = f.forked_from
+    WHERE f.forked_from IS NOT NULL
+  `);
+  db.run(`
+    INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role)
+    SELECT f.forked_from, f.id, 0, 'child'
+    FROM sessions f JOIN sessions s ON s.id = f.forked_from
+    WHERE f.forked_from IS NOT NULL
   `);
 
   const overlaps = db
@@ -72,8 +107,10 @@ export function rebuildSessionLinks(db: Database): void {
     return n;
   };
 
+  // declared lineage already claimed some pairs (its labels are more precise
+  // than inference); the primary key rejects duplicates, so first wins
   const insert = db.prepare(
-    "INSERT INTO session_links (session_id, related_session_id, shared_records, role) VALUES (?,?,?,?)",
+    "INSERT OR IGNORE INTO session_links (session_id, related_session_id, shared_records, role) VALUES (?,?,?,?)",
   );
   for (const { a, b, shared } of overlaps) {
     const aWhole = size(a) === shared;

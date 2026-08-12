@@ -34,9 +34,14 @@ export function Projects() {
     setPresets([]);
     void listProjects(product).then((res) => setProjects(res.projects));
     void listProfileOptions(product).then(setProfiles);
-    // settings presets are a Claude concept (codex has config profiles of its own)
     if (product === "claude") {
       void listSnapshotNames().then(setPresets);
+    } else {
+      // codex has config profiles of its own — same role, native mechanism
+      void fetch("/api/codex/profiles")
+        .then((res) => res.json() as Promise<{ profiles: Array<{ name: string }> }>)
+        .then((data) => setPresets(data.profiles.map((p) => p.name)))
+        .catch(() => setPresets([]));
     }
   }, [product]);
 
@@ -49,6 +54,7 @@ export function Projects() {
         product,
         profileId: runAs || undefined,
         settingsPreset: (product === "claude" && preset) || undefined,
+        codexProfile: (product === "codex" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });
       setNewDir("");
@@ -69,6 +75,7 @@ export function Projects() {
         projectId: project.id,
         profileId: runAs || undefined,
         settingsPreset: (product === "claude" && preset) || undefined,
+        codexProfile: (product === "codex" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });
     } catch (err) {
@@ -138,7 +145,9 @@ export function Projects() {
               </option>
             ))}
           </select>
-          <span className="text-xs text-muted">{t("以 --settings 叠加,不改动 settings.json")}</span>
+          <span className="text-xs text-muted">
+            {product === "codex" ? t("以 codex --profile 叠加") : t("以 --settings 叠加,不改动 settings.json")}
+          </span>
         </label>
       )}
 

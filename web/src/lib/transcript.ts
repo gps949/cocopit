@@ -8,7 +8,7 @@
  * makes the transcript unreadable — hence this classification pass.
  */
 
-import { CODEX_INJECTED_USER_TEXT, SYSTEM_WRAPPER_TAGS, stripSystemWrappers } from "../../../shared/userText";
+import { codexUserSpeech, SYSTEM_WRAPPER_TAGS, stripSystemWrappers } from "../../../shared/userText";
 
 export type EntryKind =
   | "user"
@@ -201,12 +201,14 @@ export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] 
         if (payload.role === "assistant") {
           entries.push({ ...base, key: `${seq}-a`, kind: "assistant", text });
         } else if (payload.role === "user") {
-          // injected context (environment, instructions) arrives as user text
-          if (CODEX_INJECTED_USER_TEXT.test(text)) {
+          // injected context (environment, plugin ads) arrives as user text;
+          // pasted Claude wrappers are stripped, keeping the actual speech
+          const speech = codexUserSpeech(text);
+          if (speech) {
+            entries.push({ ...base, key: `${seq}-u`, kind: "user", text: speech });
+          } else {
             const tag = /^<([a-z_-]+)/i.exec(text)?.[1];
             entries.push({ ...base, key: `${seq}-inj`, kind: "meta", metaLabel: tag ?? "context" });
-          } else {
-            entries.push({ ...base, key: `${seq}-u`, kind: "user", text });
           }
         } else {
           entries.push({ ...base, key: `${seq}-dev`, kind: "meta", metaLabel: payload.role ?? "instructions" });

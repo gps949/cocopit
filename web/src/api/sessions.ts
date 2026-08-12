@@ -79,6 +79,9 @@ export interface RelatedSession {
   title: string | null;
   lineCount: number;
   lastTs: number | null;
+  /** Codex multi-agent: the other session is a subagent with this nickname. */
+  agentLabel: string | null;
+  costUsd: number | null;
 }
 
 export const getSession = (id: string) =>
@@ -151,6 +154,7 @@ export async function openTerminal(body: {
   profileId?: string;
   settingsPreset?: string;
   product?: "claude" | "codex";
+  codexProfile?: string;
 }) {
   const res = await fetch("/api/terminal", { method: "POST", body: JSON.stringify(body) });
   if (!res.ok) {

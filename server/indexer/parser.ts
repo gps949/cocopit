@@ -1,4 +1,4 @@
-import { CODEX_INJECTED_USER_TEXT, humanUserText } from "../../shared/userText";
+import { codexUserSpeech, humanUserText } from "../../shared/userText";
 import type { RawLine } from "./scanner-lines";
 
 export interface NormalizedUsage {
@@ -44,6 +44,10 @@ export interface ParsedLine {
   parentSessionId?: string;
   /** Codex multi-agent: the agent's nickname (e.g. "Epicurus"). */
   agentLabel?: string;
+  /** Codex: the logical thread id — resumes open new files under the same thread. */
+  threadId?: string;
+  /** Codex: the rollout this one was forked from. */
+  forkedFrom?: string;
 }
 
 const SNIPPET_MAX = 300;
@@ -129,10 +133,6 @@ export interface CodexContext {
   model?: string;
 }
 
-/** True for user text that is injected context rather than typed speech. */
-function codexUserNoise(text: string): boolean {
-  return CODEX_INJECTED_USER_TEXT.test(text);
-}
 
 function codexTextOf(content: unknown): string {
   if (!Array.isArray(content)) return "";
@@ -187,6 +187,12 @@ export function parseCodexLine(raw: RawLine, seq: number, ctx: CodexContext): Pa
       // multi-agent rollouts: a subagent's file names its parent thread
       out.parentSessionId = str(payload.parent_thread_id);
       out.agentLabel = str(payload.agent_nickname);
+      // lineage: session_id is the logical thread, id is this file; a resume
+      // opens a new file under the same thread, a fork names its source
+      const threadId = str(payload.session_id);
+      const fileId = str(payload.id);
+      if (threadId && threadId !== fileId) out.threadId = threadId;
+      out.forkedFrom = str(payload.forked_from_id);
       break;
     }
     case "turn_context": {
@@ -243,9 +249,10 @@ export function parseCodexLine(raw: RawLine, seq: number, ctx: CodexContext): Pa
         } else if (role === "user") {
           out.type = "user";
           out.uuid = uuid();
-          if (text && !codexUserNoise(text)) {
-            out.firstUserText = text;
-            out.snippet = makeSnippet(text);
+          const speech = text ? codexUserSpeech(text) : null;
+          if (speech) {
+            out.firstUserText = speech;
+            out.snippet = makeSnippet(speech);
           }
         } else {
           // developer/system instructions: bookkeeping, not conversation

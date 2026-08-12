@@ -58,6 +58,8 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       settingsPreset?: string;
       /** "codex" starts a Codex session; only meaningful for the cwd branch. */
       product?: string;
+      /** Codex config profile (<name>.config.toml) to overlay via --profile. */
+      codexProfile?: string;
       cols?: number;
       rows?: number;
     };
@@ -70,6 +72,11 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
     const profiles = loadProfiles();
     const cols = Math.min(Math.max(Number(body.cols) || 120, 20), 500);
     const rows = Math.min(Math.max(Number(body.rows) || 32, 5), 200);
+
+    if (body.codexProfile && !/^[A-Za-z0-9_-]+$/.test(body.codexProfile)) {
+      return Response.json({ error: "codexProfile 名不合法" }, { status: 400 });
+    }
+    const codexProfileFlag = body.codexProfile ? ` --profile ${shellQuote(body.codexProfile)}` : "";
 
     let target: TerminalTarget;
     let command: string;
@@ -92,7 +99,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
         // machine default may be a custom codexDir, not the ambient ~/.codex.
         const owner = profiles.find((p) => p.id === row.profileId && p.product === "codex");
         const home = owner?.configDir ?? loadConfig().codexDir;
-        command = `cd ${shellQuote(row.cwd)} && CODEX_HOME=${shellQuote(home)} codex resume ${shellQuote(row.id)}`;
+        command = `cd ${shellQuote(row.cwd)} && CODEX_HOME=${shellQuote(home)} codex${codexProfileFlag} resume ${shellQuote(row.id)}`;
         target = {
           name: sessionNameFor(row.id),
           title: row.title ?? row.id,
@@ -166,7 +173,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
         if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
         const owner = chosen ?? profiles.find((p) => p.id === project.profileId && p.product === "codex");
         const home = (owner?.product === "codex" ? owner.configDir : null) ?? loadConfig().codexDir;
-        command = `cd ${shellQuote(project.cwd)} && CODEX_HOME=${shellQuote(home)} codex`;
+        command = `cd ${shellQuote(project.cwd)} && CODEX_HOME=${shellQuote(home)} codex${codexProfileFlag}`;
       } else {
         // a new session may be started under any profile — nothing ties it to
         // the one that happens to own the project's past sessions
@@ -207,7 +214,7 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
         const chosen = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
         if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
         const home = (chosen?.product === "codex" ? chosen.configDir : null) ?? loadConfig().codexDir;
-        command = `cd ${shellQuote(cwd)} && CODEX_HOME=${shellQuote(home)} codex`;
+        command = `cd ${shellQuote(cwd)} && CODEX_HOME=${shellQuote(home)} codex${codexProfileFlag}`;
       } else {
         const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
         if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });

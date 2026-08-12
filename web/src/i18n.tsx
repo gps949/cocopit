@@ -137,7 +137,28 @@ const EN: Record<string, string> = {
   "还没有配置方案。在 CODEX_HOME 下创建 <名称>.config.toml 即可,用 codex --profile <名称> 启用。":
     "No config profiles yet. Create <name>.config.toml under CODEX_HOME and activate with codex --profile <name>.",
   "文件不存在。": "The file does not exist.",
+  "配置方案可在此管理;config.toml 本体只读。":
+    "Config profiles are managed here; config.toml itself is read-only.",
+  "方案是叠加层文件,只影响显式用 --profile 启用的会话,所以可以放心在这里编辑;config.toml 是 CLI 的主配置、含手写注释,改坏影响所有会话,故保持只读。密钥类字段展示时已打码。":
+    "Profiles are overlay files affecting only sessions that opt in via --profile, so editing them here is safe; config.toml is the CLI's main config with hand-written comments — breaking it breaks everything, so it stays read-only. Secret-looking values are masked in display.",
+  "新建方案": "New profile",
+  "方案名(字母/数字/连字符)": "Profile name (letters/digits/hyphens)",
+  "已保存「{name}」;用 codex --profile {name} 启用。": "Saved “{name}”; activate with codex --profile {name}.",
+  "删除方案「{name}」?其内容会先存入备份,可从系统页恢复。":
+    "Delete profile “{name}”? Its content is backed up first and restorable from the System page.",
+  "还没有配置方案。新建一个,然后用 codex --profile <名称> 启用,或在项目页新建会话时选择。":
+    "No config profiles yet. Create one, then activate with codex --profile <name>, or pick it when starting a session on the Projects page.",
+  "保存(先校验 TOML,写前自动备份)": "Save (validates TOML, backs up first)",
+  "以 codex --profile 叠加": "overlaid via codex --profile",
+  "MCP 与插件配置在 config.toml,技能是 CODEX_HOME 下的目录。插件可在此启用/停用;MCP 与技能只读。":
+    "MCP and plugins are configured in config.toml; skills are directories under CODEX_HOME. Plugins can be toggled here; MCP and skills are read-only.",
+  "启用状态记在 config.toml 的 plugins 表——点击即可启用/停用,只做逐行改写、保留注释,写入前自动备份。":
+    "Enablement lives in config.toml's plugins tables — click to toggle; the edit is line-surgical, preserves comments, and is backed up first.",
   "子代理 · {name}": "subagent · {name}",
+  "子代理会话({n})": "Agent sessions ({n})",
+  "收起子代理会话({n})": "Hide agent sessions ({n})",
+  "同一段对话在不同文件里的延续(共享记录或声明的续接/分叉关系),以及由本会话派生的子代理会话。":
+    "Continuations of this conversation in other files (shared records, or declared resume/fork lineage), plus agent sessions spawned from this one.",
   "提示词历史": "Prompt history",
   "搜索你输入过的提示词": "Search your past prompts",
   "你在 Claude Code 中输入过的每一条提示词,跨项目与会话。":

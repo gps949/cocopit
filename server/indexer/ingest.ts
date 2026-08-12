@@ -33,6 +33,9 @@ interface SessionAgg {
   /** Codex multi-agent: parent thread + agent nickname from session_meta. */
   parentSessionId: string | null;
   agentLabel: string | null;
+  /** Codex lineage: logical thread id + fork source from session_meta. */
+  threadId: string | null;
+  forkedFrom: string | null;
 }
 
 function emptyAgg(): SessionAgg {
@@ -57,6 +60,8 @@ function emptyAgg(): SessionAgg {
     codexModel: null,
     parentSessionId: null,
     agentLabel: null,
+    threadId: null,
+    forkedFrom: null,
   };
 }
 
@@ -155,6 +160,8 @@ export class Ingestor {
         // like cwd, these only ever appear on line 1 (session_meta)
         agg.parentSessionId = (row.parent_session_id as string | null) ?? null;
         agg.agentLabel = (row.agent_label as string | null) ?? null;
+        agg.threadId = (row.thread_id as string | null) ?? null;
+        agg.forkedFrom = (row.forked_from as string | null) ?? null;
         if (task.product === "codex") {
           agg.codexModel = [...agg.models].find((m) => m !== "codex-unknown") ?? null;
         }
@@ -260,6 +267,8 @@ export class Ingestor {
           if (!agg.cwd && line.cwd) agg.cwd = line.cwd;
           if (!agg.parentSessionId && line.parentSessionId) agg.parentSessionId = line.parentSessionId;
           if (!agg.agentLabel && line.agentLabel) agg.agentLabel = line.agentLabel;
+          if (!agg.threadId && line.threadId) agg.threadId = line.threadId;
+          if (!agg.forkedFrom && line.forkedFrom) agg.forkedFrom = line.forkedFrom;
         }
 
         // first turn_context wins: the only events that need backfilling are
@@ -381,11 +390,12 @@ export class Ingestor {
                first_ts, last_ts, title, slug, git_branch, cc_version,
                line_count, user_msg_count, assistant_msg_count, models,
                input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd, cwd,
-               parent_session_id, agent_label)
+               parent_session_id, agent_label, thread_id, forked_from)
              VALUES ($id, $pid, $path, $size, $mtime, $parsed, $first, $last, $title, $slug, $branch, $ver,
                $lines, $users, $assts, $models, $in, $out, $cw, $cr,
                (SELECT COUNT(*) FROM subagents WHERE session_id = $id),
-               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd, $parent, $agentLabel)
+               (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd, $parent, $agentLabel,
+               $threadId, $forkedFrom)
              ON CONFLICT(id) DO UPDATE SET
                project_id = excluded.project_id, file_path = excluded.file_path,
                file_size = excluded.file_size, file_mtime_ms = excluded.file_mtime_ms,
@@ -400,7 +410,8 @@ export class Ingestor {
                cache_read_tokens = excluded.cache_read_tokens,
                subagent_count = excluded.subagent_count,
                cost_usd = excluded.cost_usd, cwd = excluded.cwd,
-               parent_session_id = excluded.parent_session_id, agent_label = excluded.agent_label`,
+               parent_session_id = excluded.parent_session_id, agent_label = excluded.agent_label,
+               thread_id = excluded.thread_id, forked_from = excluded.forked_from`,
           )
           .run({
             $id: task.sessionId,
@@ -426,6 +437,8 @@ export class Ingestor {
             $cwd: agg.cwd,
             $parent: agg.parentSessionId,
             $agentLabel: agg.agentLabel,
+            $threadId: agg.threadId,
+            $forkedFrom: agg.forkedFrom,
           });
 
         // depends on the whole file, so it can only be settled once every line

@@ -81,7 +81,7 @@ export function Extensions() {
     try {
       const res = await fetch("/api/extensions/plugin", {
         method: "POST",
-        body: JSON.stringify({ profileId, plugin, enabled }),
+        body: JSON.stringify({ profileId, plugin, enabled, product }),
       });
       const body = (await res.json()) as { error?: string };
       if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
@@ -98,7 +98,7 @@ export function Extensions() {
       <h1 className="text-[26px] font-semibold tracking-tight">{t("扩展")}</h1>
       <p className="mt-2 text-sm text-muted">
         {product === "codex"
-          ? t("MCP 与插件配置在 config.toml,技能是 CODEX_HOME 下的目录;此处均为只读,增删请在 Codex CLI 中进行。")
+          ? t("MCP 与插件配置在 config.toml,技能是 CODEX_HOME 下的目录。插件可在此启用/停用;MCP 与技能只读。")
           : t("MCP、插件与技能都存放在配置目录下,因此每个账号各有一套。插件可在此启用/停用;MCP 与技能只读。")}
       </p>
 
@@ -157,7 +157,7 @@ export function Extensions() {
               count={profile.plugins.length}
               hint={
                 product === "codex"
-                  ? t("启用状态记在 config.toml 的 plugins 表,此处只读。")
+                  ? t("启用状态记在 config.toml 的 plugins 表——点击即可启用/停用,只做逐行改写、保留注释,写入前自动备份。")
                   : t("安装在配置目录下,启用状态记在 settings.json——点击卡片即可启用/停用,写入前自动备份。")
               }
             >
@@ -181,10 +181,8 @@ export function Extensions() {
                   <button
                     key={plugin.name}
                     type="button"
-                    disabled={busy === plugin.name || product === "codex"}
-                    onClick={() =>
-                      product === "codex" ? undefined : void toggle(profile.profileId, plugin.name, !plugin.enabled)
-                    }
+                    disabled={busy === plugin.name}
+                    onClick={() => void toggle(profile.profileId, plugin.name, !plugin.enabled)}
                     title={`${plugin.name}${plugin.version ? ` v${plugin.version}` : ""} — ${
                       plugin.enabled ? t("点击停用") : t("点击启用")
                     }`}

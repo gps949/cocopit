@@ -1,10 +1,20 @@
 import type { Database } from "bun:sqlite";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { setCodexPluginEnabled } from "../cc/codexToggle";
 import { listLiveSessions } from "../cc/liveSessions";
 import type { Router } from "../http/router";
 import { readCodexExtensions, readExtensions } from "../cc/extensions";
 import { loadConfig } from "../config";
+import { createBackup } from "../writeops/backup";
+import { atomicWrite } from "../writeops/safeWrite";
+
+/** CODEX_HOME for a profile id: the machine default or a registered codex profile. */
+function codexHomeFor(profileId: string): string | null {
+  if (profileId === "default") return loadConfig().codexDir;
+  const profile = loadProfiles().find((p) => p.id === profileId && p.product === "codex");
+  return profile?.configDir ?? null;
+}
 import { setPluginEnabled } from "../cc/pluginToggle";
 import {
   applySnapshot,
@@ -212,7 +222,7 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
    * same way: theirs live in ~/.claude.json, which stays read-only.
    */
   router.register("POST", "/api/extensions/plugin", async (req) => {
-    let body: { profileId?: string; plugin?: string; enabled?: boolean };
+    let body: { profileId?: string; plugin?: string; enabled?: boolean; product?: string };
     try {
       body = (await req.json()) as typeof body;
     } catch {
@@ -221,14 +231,78 @@ export function registerConfigRoutes(router: Router, db: Database, claudeDir: st
     if (!body.plugin || typeof body.enabled !== "boolean") {
       return Response.json({ error: "缺少 plugin 或 enabled" }, { status: 400 });
     }
-    const profile = loadProfiles().find((p) => p.id === (body.profileId ?? "default"));
-    if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
     try {
+      if (body.product === "codex") {
+        const home = codexHomeFor(body.profileId ?? "default");
+        if (!home) return Response.json({ error: "profile not found" }, { status: 404 });
+        const result = setCodexPluginEnabled(home, body.plugin, body.enabled);
+        return Response.json({ ok: true, backupId: result.backupId });
+      }
+      const profile = loadProfiles().find((p) => p.id === (body.profileId ?? "default"));
+      if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });
       const result = setPluginEnabled(resolveConfigDir(profile), body.plugin, body.enabled);
       return Response.json({ ok: true, backupId: result.backupId });
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 409 });
     }
+  });
+
+  /**
+   * Codex config profiles (<name>.config.toml, overlaid by `codex --profile`)
+   * get the full lifecycle: they are opt-in overlay files, so a bad edit only
+   * affects sessions that explicitly ask for that profile — a much smaller
+   * blast radius than config.toml itself, which stays read-only. Writes
+   * validate as TOML first and are preceded by a backup.
+   */
+  router.register("GET", "/api/codex/profiles", () => {
+    const codexDir = loadConfig().codexDir;
+    const profiles: Array<{ name: string; content: string }> = [];
+    for (const entry of existsSync(codexDir) ? readdirSync(codexDir) : []) {
+      const match = /^(.+)\.config\.toml$/.exec(entry);
+      if (!match) continue;
+      try {
+        profiles.push({ name: match[1]!, content: readFileSync(join(codexDir, entry), "utf8") });
+      } catch {
+        // unreadable file: skip rather than break the page
+      }
+    }
+    return Response.json({ profiles });
+  });
+
+  router.register("PUT", "/api/codex/profiles/:name", async (req, params) => {
+    const name = params.name!;
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      return Response.json({ error: "方案名只能包含字母、数字、连字符和下划线" }, { status: 400 });
+    }
+    let body: { content?: string };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return Response.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    }
+    const content = body.content ?? "";
+    try {
+      Bun.TOML.parse(content);
+    } catch (err) {
+      return Response.json({ error: `TOML 语法错误:${(err as Error).message}` }, { status: 422 });
+    }
+    const path = join(loadConfig().codexDir, `${name}.config.toml`);
+    const backup = existsSync(path) ? createBackup(path, `codex-profile-${name}`) : null;
+    atomicWrite(path, content.endsWith("\n") || content === "" ? content : `${content}\n`);
+    return Response.json({ ok: true, backupId: backup?.id ?? null });
+  });
+
+  router.register("DELETE", "/api/codex/profiles/:name", (_req, params) => {
+    const name = params.name!;
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      return Response.json({ error: "方案名不合法" }, { status: 400 });
+    }
+    const path = join(loadConfig().codexDir, `${name}.config.toml`);
+    if (!existsSync(path)) return Response.json({ error: "not found" }, { status: 404 });
+    // deletion is recoverable: the content survives as a backup
+    createBackup(path, `codex-profile-${name}`);
+    unlinkSync(path);
+    return Response.json({ deleted: name });
   });
 
   for (const kind of ["settings", "mcp"] as const) {
