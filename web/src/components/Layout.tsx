@@ -26,7 +26,7 @@ type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 const NAV: Array<{ to: string; label: string; icon: IconType; products?: Array<"claude" | "codex"> }> = [
   { to: "/dashboard", label: "仪表盘", icon: GaugeIcon, products: ["claude", "codex"] },
-  { to: "/profiles", label: "账号", icon: UserIcon },
+  { to: "/profiles", label: "账号", icon: UserIcon, products: ["claude", "codex"] },
   { to: "/projects", label: "项目", icon: FolderIcon, products: ["claude", "codex"] },
   { to: "/sessions", label: "会话", icon: ChatIcon, products: ["claude", "codex"] },
   { to: "/history", label: "历史", icon: HistoryIcon, products: ["claude", "codex"] },

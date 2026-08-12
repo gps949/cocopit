@@ -7,16 +7,40 @@ import { Layout } from "./components/Layout";
 // Route-level code splitting: echarts only ships with the dashboard, xterm
 // only with pages that can open a terminal. The initial bundle carries just
 // the shell + whichever page was requested.
-const Config = lazy(() => import("./pages/Config").then((m) => ({ default: m.Config })));
-const Extensions = lazy(() => import("./pages/Extensions").then((m) => ({ default: m.Extensions })));
-const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
-const Live = lazy(() => import("./pages/Live").then((m) => ({ default: m.Live })));
-const Projects = lazy(() => import("./pages/Projects").then((m) => ({ default: m.Projects })));
-const SessionDetail = lazy(() => import("./pages/SessionDetail").then((m) => ({ default: m.SessionDetail })));
-const Sessions = lazy(() => import("./pages/Sessions").then((m) => ({ default: m.Sessions })));
-const History = lazy(() => import("./pages/History").then((m) => ({ default: m.History })));
-const Profiles = lazy(() => import("./pages/Profiles").then((m) => ({ default: m.Profiles })));
-const System = lazy(() => import("./pages/System").then((m) => ({ default: m.System })));
+//
+// A tab opened before a redeploy holds HTML that names chunk files which no
+// longer exist; its next navigation would 404 and render nothing. Reloading
+// once picks up the new build — the guard keeps a genuinely broken deploy
+// from turning into a reload loop.
+const RELOADED_KEY = "cocopit-chunk-reloaded";
+function lazyPage<T>(importer: () => Promise<T>, pick: (m: T) => Parameters<typeof lazy>[0] extends () => Promise<{ default: infer C }> ? C : never) {
+  return lazy(() =>
+    importer().then(
+      (m) => {
+        sessionStorage.removeItem(RELOADED_KEY);
+        return { default: pick(m) };
+      },
+      (err) => {
+        if (!sessionStorage.getItem(RELOADED_KEY)) {
+          sessionStorage.setItem(RELOADED_KEY, "1");
+          window.location.reload();
+          return new Promise<never>(() => {}); // reloading — never settle
+        }
+        throw err;
+      },
+    ),
+  );
+}
+const Config = lazyPage(() => import("./pages/Config"), (m) => m.Config);
+const Extensions = lazyPage(() => import("./pages/Extensions"), (m) => m.Extensions);
+const Dashboard = lazyPage(() => import("./pages/Dashboard"), (m) => m.Dashboard);
+const Live = lazyPage(() => import("./pages/Live"), (m) => m.Live);
+const Projects = lazyPage(() => import("./pages/Projects"), (m) => m.Projects);
+const SessionDetail = lazyPage(() => import("./pages/SessionDetail"), (m) => m.SessionDetail);
+const Sessions = lazyPage(() => import("./pages/Sessions"), (m) => m.Sessions);
+const History = lazyPage(() => import("./pages/History"), (m) => m.History);
+const Profiles = lazyPage(() => import("./pages/Profiles"), (m) => m.Profiles);
+const System = lazyPage(() => import("./pages/System"), (m) => m.System);
 
 type AuthState = "checking" | "required" | "ready";
 
@@ -63,6 +87,7 @@ export function App() {
           {/* the Codex view of the same console: same components, product from the URL */}
           <Route path="/codex" element={<Navigate to="/codex/dashboard" replace />} />
           <Route path="/codex/dashboard" element={<Dashboard />} />
+          <Route path="/codex/profiles" element={<Profiles />} />
           <Route path="/codex/projects" element={<Projects />} />
           <Route path="/codex/sessions" element={<Sessions />} />
           <Route path="/codex/sessions/:id" element={<SessionDetail />} />

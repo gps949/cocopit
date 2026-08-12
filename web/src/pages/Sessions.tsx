@@ -32,11 +32,11 @@ export function Sessions() {
   const profileId = params.get("profileId") ?? "";
 
   useEffect(() => {
-    void fetch("/api/profiles")
+    void fetch(`/api/profiles?product=${product}`)
       .then((res) => res.json() as Promise<{ profiles: Array<{ id: string; name: string }> }>)
       .then((data) => setProfiles(data.profiles))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [product]);
 
   useEffect(() => {
     setLoading(true);
@@ -75,7 +75,7 @@ export function Sessions() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("会话")}</h1>
-        {profiles.length > 1 && product === "claude" && (
+        {profiles.length > 1 && (
           <select
             value={profileId}
             onChange={(e) => {

@@ -3,12 +3,14 @@ import { InfoHint } from "../components/InfoHint";
 import { UserIcon } from "../components/icons";
 import { QuotaBar, type QuotaResult } from "../components/Quota";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
+import { useProduct } from "../product";
 
 interface ProfileView {
   id: string;
   name: string;
   color?: string;
   kind: "subscription" | "api";
+  product?: "claude" | "codex";
   configDir: string | null;
   api?: { baseUrl?: string; model?: string; authKind: string; secret: string };
   lastDetected?: { email?: string; orgName?: string; at: number };
@@ -29,8 +31,8 @@ interface ProfileView {
   };
 }
 
-async function fetchProfiles(): Promise<ProfileView[]> {
-  const res = await fetch("/api/profiles");
+async function fetchProfiles(product: "claude" | "codex"): Promise<ProfileView[]> {
+  const res = await fetch(`/api/profiles?product=${product}`);
   return ((await res.json()) as { profiles: ProfileView[] }).profiles;
 }
 
@@ -63,6 +65,11 @@ function planLabel(d: { orgType?: string; billingType?: string }, t: Translate):
       claude_max_20x: "Claude Max 20×",
       claude_team: "Claude Team",
       claude_enterprise: "Claude Enterprise",
+      chatgpt_plus: "ChatGPT Plus",
+      chatgpt_pro: "ChatGPT Pro",
+      chatgpt_team: "ChatGPT Team",
+      chatgpt_enterprise: "ChatGPT Enterprise",
+      chatgpt_free: t("免费版"),
       freeform: t("免费版"),
     };
     if (named[type]) return named[type]!;
@@ -152,6 +159,7 @@ function QuotaSection({ profileId }: { profileId: string }) {
 
 export function Profiles() {
   const { t, lang } = useI18n();
+  const product = useProduct();
   const [profiles, setProfiles] = useState<ProfileView[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -161,11 +169,13 @@ export function Profiles() {
   const [activated, setActivated] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = () => fetchProfiles().then(setProfiles);
+  const load = () => fetchProfiles(product).then(setProfiles);
 
   useEffect(() => {
+    setProfiles(null);
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product]);
 
   // poll detection for subscription profiles awaiting login
   useEffect(() => {
@@ -173,7 +183,9 @@ export function Profiles() {
     if (pending && !pollRef.current) {
       pollRef.current = setInterval(() => {
         for (const p of profiles ?? []) {
-          if (p.kind === "subscription" && !p.detection.loggedIn) {
+          // the codex default is a synthesized view, not a registry entry —
+          // the list reload below re-detects it anyway
+          if (p.kind === "subscription" && !p.detection.loggedIn && !(p.product === "codex" && p.id === "default")) {
             void fetch(`/api/profiles/${p.id}/detect`);
           }
         }
@@ -194,8 +206,9 @@ export function Profiles() {
 
   async function create() {
     if (!newName.trim()) return;
-    const body: Record<string, unknown> = { name: newName.trim(), kind: newKind };
-    if (newKind === "api") {
+    const kind = product === "codex" ? "subscription" : newKind;
+    const body: Record<string, unknown> = { name: newName.trim(), kind, product };
+    if (kind === "api") {
       if (!apiSecret.trim()) return;
       body.api = { baseUrl: apiBaseUrl.trim() || undefined, authKind: "auth_token", secret: apiSecret.trim() };
     }
@@ -236,7 +249,9 @@ export function Profiles() {
         </button>
       </div>
       <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted">
-        {t("每个账号使用独立的 CLAUDE_CONFIG_DIR,登录互不干扰。")}
+        {product === "codex"
+          ? t("每个账号使用独立的 CODEX_HOME,登录互不干扰。")
+          : t("每个账号使用独立的 CLAUDE_CONFIG_DIR,登录互不干扰。")}
         <InfoHint
           text={t("每个账号的会话与费用自动纳入索引,可在仪表盘按账号对比;删除账号只移除注册条目,登录数据目录保留。")}
         />
@@ -254,18 +269,21 @@ export function Profiles() {
                 className="w-44 rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
               />
             </label>
-            <label className="text-sm">
-              <div className="mb-1 text-xs text-muted">{t("类型")}</div>
-              <select
-                value={newKind}
-                onChange={(e) => setNewKind(e.target.value as "subscription" | "api")}
-                className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
-              >
-                <option value="subscription">{t("订阅账号")}</option>
-                <option value="api">{t("API 接入")}</option>
-              </select>
-            </label>
-            {newKind === "api" && (
+            {/* Codex API access lives in its own config.toml model_providers */}
+            {product === "claude" && (
+              <label className="text-sm">
+                <div className="mb-1 text-xs text-muted">{t("类型")}</div>
+                <select
+                  value={newKind}
+                  onChange={(e) => setNewKind(e.target.value as "subscription" | "api")}
+                  className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm"
+                >
+                  <option value="subscription">{t("订阅账号")}</option>
+                  <option value="api">{t("API 接入")}</option>
+                </select>
+              </label>
+            )}
+            {product === "claude" && newKind === "api" && (
               <>
                 <label className="text-sm">
                   <div className="mb-1 text-xs text-muted">{t("Base URL(可选)")}</div>
@@ -295,9 +313,11 @@ export function Profiles() {
               {t("创建")}
             </button>
           </div>
-          {newKind === "subscription" && (
+          {(product === "codex" || newKind === "subscription") && (
             <p className="mt-3 text-xs text-muted">
-              {t("创建后会给出登录引导命令(在你自己的终端执行 /login);登录完成后卡片会在数秒内显示账号邮箱。")}
+              {product === "codex"
+                ? t("创建后会给出登录引导命令(在你自己的终端执行 codex login);登录完成后卡片会在数秒内显示账号邮箱。")
+                : t("创建后会给出登录引导命令(在你自己的终端执行 /login);登录完成后卡片会在数秒内显示账号邮箱。")}
             </p>
           )}
         </div>
@@ -385,19 +405,24 @@ export function Profiles() {
               </div>
             </dl>
 
-            {p.kind === "subscription" && p.detection.loggedIn && <QuotaSection profileId={p.id} />}
+            {p.kind === "subscription" && p.detection.loggedIn && p.product !== "codex" && (
+              <QuotaSection profileId={p.id} />
+            )}
 
             <div className="mt-4 flex flex-wrap gap-2">
               {p.kind === "subscription" && !p.detection.loggedIn && p.loginCommand && (
                 <CopyButton text={p.loginCommand} label={t("复制登录命令")} />
               )}
-              <button
-                type="button"
-                onClick={() => void activate(p.id)}
-                className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink"
-              >
-                {activated === p.id ? t("已写入 current-profile.sh") : t("设为 shell 默认")}
-              </button>
+              {/* the codex default is a synthesized view, not a registry entry */}
+              {!(p.product === "codex" && p.id === "default") && (
+                <button
+                  type="button"
+                  onClick={() => void activate(p.id)}
+                  className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-ink"
+                >
+                  {activated === p.id ? t("已写入 current-profile.sh") : t("设为 shell 默认")}
+                </button>
+              )}
               <InfoHint
                 className="self-center"
                 text={t(

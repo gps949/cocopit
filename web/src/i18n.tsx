@@ -73,6 +73,10 @@ const EN: Record<string, string> = {
   "新建账号": "New profile",
   "每个账号使用独立的 CLAUDE_CONFIG_DIR,登录互不干扰。":
     "Each profile uses its own CLAUDE_CONFIG_DIR, so logins stay separate.",
+  "每个账号使用独立的 CODEX_HOME,登录互不干扰。":
+    "Each profile uses its own CODEX_HOME, so logins stay separate.",
+  "创建后会给出登录引导命令(在你自己的终端执行 codex login);登录完成后卡片会在数秒内显示账号邮箱。":
+    "You'll get a login command to run in your own terminal (codex login); the card shows the account email within seconds of finishing.",
   "每个账号的会话与费用自动纳入索引,可在仪表盘按账号对比;删除账号只移除注册条目,登录数据目录保留。":
     "Each profile's sessions and cost are indexed and comparable on the dashboard; deleting a profile only removes the registry entry — its login data directory is kept.",
   "名称": "Name",

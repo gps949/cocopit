@@ -126,8 +126,9 @@ export function profileScanSources(claudeDir: string): ScanSource[] {
   const sources: ScanSource[] = loadProfiles().map((profile) => ({
     profileId: profile.id,
     dir: profile.configDir ?? claudeDir,
+    ...(profile.product === "codex" ? { product: "codex" as const } : {}),
   }));
-  // Codex has no profile concept here yet — one machine-wide directory
+  // the machine's own ~/.codex is the implicit default Codex account
   const codexDir = loadConfig().codexDir;
   if (codexDir && existsSync(join(codexDir, "sessions"))) {
     sources.push({ profileId: "default", dir: codexDir, product: "codex" });

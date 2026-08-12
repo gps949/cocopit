@@ -87,8 +87,11 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (!row.cwd) return Response.json({ error: "session has no recorded cwd" }, { status: 409 });
 
       if (row.product === "codex") {
-        // Codex has no per-profile config dirs here; resume is one command
-        command = `cd ${shellQuote(row.cwd)} && codex resume ${shellQuote(row.id)}`;
+        // resume always runs under the account that owns the session — codex
+        // only finds sessions inside its own CODEX_HOME
+        const owner = profiles.find((p) => p.id === row.profileId);
+        const env = owner?.product === "codex" && owner.configDir ? `CODEX_HOME=${shellQuote(owner.configDir)} ` : "";
+        command = `cd ${shellQuote(row.cwd)} && ${env}codex resume ${shellQuote(row.id)}`;
         target = {
           name: sessionNameFor(row.id),
           title: row.title ?? row.id,
@@ -158,7 +161,12 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       if (!project.cwd) return Response.json({ error: "project has no recorded cwd" }, { status: 409 });
 
       if (project.product === "codex") {
-        command = `cd ${shellQuote(project.cwd)} && codex`;
+        const chosen = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
+        if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
+        const owner = chosen ?? profiles.find((p) => p.id === project.profileId);
+        const env =
+          owner?.product === "codex" && owner.configDir ? `CODEX_HOME=${shellQuote(owner.configDir)} ` : "";
+        command = `cd ${shellQuote(project.cwd)} && ${env}codex`;
       } else {
         // a new session may be started under any profile — nothing ties it to
         // the one that happens to own the project's past sessions
@@ -196,7 +204,11 @@ export function registerTerminalRoutes(router: Router, db: Database): void {
       }
 
       if (body.product === "codex") {
-        command = `cd ${shellQuote(cwd)} && codex`;
+        const chosen = body.profileId ? profiles.find((p) => p.id === body.profileId) : undefined;
+        if (body.profileId && !chosen) return Response.json({ error: "profile not found" }, { status: 404 });
+        const env =
+          chosen?.product === "codex" && chosen.configDir ? `CODEX_HOME=${shellQuote(chosen.configDir)} ` : "";
+        command = `cd ${shellQuote(cwd)} && ${env}codex`;
       } else {
         const profile = body.profileId ? profiles.find((p) => p.id === body.profileId) : profiles[0];
         if (!profile) return Response.json({ error: "profile not found" }, { status: 404 });

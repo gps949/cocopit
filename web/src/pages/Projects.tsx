@@ -30,10 +30,12 @@ export function Projects() {
 
   useEffect(() => {
     setProjects(null);
+    setProfiles([]);
+    setPresets([]);
     void listProjects(product).then((res) => setProjects(res.projects));
-    // accounts and settings presets are Claude concepts; Codex has neither
+    void listProfileOptions(product).then(setProfiles);
+    // settings presets are a Claude concept (codex has config profiles of its own)
     if (product === "claude") {
-      void listProfileOptions().then(setProfiles);
       void listSnapshotNames().then(setPresets);
     }
   }, [product]);
@@ -45,7 +47,7 @@ export function Projects() {
         cwd: newDir.trim(),
         createDir,
         product,
-        profileId: (product === "claude" && runAs) || undefined,
+        profileId: runAs || undefined,
         settingsPreset: (product === "claude" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });
@@ -65,7 +67,7 @@ export function Projects() {
     try {
       const term = await openTerminal({
         projectId: project.id,
-        profileId: (product === "claude" && runAs) || undefined,
+        profileId: runAs || undefined,
         settingsPreset: (product === "claude" && preset) || undefined,
       });
       setTerminal({ name: term.name, title: term.title });

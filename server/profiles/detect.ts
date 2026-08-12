@@ -34,6 +34,53 @@ export function accountFilePath(profile: CcProfile): string {
   return `${dir.replace(/\/+$/, "")}.json`;
 }
 
+/** Payload claims of a JWT, decoded locally — nothing leaves the process. */
+function jwtClaims(token: string): Record<string, unknown> | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Codex login state, from <CODEX_HOME>/auth.json: an OPENAI_API_KEY or an
+ * OAuth token set whose id_token carries email and ChatGPT plan claims.
+ */
+export function detectCodexProfile(dir: string): ProfileDetection {
+  const authPath = join(dir, "auth.json");
+  if (!existsSync(authPath)) return { loggedIn: false };
+  try {
+    const auth = JSON.parse(readFileSync(authPath, "utf8")) as {
+      OPENAI_API_KEY?: string | null;
+      tokens?: { id_token?: string } | null;
+    };
+    const idToken = auth.tokens?.id_token;
+    if (idToken) {
+      const claims = jwtClaims(idToken) ?? {};
+      const oai = (claims["https://api.openai.com/auth"] ?? {}) as Record<string, unknown>;
+      const plan = typeof oai.chatgpt_plan_type === "string" ? oai.chatgpt_plan_type : undefined;
+      return {
+        loggedIn: true,
+        email: typeof claims.email === "string" ? claims.email : undefined,
+        displayName: typeof claims.name === "string" ? claims.name : undefined,
+        orgType: plan ? `chatgpt_${plan}` : undefined,
+        subscriptionCreatedAt:
+          typeof oai.chatgpt_subscription_active_start === "string"
+            ? oai.chatgpt_subscription_active_start
+            : undefined,
+        trialEndsAt: null,
+      };
+    }
+    if (auth.OPENAI_API_KEY) return { loggedIn: true, billingType: "api_key" };
+    return { loggedIn: false };
+  } catch {
+    return { loggedIn: false };
+  }
+}
+
 /**
  * Read-only login detection. Subscription profiles are logged in when their
  * account file carries an oauthAccount; API profiles when a secret is
@@ -41,6 +88,9 @@ export function accountFilePath(profile: CcProfile): string {
  * is absent here: it is not in any local file, only behind the API.
  */
 export function detectProfile(profile: CcProfile): ProfileDetection {
+  if (profile.product === "codex") {
+    return detectCodexProfile(profile.configDir ?? join(process.env.HOME ?? "", ".codex"));
+  }
   if (profile.kind === "api") {
     return { loggedIn: Boolean(profile.api?.secret) };
   }
@@ -95,6 +145,10 @@ export function shellQuote(value: string): string {
  * pointing it at ~/.claude selects a different config file entirely.
  */
 export function loginCommand(profile: CcProfile): string {
+  if (profile.product === "codex") {
+    const env = profile.configDir ? `CODEX_HOME=${shellQuote(profile.configDir)} ` : "";
+    return `${env}codex login`;
+  }
   const env = profile.configDir ? `CLAUDE_CONFIG_DIR=${shellQuote(profile.configDir)} ` : "";
   return `${env}claude /login`;
 }

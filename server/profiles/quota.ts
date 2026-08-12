@@ -154,7 +154,9 @@ export interface QuotaDeps {
 }
 
 export async function fetchProfileQuota(profile: CcProfile, deps: QuotaDeps = {}): Promise<QuotaResult> {
-  if (profile.kind !== "subscription") return { status: "unsupported" };
+  // Codex quota comes from its transcripts (see /api/codex/quota), not from
+  // Anthropic's endpoint — falling through would read the wrong credentials
+  if (profile.kind !== "subscription" || profile.product === "codex") return { status: "unsupported" };
 
   const now = deps.now ?? Date.now;
   const cached = cache.get(profile.id);

@@ -16,6 +16,8 @@ export interface CcProfile {
   name: string;
   color?: string;
   kind: "subscription" | "api";
+  /** Which CLI this account belongs to; absent means Claude Code. */
+  product?: "claude" | "codex";
   /** null only for the default profile (uses config.claudeDir, i.e. ~/.claude). */
   configDir: string | null;
   api?: CcProfileApi;
@@ -37,6 +39,11 @@ export function profilesPath(): string {
 /** Base directory holding per-profile CLAUDE_CONFIG_DIRs. */
 export function profilesBaseDir(): string {
   return process.env.COCOPIT_PROFILES_BASE || join(homedir(), ".claude-profiles");
+}
+
+/** Base directory holding per-profile CODEX_HOMEs. */
+export function codexProfilesBaseDir(): string {
+  return process.env.COCOPIT_CODEX_PROFILES_BASE || join(homedir(), ".codex-profiles");
 }
 
 export function loadProfiles(): CcProfile[] {
@@ -73,6 +80,7 @@ function slugify(name: string): string {
 export interface CreateProfileInput {
   name: string;
   kind: "subscription" | "api";
+  product?: "claude" | "codex";
   color?: string;
   api?: CcProfileApi;
   extraEnv?: Record<string, string>;
@@ -84,13 +92,16 @@ export function createProfile(input: CreateProfileInput): CcProfile {
   let id = base;
   for (let n = 2; profiles.some((p) => p.id === id); n++) id = `${base}-${n}`;
 
-  const configDir = join(profilesBaseDir(), id);
+  // CODEX_HOME must exist before codex will accept it, so both kinds are
+  // created eagerly
+  const configDir = join(input.product === "codex" ? codexProfilesBaseDir() : profilesBaseDir(), id);
   mkdirSync(configDir, { recursive: true, mode: 0o700 });
 
   const profile: CcProfile = {
     id,
     name: input.name,
     kind: input.kind,
+    ...(input.product === "codex" ? { product: "codex" as const } : {}),
     configDir,
     ...(input.color ? { color: input.color } : {}),
     ...(input.api ? { api: input.api } : {}),

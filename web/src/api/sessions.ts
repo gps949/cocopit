@@ -137,8 +137,8 @@ export interface ProfileOption {
 export const listSnapshotNames = () =>
   getJson<{ snapshots: Array<{ name: string }> }>("/api/snapshots").then((r) => r.snapshots.map((s) => s.name));
 
-export const listProfileOptions = () =>
-  getJson<{ profiles: ProfileOption[] }>("/api/profiles").then((r) => r.profiles);
+export const listProfileOptions = (product: "claude" | "codex" = "claude") =>
+  getJson<{ profiles: ProfileOption[] }>(`/api/profiles?product=${product}`).then((r) => r.profiles);
 export const listLive = () => getJson<{ sessions: LiveSessionRow[] }>("/api/live");
 
 export async function openTerminal(body: {
