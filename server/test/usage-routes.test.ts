@@ -122,6 +122,33 @@ describe("usage aggregation routes", () => {
     expect(total).toBeCloseTo(0.081, 10);
   });
 
+  test("daily buckets follow the viewer's tzOffset, not the server clock", async () => {
+    // UTC-10: 2026-08-02T09:00Z becomes Aug 1 23:00, merging all events into one day
+    const merged = await get("/api/usage/daily?tzOffset=-600");
+    expect(merged.days.length).toBe(1);
+    expect(merged.days[0].day).toBe("2026-08-01");
+
+    // UTC: the two calendar days stay separate
+    const utc = await get("/api/usage/daily?tzOffset=0");
+    expect(utc.days.map((d: any) => d.day)).toEqual(["2026-08-01", "2026-08-02"]);
+  });
+
+  test("heatmap hours shift with tzOffset", async () => {
+    const utc = await get("/api/usage/heatmap?tzOffset=0");
+    const hoursUtc = utc.cells.map((c: any) => c.hour).sort((a: number, b: number) => a - b);
+    expect(hoursUtc).toEqual([9, 10, 11]);
+
+    const plus1 = await get("/api/usage/heatmap?tzOffset=60");
+    const hoursPlus1 = plus1.cells.map((c: any) => c.hour).sort((a: number, b: number) => a - b);
+    expect(hoursPlus1).toEqual([10, 11, 12]);
+  });
+
+  test("a nonsense tzOffset falls back to the server timezone instead of erroring", async () => {
+    const d = await get("/api/usage/daily?tzOffset=junk");
+    const total = d.days.reduce((n: number, day: any) => n + day.costUsd, 0);
+    expect(total).toBeCloseTo(0.081, 10);
+  });
+
   test("by-model groups with unpriced flag", async () => {
     const m = await get("/api/usage/by-model");
     const kimi = m.models.find((x: any) => x.model.startsWith("hf:"));

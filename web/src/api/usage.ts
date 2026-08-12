@@ -67,9 +67,12 @@ export interface UnpricedModels {
 export type RangeKey = "7d" | "30d" | "90d" | "all";
 
 export function rangeToQuery(range: RangeKey): string {
-  if (range === "all") return "";
+  // tzOffset: minutes east of UTC, so the server buckets days/hours in the
+  // viewer's timezone rather than its own (they differ on remote deployments)
+  const tz = `tzOffset=${-new Date().getTimezoneOffset()}`;
+  if (range === "all") return `?${tz}`;
   const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
-  return `?from=${Date.now() - days * 86_400_000}`;
+  return `?from=${Date.now() - days * 86_400_000}&${tz}`;
 }
 
 export async function getJson<T>(path: string): Promise<T> {

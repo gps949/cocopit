@@ -55,6 +55,21 @@ function usageFrom(filter: UsageFilter): string {
   return from;
 }
 
+/**
+ * Day/hour bucketing must follow the *viewer's* clock, not the server's — the
+ * console may run on a machine in another timezone. The client sends its UTC
+ * offset in minutes (JS: -getTimezoneOffset()); shifting the epoch by it and
+ * bucketing in UTC is equivalent to bucketing in the viewer's local time.
+ * Falls back to the server's timezone when absent (curl, old clients).
+ */
+function tzShiftSeconds(url: URL): number | null {
+  const raw = url.searchParams.get("tzOffset");
+  if (raw === null) return null;
+  const minutes = Number(raw);
+  if (!Number.isFinite(minutes) || Math.abs(minutes) > 16 * 60) return null;
+  return Math.trunc(minutes) * 60;
+}
+
 export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath: string): void {
   router.register("GET", "/api/usage/summary", (req) => {
     const filter = parseFilter(new URL(req.url));
@@ -75,10 +90,13 @@ export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath
   });
 
   router.register("GET", "/api/usage/daily", (req) => {
-    const filter = parseFilter(new URL(req.url));
+    const url = new URL(req.url);
+    const filter = parseFilter(url);
+    const shift = tzShiftSeconds(url);
+    const bucket = shift === null ? "u.ts / 1000, 'unixepoch', 'localtime'" : `u.ts / 1000 + ${shift}, 'unixepoch'`;
     const days = db
       .prepare(
-        `SELECT date(u.ts / 1000, 'unixepoch', 'localtime') AS day,
+        `SELECT date(${bucket}) AS day,
                 COALESCE(SUM(u.cost_usd), 0) AS costUsd,
                 SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_w5m_tokens + u.cache_w1h_tokens) AS tokens,
                 COUNT(*) AS events
@@ -90,11 +108,14 @@ export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath
   });
 
   router.register("GET", "/api/usage/heatmap", (req) => {
-    const filter = parseFilter(new URL(req.url));
+    const url = new URL(req.url);
+    const filter = parseFilter(url);
+    const shift = tzShiftSeconds(url);
+    const bucket = shift === null ? "u.ts / 1000, 'unixepoch', 'localtime'" : `u.ts / 1000 + ${shift}, 'unixepoch'`;
     const cells = db
       .prepare(
-        `SELECT CAST(strftime('%w', u.ts / 1000, 'unixepoch', 'localtime') AS INTEGER) AS weekday,
-                CAST(strftime('%H', u.ts / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+        `SELECT CAST(strftime('%w', ${bucket}) AS INTEGER) AS weekday,
+                CAST(strftime('%H', ${bucket}) AS INTEGER) AS hour,
                 COALESCE(SUM(u.cost_usd), 0) AS costUsd,
                 COUNT(*) AS events
          FROM ${usageFrom(filter)} ${filter.where}
