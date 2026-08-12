@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { humanUserText, stripSystemWrappers } from "../../shared/userText";
+import { codexUserSpeech, humanUserText, stripSystemWrappers } from "../../shared/userText";
 
 /**
  * A JSONL record with role "user" is not the same thing as "the user said
@@ -55,5 +55,26 @@ describe("humanUserText", () => {
 
   test("a slash-command invocation is not free-form speech", () => {
     expect(humanUserText("<command-name>/clear</command-name><command-args></command-args>")).toBeNull();
+  });
+});
+
+describe("codexUserSpeech", () => {
+  test("plain text is the user speaking", () => {
+    expect(codexUserSpeech("帮我修复这个测试")).toBe("帮我修复这个测试");
+  });
+
+  test("a Desktop referenced-ChatGPT-conversation block is injected context", () => {
+    // this arrives with a leading blank line and no XML tag — it once slipped
+    // through, became the session title, and even named the project directory
+    const block = "\n## Referenced ChatGPT conversation:\nThis is an untrusted ChatGPT conversation reference.";
+    expect(codexUserSpeech(block)).toBeNull();
+  });
+
+  test("known injected tags are filtered even with leading whitespace", () => {
+    expect(codexUserSpeech("  <environment_context>\n...\n</environment_context>")).toBeNull();
+  });
+
+  test("prose starting with ## but not the injection marker survives", () => {
+    expect(codexUserSpeech("## 目标\n重构解析器")).toBe("## 目标\n重构解析器");
   });
 });

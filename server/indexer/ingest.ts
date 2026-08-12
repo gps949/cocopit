@@ -36,6 +36,8 @@ interface SessionAgg {
   /** Codex lineage: logical thread id + fork source from session_meta. */
   threadId: string | null;
   forkedFrom: string | null;
+  /** Codex: driving surface (codex_cli_rs, Codex Desktop, chatgpt remote…). */
+  origin: string | null;
 }
 
 function emptyAgg(): SessionAgg {
@@ -62,6 +64,7 @@ function emptyAgg(): SessionAgg {
     agentLabel: null,
     threadId: null,
     forkedFrom: null,
+    origin: null,
   };
 }
 
@@ -162,6 +165,7 @@ export class Ingestor {
         agg.agentLabel = (row.agent_label as string | null) ?? null;
         agg.threadId = (row.thread_id as string | null) ?? null;
         agg.forkedFrom = (row.forked_from as string | null) ?? null;
+        agg.origin = (row.origin as string | null) ?? null;
         if (task.product === "codex") {
           agg.codexModel = [...agg.models].find((m) => m !== "codex-unknown") ?? null;
         }
@@ -269,6 +273,7 @@ export class Ingestor {
           if (!agg.agentLabel && line.agentLabel) agg.agentLabel = line.agentLabel;
           if (!agg.threadId && line.threadId) agg.threadId = line.threadId;
           if (!agg.forkedFrom && line.forkedFrom) agg.forkedFrom = line.forkedFrom;
+          if (!agg.origin && line.origin) agg.origin = line.origin;
         }
 
         // first turn_context wins: the only events that need backfilling are
@@ -390,12 +395,12 @@ export class Ingestor {
                first_ts, last_ts, title, slug, git_branch, cc_version,
                line_count, user_msg_count, assistant_msg_count, models,
                input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, subagent_count, cost_usd, cwd,
-               parent_session_id, agent_label, thread_id, forked_from)
+               parent_session_id, agent_label, thread_id, forked_from, origin)
              VALUES ($id, $pid, $path, $size, $mtime, $parsed, $first, $last, $title, $slug, $branch, $ver,
                $lines, $users, $assts, $models, $in, $out, $cw, $cr,
                (SELECT COUNT(*) FROM subagents WHERE session_id = $id),
                (SELECT SUM(cost_usd) FROM usage_events WHERE session_id = $id), $cwd, $parent, $agentLabel,
-               $threadId, $forkedFrom)
+               $threadId, $forkedFrom, $origin)
              ON CONFLICT(id) DO UPDATE SET
                project_id = excluded.project_id, file_path = excluded.file_path,
                file_size = excluded.file_size, file_mtime_ms = excluded.file_mtime_ms,
@@ -411,7 +416,8 @@ export class Ingestor {
                subagent_count = excluded.subagent_count,
                cost_usd = excluded.cost_usd, cwd = excluded.cwd,
                parent_session_id = excluded.parent_session_id, agent_label = excluded.agent_label,
-               thread_id = excluded.thread_id, forked_from = excluded.forked_from`,
+               thread_id = excluded.thread_id, forked_from = excluded.forked_from,
+               origin = excluded.origin`,
           )
           .run({
             $id: task.sessionId,
@@ -439,6 +445,7 @@ export class Ingestor {
             $agentLabel: agg.agentLabel,
             $threadId: agg.threadId,
             $forkedFrom: agg.forkedFrom,
+            $origin: agg.origin,
           });
 
         // depends on the whole file, so it can only be settled once every line

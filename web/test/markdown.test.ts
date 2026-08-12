@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseMarkdown } from "../src/lib/markdown";
+import { parseInline, parseMarkdown } from "../src/lib/markdown";
 
 /**
  * Transcript text is arbitrary content from real sessions — it contains angle
@@ -51,6 +51,24 @@ describe("inline parsing", () => {
     // the transcript is full of <task-notification>-style content
     const blocks = parseMarkdown("看 <script>alert(1)</script> 这段");
     expect(blocks[0]).toEqual({ type: "paragraph", text: "看 <script>alert(1)</script> 这段" });
+  });
+
+  test("http links become anchors", () => {
+    const spans = parseInline("[docs](https://example.com)");
+    expect(spans).toEqual([{ type: "link", text: "docs", href: "https://example.com" }]);
+  });
+
+  test("app-scheme URIs stay visible but never become anchors", () => {
+    // Codex Desktop injects [对话](chatgpt-conversation://uuid) references —
+    // a browser can't follow that scheme, so a hyperlink would be a dead click
+    const spans = parseInline("[对话](chatgpt-conversation://6a7a8c90)");
+    expect(spans.find((s) => s.type === "link")).toBeUndefined();
+    expect(spans).toContainEqual({ type: "code", text: "chatgpt-conversation://6a7a8c90" });
+  });
+
+  test("javascript: href is refused", () => {
+    const spans = parseInline("[x](javascript:alert(1))");
+    expect(spans.find((s) => s.type === "link")).toBeUndefined();
   });
 });
 

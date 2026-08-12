@@ -155,6 +155,9 @@ const EN: Record<string, string> = {
   "启用状态记在 config.toml 的 plugins 表——点击即可启用/停用,只做逐行改写、保留注释,写入前自动备份。":
     "Enablement lives in config.toml's plugins tables — click to toggle; the edit is line-surgical, preserves comments, and is backed up first.",
   "子代理 · {name}": "subagent · {name}",
+  桌面版: "Desktop",
+  "ChatGPT 远程": "ChatGPT remote",
+  "Chrome 扩展": "Chrome extension",
   "子代理会话({n})": "Agent sessions ({n})",
   "收起子代理会话({n})": "Hide agent sessions ({n})",
   "同一段对话在不同文件里的延续(共享记录或声明的续接/分叉关系),以及由本会话派生的子代理会话。":

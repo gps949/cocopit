@@ -22,6 +22,8 @@ export interface SessionSummary {
   subagentCount: number;
   parentSessionId: string | null;
   agentLabel: string | null;
+  /** Codex: surface that drove the session (codex_cli_rs, Codex Desktop, chatgpt remote…). */
+  origin: string | null;
 }
 
 export interface SessionListResponse {

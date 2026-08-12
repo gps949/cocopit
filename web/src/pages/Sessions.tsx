@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listSessions, type SessionSummary } from "../api/sessions";
 import { fmtUsd } from "../lib/format";
+import { isNotableOrigin, originLabel } from "../lib/origin";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 import { productPath, useProduct, withProduct } from "../product";
 
@@ -205,6 +206,11 @@ export function Sessions() {
                       <span key={m}>{m.replace(/^claude-/, "")}</span>
                     ))}
                     {s.subagentCount > 0 && <span>{t("{n} 子代理", { n: s.subagentCount })}</span>}
+                    {isNotableOrigin(s.origin) && (
+                      <span className="rounded bg-hover px-1 py-px" title={s.origin}>
+                        {originLabel(s.origin, t)}
+                      </span>
+                    )}
                     {s.gitBranch && <span className="font-mono">{s.gitBranch}</span>}
                   </div>
                 </td>

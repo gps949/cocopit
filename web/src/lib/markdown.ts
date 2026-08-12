@@ -161,7 +161,16 @@ export function parseInline(text: string): InlineSpan[] {
       spans.push({ type: "italic", text: token.slice(1, -1) });
     } else {
       const split = token.indexOf("](");
-      spans.push({ type: "link", text: token.slice(1, split), href: token.slice(split + 2, -1) });
+      const label = token.slice(1, split);
+      const href = token.slice(split + 2, -1);
+      // only schemes a browser can actually follow become anchors; opaque app
+      // URIs (chatgpt-conversation://…) and javascript: stay visible as text —
+      // a dead or dangerous hyperlink is worse than no hyperlink
+      if (/^(https?:\/\/|mailto:|#|\/)/i.test(href)) {
+        spans.push({ type: "link", text: label, href });
+      } else {
+        spans.push({ type: "text", text: `${label} (` }, { type: "code", text: href }, { type: "text", text: ")" });
+      }
     }
     last = start + token.length;
   }

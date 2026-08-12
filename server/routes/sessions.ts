@@ -36,6 +36,7 @@ interface SessionRow {
   product: string;
   parent_session_id: string | null;
   agent_label: string | null;
+  origin: string | null;
 }
 
 function toSummary(row: SessionRow) {
@@ -66,6 +67,7 @@ function toSummary(row: SessionRow) {
     subagentCount: row.subagent_count,
     parentSessionId: row.parent_session_id,
     agentLabel: row.agent_label,
+    origin: row.origin,
   };
 }
 

@@ -207,8 +207,10 @@ export function buildCodexTranscript(messages: RawMessage[]): TranscriptEntry[] 
           if (speech) {
             entries.push({ ...base, key: `${seq}-u`, kind: "user", text: speech });
           } else {
-            const tag = /^<([a-z_-]+)/i.exec(text)?.[1];
-            entries.push({ ...base, key: `${seq}-inj`, kind: "meta", metaLabel: tag ?? "context" });
+            const trimmed = text.trimStart();
+            const tag = /^<([a-z_-]+)/i.exec(trimmed)?.[1];
+            const label = tag ?? (/^## Referenced ChatGPT/i.test(trimmed) ? "referenced ChatGPT conversation" : "context");
+            entries.push({ ...base, key: `${seq}-inj`, kind: "meta", metaLabel: label });
           }
         } else {
           entries.push({ ...base, key: `${seq}-dev`, kind: "meta", metaLabel: payload.role ?? "instructions" });

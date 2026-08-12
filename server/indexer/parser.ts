@@ -48,6 +48,8 @@ export interface ParsedLine {
   threadId?: string;
   /** Codex: the rollout this one was forked from. */
   forkedFrom?: string;
+  /** Codex: which surface drove this session (CLI, Desktop, ChatGPT remote…). */
+  origin?: string;
 }
 
 const SNIPPET_MAX = 300;
@@ -193,6 +195,7 @@ export function parseCodexLine(raw: RawLine, seq: number, ctx: CodexContext): Pa
       const fileId = str(payload.id);
       if (threadId && threadId !== fileId) out.threadId = threadId;
       out.forkedFrom = str(payload.forked_from_id);
+      out.origin = str(payload.originator);
       break;
     }
     case "turn_context": {

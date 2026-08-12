@@ -20,6 +20,7 @@ import {
   type SubagentInfo,
 } from "../api/sessions";
 import { fmtTokens, fmtUsd } from "../lib/format";
+import { originLabel } from "../lib/origin";
 import { InfoHint } from "../components/InfoHint";
 import { Markdown } from "../components/Markdown";
 import { TerminalPane } from "../components/Terminal";
@@ -593,6 +594,11 @@ export function SessionDetail() {
             {session.gitBranch && <span className="font-mono">{session.gitBranch}</span>}
             {session.ccVersion && <span>{isCodex ? "Codex" : "CC"} {session.ccVersion}</span>}
             <span>{session.profileId}</span>
+            {session.origin && (
+              <span className="rounded bg-hover px-1.5 py-0.5" title={session.origin}>
+                {originLabel(session.origin, t)}
+              </span>
+            )}
             {session.agentLabel && (
               <span className="rounded bg-accent-soft px-1.5 py-0.5 text-accent">
                 {t("子代理 · {name}", { name: session.agentLabel })}

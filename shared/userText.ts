@@ -29,7 +29,7 @@ export const SYSTEM_WRAPPER_TAGS = [
  * are matched here defensively.
  */
 export const CODEX_INJECTED_USER_TEXT =
-  /^(<(environment_context|recommended_plugins|user_action|turn_aborted|permissions|user_instructions|ide_context|image|system)[\s>/]|# AGENTS\.md)/i;
+  /^(<(environment_context|recommended_plugins|user_action|turn_aborted|permissions|user_instructions|ide_context|image|system)[\s>/]|# AGENTS\.md|## Referenced ChatGPT conversation)/i;
 
 /**
  * The human-authored remainder of a Codex user message, or null when it is
@@ -39,7 +39,9 @@ export const CODEX_INJECTED_USER_TEXT =
  * actually typed around them survives.
  */
 export function codexUserSpeech(text: string): string | null {
-  if (CODEX_INJECTED_USER_TEXT.test(text)) return null;
+  // injections sometimes lead with blank lines (the Desktop's referenced-
+  // conversation block starts "\n## Referenced ChatGPT conversation:")
+  if (CODEX_INJECTED_USER_TEXT.test(text.trimStart())) return null;
   const stripped = stripSystemWrappers(text);
   return stripped || null;
 }
