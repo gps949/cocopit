@@ -23,28 +23,39 @@ export function Sessions() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [note, setNote] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string }>>([]);
 
   const search = params.get("q") ?? "";
   const project = params.get("project");
+  const profileId = params.get("profileId") ?? "";
+
+  useEffect(() => {
+    void fetch("/api/profiles")
+      .then((res) => res.json() as Promise<{ profiles: Array<{ id: string; name: string }> }>)
+      .then((data) => setProfiles(data.profiles))
+      .catch(() => setProfiles([]));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     const qs = new URLSearchParams({ limit: "40" });
     if (search) qs.set("q", search);
     if (project) qs.set("project", project);
+    if (profileId) qs.set("profileId", profileId);
     void listSessions(`?${qs}`).then((res) => {
       setSessions(res.sessions);
       setCursor(res.nextCursor);
       setNote(res.note);
       setLoading(false);
     });
-  }, [search, project]);
+  }, [search, project, profileId]);
 
   async function loadMore() {
     if (!cursor) return;
     const qs = new URLSearchParams({ limit: "40", cursor });
     if (search) qs.set("q", search);
     if (project) qs.set("project", project);
+    if (profileId) qs.set("profileId", profileId);
     const res = await listSessions(`?${qs}`);
     setSessions((prev) => [...prev, ...res.sessions]);
     setCursor(res.nextCursor);
@@ -62,6 +73,25 @@ export function Sessions() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold tracking-tight">{t("会话")}</h1>
+        {profiles.length > 1 && (
+          <select
+            value={profileId}
+            onChange={(e) => {
+              const next = new URLSearchParams(params);
+              if (e.target.value) next.set("profileId", e.target.value);
+              else next.delete("profileId");
+              setParams(next);
+            }}
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm"
+          >
+            <option value="">{t("全部账号")}</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {t(p.name)}
+              </option>
+            ))}
+          </select>
+        )}
         <form onSubmit={submitSearch} className="flex w-full gap-2 sm:w-auto">
           <input
             value={query}

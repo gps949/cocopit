@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { InfoHint } from "../components/InfoHint";
 import { UserIcon } from "../components/icons";
+import { QuotaBar, type QuotaResult } from "../components/Quota";
 import { localeOf, useI18n, type Lang, type Translate } from "../i18n";
 
 interface ProfileView {
@@ -26,23 +27,6 @@ interface ProfileView {
     extraUsageEnabled?: boolean;
     rateLimitTier?: string;
   };
-}
-
-interface QuotaWindow {
-  utilization: number;
-  resetsAt: string | null;
-}
-
-interface QuotaResult {
-  status: "ok" | "unsupported" | "no_credentials" | "token_expired" | "rate_limited" | "error";
-  quota?: {
-    fiveHour: QuotaWindow | null;
-    sevenDay: QuotaWindow | null;
-    sevenDayOpus: QuotaWindow | null;
-    sevenDaySonnet: QuotaWindow | null;
-    extraUsage: { enabled: boolean; utilization: number | null } | null;
-  };
-  stale?: boolean;
 }
 
 async function fetchProfiles(): Promise<ProfileView[]> {
@@ -92,43 +76,6 @@ function fmtDate(iso: string, lang: Lang): string {
   const ts = Date.parse(iso);
   if (Number.isNaN(ts)) return iso;
   return new Date(ts).toLocaleDateString(localeOf(lang), { year: "numeric", month: "short", day: "numeric" });
-}
-
-function fmtReset(iso: string, lang: Lang): string {
-  const ts = Date.parse(iso);
-  if (Number.isNaN(ts)) return iso;
-  return new Date(ts).toLocaleString(localeOf(lang), {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function QuotaBar({ label, window: w }: { label: string; window: QuotaWindow }) {
-  const { t, lang } = useI18n();
-  const pct = Math.max(0, Math.min(100, w.utilization));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="text-muted">{label}</span>
-        <span className={pct >= 100 ? "font-medium text-danger" : undefined}>
-          {pct.toFixed(0)}%
-          {w.resetsAt && (
-            <span className="ml-1.5 font-normal text-muted">
-              {t("重置于 {time}", { time: fmtReset(w.resetsAt, lang) })}
-            </span>
-          )}
-        </span>
-      </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: pct >= 90 ? "var(--danger)" : "var(--accent)" }}
-        />
-      </div>
-    </div>
-  );
 }
 
 /**

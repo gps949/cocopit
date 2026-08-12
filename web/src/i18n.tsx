@@ -53,7 +53,7 @@ const EN: Record<string, string> = {
   "缓存读取": "Cache reads",
   "命中率 {v}": "Hit rate {v}",
   "缓存节省": "Cache savings",
-  "相对无缓存输入价": "vs uncached input price",
+  "净额,已扣写入溢价": "net of cache-write premium",
   "每日费用": "Daily cost",
   "按模型": "By model",
   "按项目 TOP 10": "Top 10 projects",
@@ -111,6 +111,19 @@ const EN: Record<string, string> = {
   "没有匹配的会话": "No matching sessions",
   "{n} 子代理": "{n} subagents",
   "已按项目筛选": "Filtered by project",
+  "全部账号": "All profiles",
+
+  // history
+  "历史": "History",
+  "提示词历史": "Prompt history",
+  "搜索你输入过的提示词": "Search your past prompts",
+  "你在 Claude Code 中输入过的每一条提示词,跨项目与会话。":
+    "Every prompt you have typed into Claude Code, across projects and sessions.",
+  "没有匹配的记录": "No matching entries",
+  "打开会话": "Open session",
+  "会话内搜索": "Search in session",
+  "命中 {n} 条": "{n} hits",
+  "命中 {n} 条(仅显示前 50)": "{n} hits (first 50 shown)",
   "{n} 天前": "{n}d ago",
 
   // session detail

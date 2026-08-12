@@ -209,6 +209,23 @@ describe("projects & sessions routes", () => {
     expect(body.prevBeforeSeq).toBeNull(); // reached the beginning
   });
 
+  test("in-session search returns seq to jump to", async () => {
+    const r = await get("/api/sessions/sess-one/search?q=数据库索引");
+    expect(r.hits).toHaveLength(1);
+    expect(r.hits[0].type).toBe("user");
+    expect(typeof r.hits[0].seq).toBe("number");
+    expect(r.hits[0].snippet).toContain("数据库索引");
+
+    // a hit in another session must not leak in
+    const none = await get("/api/sessions/sess-two/search?q=数据库索引");
+    expect(none.hits).toHaveLength(0);
+  });
+
+  test("in-session search rejects short queries", async () => {
+    const res = await fetch(`${base}/api/sessions/sess-one/search?q=ab`);
+    expect(res.status).toBe(400);
+  });
+
   test("404 for unknown session", async () => {
     const res = await fetch(`${base}/api/sessions/nope`);
     expect(res.status).toBe(404);

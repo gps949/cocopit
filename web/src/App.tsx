@@ -14,6 +14,7 @@ const Live = lazy(() => import("./pages/Live").then((m) => ({ default: m.Live })
 const Projects = lazy(() => import("./pages/Projects").then((m) => ({ default: m.Projects })));
 const SessionDetail = lazy(() => import("./pages/SessionDetail").then((m) => ({ default: m.SessionDetail })));
 const Sessions = lazy(() => import("./pages/Sessions").then((m) => ({ default: m.Sessions })));
+const History = lazy(() => import("./pages/History").then((m) => ({ default: m.History })));
 const Profiles = lazy(() => import("./pages/Profiles").then((m) => ({ default: m.Profiles })));
 const System = lazy(() => import("./pages/System").then((m) => ({ default: m.System })));
 
@@ -58,6 +59,7 @@ export function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/sessions/:id" element={<SessionDetail />} />
+          <Route path="/history" element={<History />} />
           <Route path="/live" element={<Live />} />
           <Route path="/config" element={<Config />} />
           <Route path="/extensions" element={<Extensions />} />

@@ -105,6 +105,14 @@ export const GlobeIcon = icon(
 
 export const MenuIcon = icon(<path d="M4 7h16M4 12h16M4 17h16" />);
 
+export const HistoryIcon = icon(
+  <>
+    <path d="M4 12a8 8 0 1 1 2.3 5.6" />
+    <path d="M4 13v-4h4" />
+    <path d="M12 8v4l3 2" />
+  </>,
+);
+
 export const ChevronUpIcon = icon(<path d="M6 14.5l6-6 6 6" />);
 
 export const ChevronDownIcon = icon(<path d="M6 9.5l6 6 6-6" />);

@@ -194,9 +194,11 @@ describe("usage aggregation routes", () => {
     expect(c.cacheReadTokens).toBe(5000);
     expect(c.cacheWrite5mTokens).toBe(200);
     expect(c.cacheWrite1hTokens).toBe(300);
-    // opus: reads at $0.50 instead of $5 input → saved 5000×4.5/1e6
-    expect(c.savedUsd).toBeCloseTo((5000 * (5 - 0.5)) / 1e6, 10);
-    expect(c.hitRate).toBeCloseTo(5000 / (5000 + 4400), 10);
+    // opus: reads at $0.50 instead of $5 input, minus the premium paid to
+    // create the cache (w5m at $6.25, w1h at $10 vs the $5 input price)
+    expect(c.savedUsd).toBeCloseTo((5000 * (5 - 0.5) - 200 * (6.25 - 5) - 300 * (10 - 5)) / 1e6, 10);
+    // writes count as misses: those tokens were processed fresh, not served
+    expect(c.hitRate).toBeCloseTo(5000 / (5000 + 4400 + 200 + 300), 10);
   });
 
   test("unpriced lists third-party models", async () => {

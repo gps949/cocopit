@@ -14,6 +14,7 @@ import {
 } from "../api/usage";
 import { chartTokens, EChart, type EChartsOption } from "../components/EChart";
 import { fmtTokens, fmtUsd } from "../lib/format";
+import { QuotaStrip } from "../components/Quota";
 import { useI18n } from "../i18n";
 
 const RANGES: Array<{ key: RangeKey; label: string }> = [
@@ -254,6 +255,9 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* the numbers people check before starting work — same source as /usage */}
+      <QuotaStrip />
+
       {unpriced && unpriced.models.length > 0 && (
         <div className="mt-4 rounded-xl border border-line bg-accent-soft px-4 py-2.5 text-sm">
           {t("{n} 个模型未定价({list}),其用量未计入费用。可在配置页添加价目。", {
@@ -269,7 +273,7 @@ export function Dashboard() {
         <Stat label={t("API 等价费用")} value={summary ? fmtUsd(summary.costUsd) : "—"} hint={summary ? t("{n} 次调用", { n: summary.events.toLocaleString() }) : undefined} />
         <Stat label={t("输出 tokens")} value={summary ? fmtTokens(summary.outputTokens) : "—"} hint={summary ? t("输入 {v}", { v: fmtTokens(summary.inputTokens) }) : undefined} />
         <Stat label={t("缓存读取")} value={summary ? fmtTokens(summary.cacheReadTokens) : "—"} hint={cache ? t("命中率 {v}", { v: `${(cache.hitRate * 100).toFixed(1)}%` }) : undefined} />
-        <Stat label={t("缓存节省")} value={cache ? fmtUsd(cache.savedUsd) : "—"} hint={t("相对无缓存输入价")} />
+        <Stat label={t("缓存节省")} value={cache ? fmtUsd(cache.savedUsd) : "—"} hint={t("净额,已扣写入溢价")} />
       </div>
 
       {byProfile && byProfile.length > 1 && (

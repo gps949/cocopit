@@ -413,6 +413,13 @@ export function SessionDetail() {
   const [showMeta, setShowMeta] = useState(false);
   const [showSuperseded, setShowSuperseded] = useState(false);
   const [conversationOnly, setConversationOnly] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchHits, setSearchHits] = useState<Array<{
+    seq: number;
+    type: string;
+    ts: number | null;
+    snippet: string;
+  }> | null>(null);
 
   useEffect(() => {
     void getSession(id).then((res) => {
@@ -480,6 +487,16 @@ export function SessionDetail() {
     setNextSeq(res.nextFromSeq);
     setPrevSeq(res.prevBeforeSeq);
     requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight }));
+  }
+
+  async function runSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const q = searchQ.trim();
+    if (q.length < 3) return;
+    const res = await fetch(`/api/sessions/${id}/search?q=${encodeURIComponent(q)}`);
+    if (res.ok) {
+      setSearchHits(((await res.json()) as { hits: typeof searchHits }).hits);
+    }
   }
 
   async function startTerminal() {
@@ -610,14 +627,55 @@ export function SessionDetail() {
             {t("显示已回退({n})", { n: supersededCount })}
           </Toggle>
         )}
+        <form onSubmit={(e) => void runSearch(e)} className="ml-auto flex items-center gap-1.5">
+          <input
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder={t("会话内搜索")}
+            className="w-36 rounded-lg border border-line bg-panel px-2.5 py-1 text-xs placeholder:text-muted sm:w-48"
+          />
+          {searchHits !== null && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQ("");
+                setSearchHits(null);
+              }}
+              className="rounded-lg border border-line px-2 py-1 text-xs text-muted hover:bg-hover"
+            >
+              {t("清除")}
+            </button>
+          )}
+        </form>
         <button
           type="button"
           onClick={() => void jumpToLatest()}
-          className="ml-auto rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+          className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
         >
           {t("跳到最新")}
         </button>
       </div>
+
+      {searchHits !== null && (
+        <div className="mt-2 rounded-2xl border border-line bg-panel p-3">
+          <div className="px-1 pb-1.5 text-xs text-muted">
+            {searchHits.length === 50
+              ? t("命中 {n} 条(仅显示前 50)", { n: searchHits.length })
+              : t("命中 {n} 条", { n: searchHits.length })}
+          </div>
+          {searchHits.map((hit) => (
+            <button
+              key={hit.seq}
+              type="button"
+              onClick={() => void jumpTo(hit.seq)}
+              className="block w-full truncate rounded px-1.5 py-1 text-left text-xs text-muted hover:bg-hover hover:text-ink"
+            >
+              <span className="mr-2 font-mono text-[10px] uppercase">{hit.type}</span>
+              {hit.snippet.replace(/\s+/g, " ")}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-2 flex flex-col gap-4 lg:flex-row">
         {outline.length > 0 && (

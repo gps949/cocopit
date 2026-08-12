@@ -210,15 +210,26 @@ export function registerUsageRoutes(router: Router, db: Database, claudeJsonPath
       const entry = resolveEntry(table, row.model);
       if (entry) {
         const tier = entry.tiers.default;
-        savedUsd += (row.cacheRead * (tier.input - tier.cacheRead)) / 1_000_000;
+        // Net saving: reads at the discounted price, minus the premium paid to
+        // create cache entries (writes cost 1.25×/2× the input price — that
+        // premium is the price of caching and must not be presented as free).
+        savedUsd +=
+          (row.cacheRead * (tier.input - tier.cacheRead) -
+            row.w5m * (tier.cacheWrite5m - tier.input) -
+            row.w1h * (tier.cacheWrite1h - tier.input)) /
+          1_000_000;
       }
     }
+    // A cache-write token is a token the cache did not serve — it was
+    // processed fresh (at a premium) and stored. Leaving writes out of the
+    // denominator overstated the rate (99.8% → 96.3% on this machine's data).
+    const contextTokens = cacheRead + input + w5m + w1h;
     return Response.json({
       inputTokens: input,
       cacheReadTokens: cacheRead,
       cacheWrite5mTokens: w5m,
       cacheWrite1hTokens: w1h,
-      hitRate: cacheRead + input > 0 ? cacheRead / (cacheRead + input) : 0,
+      hitRate: contextTokens > 0 ? cacheRead / contextTokens : 0,
       savedUsd,
     });
   });

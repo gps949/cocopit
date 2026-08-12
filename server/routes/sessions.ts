@@ -180,6 +180,26 @@ export function registerSessionRoutes(router: Router, db: Database): void {
     return Response.json({ turns, total: total.n });
   });
 
+  // In-session search: the FTS rows carry session_id + uuid, and joining back
+  // to messages yields the seq the UI already knows how to jump to.
+  router.register("GET", "/api/sessions/:id/search", (req, routeParams) => {
+    const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
+    if (q.length < 3) {
+      return Response.json({ error: "query must be at least 3 characters" }, { status: 400 });
+    }
+    const hits = db
+      .prepare(
+        `SELECT m.seq, m.type, m.ts,
+                snippet(fts_messages, 0, '', '', '…', 24) AS snippet
+         FROM fts_messages f
+         JOIN messages m ON m.session_id = f.session_id AND m.uuid = f.uuid
+         WHERE f.session_id = $id AND fts_messages MATCH $q
+         ORDER BY m.seq LIMIT 50`,
+      )
+      .all({ $id: routeParams.id!, $q: `"${q.replaceAll('"', '""')}"` });
+    return Response.json({ hits });
+  });
+
   /**
    * A subagent's own transcript. These live in separate files that the indexer
    * records for cost but never parses into the message table, so there are no
