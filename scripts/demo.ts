@@ -10,6 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DEMO_CLAUDE = "/tmp/cocopit-demo-claude";
+const DEMO_CODEX = "/tmp/cocopit-demo-codex";
 const DEMO_HOME = "/tmp/cocopit-demo-home";
 
 // deterministic pseudo-random: same demo every run
@@ -96,6 +97,7 @@ function dirNameOf(cwd: string): string {
 }
 
 rmSync(DEMO_CLAUDE, { recursive: true, force: true });
+rmSync(DEMO_CODEX, { recursive: true, force: true });
 rmSync(DEMO_HOME, { recursive: true, force: true });
 mkdirSync(DEMO_HOME, { recursive: true, mode: 0o700 });
 
@@ -200,6 +202,110 @@ writeFileSync(
   { mode: 0o600 },
 );
 
+// ---------------------------------------------------------------------------
+// Codex: rollout files under sessions/YYYY/MM/DD, quota embedded in
+// token_count events, login state in auth.json (a fake unsigned JWT — the
+// console decodes claims locally and never verifies signatures).
+// ---------------------------------------------------------------------------
+
+const CODEX_MODELS = ["gpt-5.3-codex", "gpt-5.2-codex"];
+const codexHistory: string[] = [];
+
+for (const project of PROJECTS.slice(0, 3)) {
+  for (let s = 0; s < between(5, 9); s++) {
+    const sessionId = `0199${(++uuidCounter).toString(16).padStart(4, "0")}-cafe-7000-8000-${(uuidCounter * 7)
+      .toString(16)
+      .padStart(12, "0")}`;
+    const daysAgo = between(0, 40);
+    const startMs = NOW - daysAgo * DAY - (NOW % DAY) + pick([9, 10, 14, 15, 16, 21]) * 3_600_000;
+    const day = new Date(startMs);
+    const dayDir = join(
+      DEMO_CODEX,
+      "sessions",
+      String(day.getUTCFullYear()),
+      String(day.getUTCMonth() + 1).padStart(2, "0"),
+      String(day.getUTCDate()).padStart(2, "0"),
+    );
+    mkdirSync(dayDir, { recursive: true });
+
+    let ts = startMs;
+    const iso = () => new Date(ts).toISOString();
+    const model = pick(CODEX_MODELS);
+    const lines: string[] = [
+      JSON.stringify({
+        timestamp: iso(),
+        type: "session_meta",
+        payload: { id: sessionId, timestamp: iso(), cwd: project.cwd, cli_version: "0.140.0", source: "cli" },
+      }),
+      JSON.stringify({ timestamp: iso(), type: "turn_context", payload: { cwd: project.cwd, model } }),
+    ];
+    for (let turn = 0; turn < between(2, 6); turn++) {
+      const prompt = pick(project.prompts);
+      lines.push(
+        JSON.stringify({
+          timestamp: iso(),
+          type: "response_item",
+          payload: { type: "message", role: "user", content: [{ type: "input_text", text: prompt }] },
+        }),
+      );
+      codexHistory.push(JSON.stringify({ session_id: sessionId, ts: Math.floor(ts / 1000), text: prompt }));
+      ts += between(30_000, 200_000);
+      lines.push(
+        JSON.stringify({
+          timestamp: iso(),
+          type: "response_item",
+          payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: pick(REPLIES) }] },
+        }),
+        JSON.stringify({
+          timestamp: iso(),
+          type: "event_msg",
+          payload: {
+            type: "token_count",
+            info: {
+              last_token_usage: {
+                input_tokens: between(8_000, 90_000),
+                cached_input_tokens: between(4_000, 60_000),
+                output_tokens: between(300, 3_000),
+              },
+            },
+            rate_limits: {
+              primary: {
+                used_percent: 37,
+                window_minutes: 10080,
+                resets_at: Math.floor((NOW + 4 * DAY) / 1000),
+              },
+              secondary: null,
+            },
+          },
+        }),
+      );
+      ts += between(60_000, 500_000);
+    }
+    writeFileSync(join(dayDir, `rollout-2026-demo-${sessionId}.jsonl`), lines.join("\n") + "\n");
+  }
+}
+writeFileSync(join(DEMO_CODEX, "history.jsonl"), codexHistory.join("\n") + "\n");
+
+// a fake unsigned JWT: header.payload.signature, claims decoded locally only
+const b64 = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString("base64url");
+writeFileSync(
+  join(DEMO_CODEX, "auth.json"),
+  JSON.stringify({
+    auth_mode: "chatgpt",
+    tokens: {
+      id_token: `${b64({ alg: "none" })}.${b64({
+        email: "coco@example.com",
+        name: "Coco",
+        "https://api.openai.com/auth": {
+          chatgpt_plan_type: "pro",
+          chatgpt_subscription_active_start: "2026-05-01T00:00:00Z",
+        },
+      })}.demo`,
+    },
+  }),
+  { mode: 0o600 },
+);
+
 // the default profile points at the demo dir, so nothing resolves to ~/.claude
 writeFileSync(
   join(DEMO_HOME, "profiles.json"),
@@ -212,7 +318,11 @@ writeFileSync(
 );
 writeFileSync(
   join(DEMO_HOME, "config.json"),
-  JSON.stringify({ port: 7897, host: "127.0.0.1", claudeDir: DEMO_CLAUDE, allowedOrigins: [] }, null, 2) + "\n",
+  JSON.stringify(
+    { port: 7897, host: "127.0.0.1", claudeDir: DEMO_CLAUDE, codexDir: DEMO_CODEX, allowedOrigins: [] },
+    null,
+    2,
+  ) + "\n",
 );
 
 console.log(`demo data written:
@@ -223,4 +333,4 @@ run the demo instance:
   COCOPIT_HOME=${DEMO_HOME} bun bin/cocopit.ts
 
 clean up:
-  rm -rf ${DEMO_CLAUDE} ${DEMO_HOME}`);
+  rm -rf ${DEMO_CLAUDE} ${DEMO_CODEX} ${DEMO_HOME}`);

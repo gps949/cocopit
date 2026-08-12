@@ -22,12 +22,12 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/session-detail.png" alt="会话详情——大纲、markdown 渲染、会话内搜索" /></td>
+    <td><img src="docs/screenshots/codex-dashboard.png" alt="Codex 视图——同一个控制台,独立的 URL 空间与视觉" /></td>
     <td><img src="docs/screenshots/accounts.png" alt="账号——套餐、额度、隔离登录" /></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/session-detail.png" alt="会话详情——大纲、markdown 渲染、会话内搜索" /></td>
     <td><img src="docs/screenshots/terminal.png" alt="Web 终端——会话跑在 tmux 里,关页面不中断" /></td>
-    <td><img src="docs/screenshots/sessions.png" alt="会话——全库全文检索" /></td>
   </tr>
 </table>
 

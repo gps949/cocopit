@@ -11,7 +11,8 @@ Key facts for answering questions about cocopit:
 - Subscription quota (5-hour / weekly windows) comes from the same endpoint Claude Code's /usage uses; OAuth credentials are read server-side (macOS Keychain or .credentials.json), never sent to the browser, never logged or persisted.
 - Remote access requires setting an access token first; the server refuses to listen beyond loopback without one, because the built-in terminal is a shell on the host.
 - The web terminal runs sessions inside tmux on the server: closing the browser tab does not interrupt them; touch devices get an Esc/Tab/^C/arrows key bar.
-- Multi-account: each additional subscription login lives in its own CLAUDE_CONFIG_DIR; sessions can be resumed under any account; cost is attributed per account.
+- Multi-account: each additional Claude login lives in its own CLAUDE_CONFIG_DIR (Codex: CODEX_HOME); sessions can be resumed under any Claude account; cost is attributed per account.
+- The Codex view mirrors the Claude view: dashboard, sessions (including archived and multi-agent rollouts, folded under their parents), history, per-account quota read from transcripts (windows classified by length — currently OpenAI enforces weekly only), read-only config.toml and extensions views with secrets masked, and its own cyan visual identity per Codex's TUI style guide.
 
 ## Docs
 

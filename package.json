@@ -1,7 +1,7 @@
 {
   "name": "cocopit",
   "version": "0.3.0",
-  "description": "A local-first web console for Claude Code — usage & cost analytics, session browsing, multi-account management, config editing, and a built-in web terminal.",
+  "description": "A local-first web console for Claude Code and OpenAI Codex CLI — usage & cost analytics, session browsing, multi-account management, quota, config views, and a built-in web terminal.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,9 @@
     "claude-code",
     "claude",
     "anthropic",
+    "codex",
+    "codex-cli",
+    "openai",
     "dashboard",
     "console",
     "usage",
